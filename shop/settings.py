@@ -255,7 +255,6 @@ if not SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     }
 
 elif SESSION_ENVIRONMENT_PRODUCTION:
-    MIDDLEWARE.insert(9, "active_users.middleware.ActiveUsersSessionMiddleware")
     LOGGING["loggers"]["django"]["handlers"].append("mail_admins")
 
 if SESSION_ENVIRONMENT_PRODUCTION:
