@@ -189,6 +189,10 @@ MIDDLEWARE = [
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
 ]
 
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
 
 LOGGING = {
     "version": 1,
