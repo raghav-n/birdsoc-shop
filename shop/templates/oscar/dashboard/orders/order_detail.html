@@ -1,0 +1,78 @@
+{% extends "oscar/dashboard/orders/order_detail.html" %}
+{% load i18n %}
+{% load currency_filters %}
+{% load image_tags %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block tab_payment %}
+
+    {% if order.billing_address %}
+        <div class="sub-header">
+            <h3 >{% trans "Billing address" %}</h3>
+        </div>
+        <p>
+            {% for field in order.billing_address.active_address_fields %}
+                {{ field }}<br/>
+            {% endfor %}
+        </p>
+    {% endif %}
+
+    {% with sources=order.sources.all %}
+        <div class="table-header">
+            <h3 >{% trans "Payment sources" %}</h3>
+        </div>
+        {% if sources %}
+            <table class="table table-striped table-bordered table-hover">
+                <thead>
+                <tr>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Allocation" %}</th>
+                    <th>{% trans "Amount debited" %}</th>
+                    <th>{% trans "Amount refunded" %}</th>
+                    <th>{% trans "Reference/Proof" %}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for source in sources %}
+                    <tr>
+                        <td>{{ source.source_type }}</td>
+                        <td>{{ source.amount_allocated|currency:order.currency }}</td>
+                        <td>{{ source.amount_debited|currency:order.currency }}</td>
+                        <td>{{ source.amount_refunded|currency:order.currency }}</td>
+                        <td>
+                            {{ source.reference|default:"-" }}
+
+                            <div class="d-block" style="max-width: 50vw;">
+                                {% if source.payment_proof %}
+                                    <a href="{{ source.payment_proof.url }}" target="_blank">
+                                        <img src="{{ source.payment_proof.url }}" alt="Payment proof" class="w-100">
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <table class="table table-striped table-bordered table-hover">
+                <tr><td>{% trans "No payment sources found for this order." %}</td></tr>
+            </table>
+        {% endif %}
+    {% endwith %}
+
+    {% block payment_transactions %}
+        {{ block.super }}
+    {% endblock %}
+
+{% endblock %}
+
+{% block extrascripts %}
+    <script src="{% static "dashboard/js/order_detail.js" %}"></script>
+{% endblock %}

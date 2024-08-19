@@ -1,0 +1,173 @@
+{% extends "oscar/checkout/checkout.html" %}
+{% load currency_filters %}
+{% load i18n %}
+{% load image_tags %}
+{% load purchase_info_tags %}
+{% load static %}
+
+{% block title %}
+    {% trans "Payment details" %} | {{ block.super }}
+{% endblock %}
+
+{% block checkout_nav %}
+    {% include 'oscar/checkout/nav.html' with step=3 %}
+{% endblock %}
+
+{% block checkout_title %}{% trans "Making payment" %}{% endblock %}
+
+{% block content %}
+
+    {#{% block shipping_address %}{% endblock %}#}
+    {#{% block shipping_method %}{% endblock %}#}
+    {#{% block payment_method %}{% endblock %}#}
+
+    <div class="row mb-4">
+        <div class="col-md">
+            <p>{% trans "For now, we only accept payment via PayNow – either via QR code or UEN number." %}</p>
+            <p>
+                {% trans "BirdSoc SG's UEN number is <strong>T23SS0038A</strong>." %}
+            </p>
+            <p>
+                {% trans "Your order total is shown below. <strong>Please make payment before clicking 'continue'.</strong>" %}
+            </p>
+
+            <div class="card border-0">
+                <div class="card-body payment-form">
+                    <p class="text-dark h5 mb-3">
+                        <strong>Please enter the reference number below when making your payment, so that your payment can be easily traced.</strong>
+                    </p>
+                    <ul class="errorlist">
+                      {% if form.non_field_errors %}
+                        <li>{{ form.non_field_errors }}</li>
+                      {% endif %}
+                      {% for field in form %}
+                        {% if field.errors %}
+                          <li>
+                            {{ field.label }}
+                            <ul class="errorlist">
+                              {% for error in field.errors %}
+                                <li>{{ error }}</li>
+                              {% endfor %}
+                            </ul>
+                          </li>
+                        {% endif %}
+                      {% endfor %}
+                    </ul>
+                    <form action="{% url 'checkout:payment-details' %}" method="post"  enctype="multipart/form-data" id="payment_details">
+                        {% csrf_token %}
+                        {% include "oscar/partials/form_fields.html" with form=paynow_form style='horizontal' %}
+                        <button type="submit" class="btn btn-lg btn-primary" data-loading-text="{% trans 'Submitting...' %}">{% trans "Submit" %}</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+        <div class="col-md-auto text-right-md">
+
+            <canvas id="paynowQRCanvas">
+            </canvas>
+        </div>
+    </div>
+
+    {#            FORM GOES HERE: REFERENCE NUMBER, SCREENSHOT #}
+
+
+
+    <hr>
+
+    {% block order_contents %}
+
+            <div class="sub-header">
+                {% block order_contents_actions %}
+                    <a href="{% url 'basket:summary' %}" class="float-right">
+                        {% trans "Edit order contents" %}
+                    </a>
+                {% endblock %}
+
+                <h2>{% trans "Order contents" %}</h2>
+            </div>
+
+            <div class="basket-title">
+                <div class="row">
+                    <p class="col-sm-7 h4">{% trans "Item" %}</p>
+                    <p class="col-sm-2 h4">{% trans "Quantity" %}</p>
+                    <p class="col-sm-3 h4 text-right">{% trans "Total" %}</p>
+                </div>
+            </div>
+            {% for line in basket.all_lines %}
+                {% purchase_info_for_line request line as session %}
+                <div class="basket-items">
+                    <div class="row">
+                        <div class="col-sm-2">
+                            <div class="image_container w-100 text-left">
+                                {% with image=line.product.primary_image %}
+                                    {% oscar_thumbnail image.original "100x100" upscale=False as thumb %}
+                                    <a href="{{ form.instance.product.get_absolute_url }}">
+                                        <img src="{{ thumb.url }}" alt="{{ product.get_title }}" class="img-thumbnail w-auto mx-auto my-0">
+                                    </a>
+                                {% endwith %}
+                            </div>
+                        </div>
+                        <div class="col-sm-5">
+                            <h3><a href="{{ line.product.get_absolute_url }}">{{ line.description }}</a></h3>
+    {#                        <span class="availability {{ session.availability.code }}">{{ session.availability.message }}</span>#}
+                        </div>
+                        <div class="col-sm-2">
+                            {{ line.quantity }}
+                        </div>
+                        <div class="col-sm-3 text-right">
+                            <p class="price_color">
+                                {% if not show_tax_separately and line.is_tax_known %}
+                                    {{ line.line_price_incl_tax|currency:basket.currency }}
+                                {% else %}
+                                    {{ line.line_price_excl_tax|currency:basket.currency }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            <div class="row">
+                <div class="col-sm-6">&nbsp;</div>
+                <div class="col-sm-6">
+                    <div class="sub-header">
+                        <h2>{% trans 'Totals' %}</h2>
+                    </div>
+                    {% include 'oscar/basket/partials/basket_totals.html' %}
+                </div>
+            </div>
+    {% endblock %}
+
+{% endblock content %}
+
+{% block extrascripts %}
+    <script src="https://unpkg.com/paynowqr@latest/dist/paynowqr.min.js"></script>
+    <script src="{% static "js/qrcode-with-logos.min.js" %}"></script>
+    <script>
+        let QRstring = new PaynowQR({
+            uen:'T23SS0038A',
+            amount : {{ basket.total_incl_tax }},
+            editable: false,
+            //expiry: '20201231',
+            refNumber: "{{ reference_id }}",
+          }).output();
+
+          let qrcode = new QrCodeWithLogo({
+              canvas: document.getElementById("paynowQRCanvas"),
+              content: QRstring,
+              width: 300,
+              logo: {
+                src: "{% static "img/paynow-logo.png" %}",
+                  borderWidth: 1,
+              },
+              nodeQrCodeOptions: {
+                  color: {
+                      dark: "#731B6C",
+                      light: "#ffffff",
+                  },
+                  errorCorrectionLevel: "H"
+              }
+            });
+
+    </script>
+{% endblock %}

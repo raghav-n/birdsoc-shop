@@ -1,0 +1,13 @@
+{% extends "oscar/communication/email/email_detail.html" %}
+
+{% load i18n %}
+
+{% block extra_breadcrumbs %}
+    <li class="breadcrumb-item">
+        <a href="{% url 'customer:email-list' %}">{% trans 'Email history' %}</a>
+    </li>
+{% endblock %}
+
+{% block tabcontent %}
+    <p>{% trans 'Email history is not available' %}</p>
+{% endblock tabcontent %}

@@ -1,0 +1,39 @@
+{% extends 'oscar/catalogue/detail.html' %}
+
+{% load history_tags %}
+{% load currency_filters %}
+{% load reviews_tags %}
+{% load product_tags %}
+{% load display_tags %}
+{% load i18n %}
+{% load purchase_info_tags %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ homepage_url }}">{% trans "Home" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url "catalogue:index" %} ">{% trans "All products" %}</a></li>
+            {% with category=product.get_categories.first %}
+{#                {% for c in category.get_ancestors_and_self %}#}
+{#                    <li class="breadcrumb-item"><a href="{{ c.get_absolute_url }}">{{ c.name }}</a></li>#}
+{#                {% endfor %}#}
+                <li class="breadcrumb-item active" aria-current="page">{{ product.get_title }}</li>
+
+                {% get_back_button as backbutton %}
+                    {% if backbutton %}
+                        <li class="ml-auto">
+                            <a href="{{ backbutton.url }}">
+                                <i class="fas fa-arrow-left"></i> {{ backbutton.title }}
+                            </a>
+                        </li>
+                    {% endif %}
+            {% endwith %}
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block product_stock_record %}
+    {% include "oscar/catalogue/partials/stock_record.html" with verbose=0 %}
+{% endblock %}
+
+{% block product_info %}{% endblock %}
