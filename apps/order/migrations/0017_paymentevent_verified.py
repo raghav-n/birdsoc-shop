@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('order', '0016_order_collection_date_order_collection_location'),
+        ("order", "0016_order_collection_date_order_collection_location"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paymentevent',
-            name='verified',
+            model_name="paymentevent",
+            name="verified",
             field=models.BooleanField(default=False),
         ),
     ]

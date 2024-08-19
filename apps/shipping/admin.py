@@ -1,1 +1,1 @@
-from oscar.apps.shipping.admin import *  
+from oscar.apps.shipping.admin import *

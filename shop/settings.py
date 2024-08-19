@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
+
 import os
 import sys
 from pathlib import Path
@@ -23,6 +24,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 PROJECT_DIR = Path(__file__).resolve().parent.parent
+
 
 def traces_sampler(sampling_context):
     """Sets sampling rate for Sentry logging"""
@@ -43,6 +45,7 @@ def before_send(event, hint):
         if isinstance(exc_value, (DisallowedHost,)):
             return None
     return event
+
 
 en_formats.DATE_FORMAT = "d M Y"
 
@@ -95,61 +98,52 @@ if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
 
 INSTALLED_APPS = [
     "maintenance_mode",
-
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-
-    'django.contrib.sites',
-    'django.contrib.flatpages',
-
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.sites",
+    "django.contrib.flatpages",
     "anymail",
-
-    'oscar.config.Shop',
-
-    'apps.order.apps.OrderConfig',
-    'apps.shipping.apps.ShippingConfig',
-    'apps.catalogue.apps.CatalogueConfig',
-    'apps.checkout.apps.CheckoutConfig',
-    'apps.customer.apps.CustomerConfig',
-    'apps.payment.apps.PaymentConfig',
-    'apps.util.apps.UtilConfig',  # added
-
-    'oscar.apps.dashboard.orders.apps.OrdersDashboardConfig',
-
-    'oscar.apps.analytics.apps.AnalyticsConfig',
-    'oscar.apps.address.apps.AddressConfig',
-    'oscar.apps.catalogue.reviews.apps.CatalogueReviewsConfig',
-    'oscar.apps.communication.apps.CommunicationConfig',
-    'oscar.apps.partner.apps.PartnerConfig',
-    'oscar.apps.basket.apps.BasketConfig',
-    'oscar.apps.offer.apps.OfferConfig',
-
-    'oscar.apps.search.apps.SearchConfig',
-    'oscar.apps.voucher.apps.VoucherConfig',
-    'oscar.apps.wishlists.apps.WishlistsConfig',
-    'oscar.apps.dashboard.apps.DashboardConfig',
-    'oscar.apps.dashboard.reports.apps.ReportsDashboardConfig',
-    'oscar.apps.dashboard.users.apps.UsersDashboardConfig',
-    'oscar.apps.dashboard.catalogue.apps.CatalogueDashboardConfig',
-    'oscar.apps.dashboard.offers.apps.OffersDashboardConfig',
-    'oscar.apps.dashboard.partners.apps.PartnersDashboardConfig',
-    'oscar.apps.dashboard.pages.apps.PagesDashboardConfig',
-    'oscar.apps.dashboard.ranges.apps.RangesDashboardConfig',
-    'oscar.apps.dashboard.reviews.apps.ReviewsDashboardConfig',
-    'oscar.apps.dashboard.vouchers.apps.VouchersDashboardConfig',
-    'oscar.apps.dashboard.communications.apps.CommunicationsDashboardConfig',
-    'oscar.apps.dashboard.shipping.apps.ShippingDashboardConfig',
-
+    "oscar.config.Shop",
+    "apps.order.apps.OrderConfig",
+    "apps.shipping.apps.ShippingConfig",
+    "apps.catalogue.apps.CatalogueConfig",
+    "apps.checkout.apps.CheckoutConfig",
+    "apps.customer.apps.CustomerConfig",
+    "apps.payment.apps.PaymentConfig",
+    "apps.util.apps.UtilConfig",  # added
+    "oscar.apps.dashboard.orders.apps.OrdersDashboardConfig",
+    "oscar.apps.analytics.apps.AnalyticsConfig",
+    "oscar.apps.address.apps.AddressConfig",
+    "oscar.apps.catalogue.reviews.apps.CatalogueReviewsConfig",
+    "oscar.apps.communication.apps.CommunicationConfig",
+    "oscar.apps.partner.apps.PartnerConfig",
+    "oscar.apps.basket.apps.BasketConfig",
+    "oscar.apps.offer.apps.OfferConfig",
+    "oscar.apps.search.apps.SearchConfig",
+    "oscar.apps.voucher.apps.VoucherConfig",
+    "oscar.apps.wishlists.apps.WishlistsConfig",
+    "oscar.apps.dashboard.apps.DashboardConfig",
+    "oscar.apps.dashboard.reports.apps.ReportsDashboardConfig",
+    "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
+    "oscar.apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
+    "oscar.apps.dashboard.offers.apps.OffersDashboardConfig",
+    "oscar.apps.dashboard.partners.apps.PartnersDashboardConfig",
+    "oscar.apps.dashboard.pages.apps.PagesDashboardConfig",
+    "oscar.apps.dashboard.ranges.apps.RangesDashboardConfig",
+    "oscar.apps.dashboard.reviews.apps.ReviewsDashboardConfig",
+    "oscar.apps.dashboard.vouchers.apps.VouchersDashboardConfig",
+    "oscar.apps.dashboard.communications.apps.CommunicationsDashboardConfig",
+    "oscar.apps.dashboard.shipping.apps.ShippingDashboardConfig",
     # 3rd-party apps that oscar depends on
-    'widget_tweaks',
-    'haystack',
-    'treebeard',
-    'sorl.thumbnail',   # Default thumbnail backend, can be replaced
-    'django_tables2',
+    "widget_tweaks",
+    "haystack",
+    "treebeard",
+    "sorl.thumbnail",  # Default thumbnail backend, can be replaced
+    "django_tables2",
 ]
 
 FILE_UPLOAD_PERMISSIONS = 0o666
@@ -157,13 +151,15 @@ FILE_UPLOAD_PERMISSIONS = 0o666
 ANYMAIL = {
     # (exact settings here depend on your ESP...)
     "MAILERSEND_API_TOKEN": MAILERSEND_KEY,
-    "MAILERSEND_SENDER_DOMAIN": 'birdsociety.sg',  # your MailerSend domain, if needed
+    "MAILERSEND_SENDER_DOMAIN": "birdsociety.sg",  # your MailerSend domain, if needed
 }
 
 EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
 DEFAULT_FROM_EMAIL = "shop@birdsociety.sg"  # if you don't already have this in settings
 OSCAR_FROM_EMAIL = DEFAULT_FROM_EMAIL
-SERVER_EMAIL = "shop-server@birdsociety.sg"  # ditto (default from-email for Django errors)
+SERVER_EMAIL = (
+    "shop-server@birdsociety.sg"  # ditto (default from-email for Django errors)
+)
 
 SITE_ID = 1
 
@@ -181,16 +177,16 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "maintenance_mode.middleware.MaintenanceModeMiddleware",
-    'oscar.apps.basket.middleware.BasketMiddleware',
-    'django.contrib.flatpages.middleware.FlatpageFallbackMiddleware',
+    "oscar.apps.basket.middleware.BasketMiddleware",
+    "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
 ]
 
 
@@ -280,11 +276,11 @@ else:
         },
     }
 
-OSCAR_HIDDEN_FEATURES = ['reviews', "wishlists", "offers"]
+OSCAR_HIDDEN_FEATURES = ["reviews", "wishlists", "offers"]
 
 AUTHENTICATION_BACKENDS = (
-    'oscar.apps.customer.auth_backends.EmailBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    "oscar.apps.customer.auth_backends.EmailBackend",
+    "django.contrib.auth.backends.ModelBackend",
 )
 
 ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
@@ -292,27 +288,27 @@ ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
 ADMIN_EMAILS = [i[1] for i in ADMINS]
 
 HAYSTACK_CONNECTIONS = {
-    'default': {
-        'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
+    "default": {
+        "ENGINE": "haystack.backends.simple_backend.SimpleEngine",
     },
 }
 
-ROOT_URLCONF = 'shop.urls'
+ROOT_URLCONF = "shop.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [os.path.join(PROJECT_DIR, "shop/templates")],
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'oscar.apps.search.context_processors.search_form',
-                'oscar.apps.checkout.context_processors.checkout',
-                'oscar.apps.communication.notifications.context_processors.notifications',
-                'oscar.core.context_processors.metadata',
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "oscar.apps.search.context_processors.search_form",
+                "oscar.apps.checkout.context_processors.checkout",
+                "oscar.apps.communication.notifications.context_processors.notifications",
+                "oscar.core.context_processors.metadata",
             ],
             "loaders": [
                 (
@@ -328,7 +324,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'shop.wsgi.application'
+WSGI_APPLICATION = "shop.wsgi.application"
 
 
 # Database
@@ -340,16 +336,16 @@ WSGI_APPLICATION = 'shop.wsgi.application'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -358,15 +354,15 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
     "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
-    "django.contrib.auth.hashers.ScryptPasswordHasher"
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
 ]
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'Asia/Singapore'
+TIME_ZONE = "Asia/Singapore"
 
 USE_I18N = True
 
@@ -403,14 +399,14 @@ STATIC_URL = "static/"
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 MEDIA_ROOT = os.path.join(PROJECT_DIR, "media/")
 MEDIA_URL = "media/"
 
 OSCAR_CURRENCY_FORMAT = {
-    'SGD': {
-        'format': '$#,##0.00',
+    "SGD": {
+        "format": "$#,##0.00",
     }
 }
 
@@ -422,14 +418,20 @@ BASE_ORDER_NUMBER = 128967
 CONTACT_US_URL = "https://birdsociety.sg/contact-us/"
 
 PAYMENT_CONFIRMED_STATUS = "Payment confirmed"
-CANCELLED_STATUS = 'Cancelled'
-COLLECTED_STATUS = 'Collected'
-SHIPPED_STATUS = 'Shipped'
+CANCELLED_STATUS = "Cancelled"
+COLLECTED_STATUS = "Collected"
+SHIPPED_STATUS = "Shipped"
 
-OSCAR_INITIAL_ORDER_STATUS = 'Pending'
-OSCAR_INITIAL_LINE_STATUS = 'Pending'
+OSCAR_INITIAL_ORDER_STATUS = "Pending"
+OSCAR_INITIAL_LINE_STATUS = "Pending"
 OSCAR_ORDER_STATUS_PIPELINE = {
-    'Pending': (PAYMENT_CONFIRMED_STATUS, CANCELLED_STATUS,),
-    'Payment confirmed': (COLLECTED_STATUS, CANCELLED_STATUS,),
-    'Cancelled': (),
+    "Pending": (
+        PAYMENT_CONFIRMED_STATUS,
+        CANCELLED_STATUS,
+    ),
+    "Payment confirmed": (
+        COLLECTED_STATUS,
+        CANCELLED_STATUS,
+    ),
+    "Cancelled": (),
 }

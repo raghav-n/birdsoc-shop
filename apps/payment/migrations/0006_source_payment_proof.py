@@ -7,13 +7,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment', '0005_auto_20200801_0817'),
+        ("payment", "0005_auto_20200801_0817"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='source',
-            name='payment_proof',
-            field=models.ImageField(null=True, upload_to=apps.payment.models.get_payment_proof_path),
+            model_name="source",
+            name="payment_proof",
+            field=models.ImageField(
+                null=True, upload_to=apps.payment.models.get_payment_proof_path
+            ),
         ),
     ]

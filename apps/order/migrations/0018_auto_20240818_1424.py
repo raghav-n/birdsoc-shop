@@ -2,6 +2,7 @@
 
 from django.db import migrations
 
+
 def create_payment_event_types(apps, schema_editor):
     # We get the model from the versioned app registry;
     # if we directly import it, it'll be the wrong version
@@ -18,7 +19,7 @@ def create_payment_event_types(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('order', '0017_paymentevent_verified'),
+        ("order", "0017_paymentevent_verified"),
     ]
 
     operations = [

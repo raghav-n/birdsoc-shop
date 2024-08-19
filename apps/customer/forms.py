@@ -12,16 +12,21 @@ class EmailUserCreationForm(CoreEmailUserCreationForm):
 
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', )
+        fields = (
+            "email",
+            "first_name",
+            "last_name",
+        )
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_password(self.cleaned_data['password1'])
+        user.set_password(self.cleaned_data["password1"])
 
         if commit:
             user.save()
 
         return user
+
 
 class ProfileForm(CoreProfileForm):
     first_name = forms.CharField(required=True)

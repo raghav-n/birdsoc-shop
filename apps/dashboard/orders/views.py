@@ -8,6 +8,7 @@ from oscar.core.loading import get_model
 
 OrderNote = get_model("order", "OrderNote")
 
+
 class OrderDetailView(CoreOrderDetailView):
     def change_order_status(self, request, order):
         form = self.get_order_status_form()
@@ -21,7 +22,9 @@ class OrderDetailView(CoreOrderDetailView):
             "Order status changed from '%(old_status)s' to '%(new_status)s'"
         ) % {"old_status": old_status, "new_status": new_status}
         try:
-            handler.handle_order_status_change(order, new_status, note_msg=success_msg, user=request.user)
+            handler.handle_order_status_change(
+                order, new_status, note_msg=success_msg, user=request.user
+            )
         except PaymentError as e:
             messages.error(
                 request,
@@ -40,6 +43,7 @@ class OrderDetailView(CoreOrderDetailView):
         else:
             messages.info(request, success_msg)
         return self.reload_page()
+
 
 class OrderListView(CoreOrderListView):
     def change_order_status(self, request, order):

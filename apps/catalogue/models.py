@@ -1,1 +1,1 @@
-from oscar.apps.catalogue.models import * 
+from oscar.apps.catalogue.models import *

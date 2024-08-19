@@ -1,1 +1,1 @@
-from oscar.apps.payment.admin import *  
+from oscar.apps.payment.admin import *

@@ -6,10 +6,12 @@ register = template.Library()
 
 Repository = get_class("shipping.repository", "Repository")
 
+
 # settings value
 @register.filter
 def settings_value(value):
     return getattr(settings, value, "")
+
 
 @register.filter
 def shipping_method_description(shipping_method):

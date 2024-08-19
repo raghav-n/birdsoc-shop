@@ -6,9 +6,10 @@ from oscar.core.loading import get_class
 
 Repository = get_class("shipping.repository", "Repository")
 
+
 class Order(AbstractOrder):
     collection_location = models.CharField(max_length=255, null=True, blank=True)
-    collection_date = models.DateField( null=True, blank=True)
+    collection_date = models.DateField(null=True, blank=True)
 
     def get_shipping_method(self):
         """
@@ -21,5 +22,6 @@ class Order(AbstractOrder):
         for method in methods:
             if method.name == self.shipping_method:
                 return method
+
 
 from oscar.apps.order.models import *

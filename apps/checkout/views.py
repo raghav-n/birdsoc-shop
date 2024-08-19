@@ -26,8 +26,13 @@ else:
         "check_shipping_data_is_captured",
     ]
 
+
 class ShippingAddressView(CoreShippingAddressView):
-    skip_conditions = ["skip_unless_basket_requires_shipping", "skip_if_global_self_collection"]
+    skip_conditions = [
+        "skip_unless_basket_requires_shipping",
+        "skip_if_global_self_collection",
+    ]
+
 
 class ShippingMethodView(CoreShippingMethodView):
     def get(self, request, *args, **kwargs):
@@ -36,8 +41,10 @@ class ShippingMethodView(CoreShippingMethodView):
             return self.get_success_response()
         super().get(request, *args, **kwargs)
 
+
 class PaymentMethodView(CorePaymentMethodView):
     pre_conditions = PAYMENT_VIEW_PRECONDITIONS
+
 
 class PaymentDetailsView(CorePaymentDetailsView):
     pre_conditions = PAYMENT_VIEW_PRECONDITIONS
@@ -46,17 +53,23 @@ class PaymentDetailsView(CorePaymentDetailsView):
     def post(self, request, *args, **kwargs):
         if settings.GLOBAL_PAYNOW_REQUIRED:
             # enable post request from non-preview (because there's no preview)
-            form = PayNowDetailsForm(request.POST, request.FILES, basket_id=request.basket.id)
+            form = PayNowDetailsForm(
+                request.POST, request.FILES, basket_id=request.basket.id
+            )
             if form.is_valid():
                 order_payment_source = form.save(commit=False)
-                source_type, _created = SourceType.objects.get_or_create(
-                    name="PayNow"
-                )
+                source_type, _created = SourceType.objects.get_or_create(name="PayNow")
                 order_payment_source.amount_allocated = request.basket.total_incl_tax
                 order_payment_source.source_type = source_type
-                self.checkout_session.set_order_paynow_payment_id(order_payment_source.id)
+                self.checkout_session.set_order_paynow_payment_id(
+                    order_payment_source.id
+                )
                 self.add_payment_source(order_payment_source)
-                self.add_payment_event('paynow-processing', request.basket.total_incl_tax, reference=order_payment_source.reference)
+                self.add_payment_event(
+                    "paynow-processing",
+                    request.basket.total_incl_tax,
+                    reference=order_payment_source.reference,
+                )
 
                 return self.handle_place_order_submission(request)
             else:
@@ -83,6 +96,7 @@ class PaymentDetailsView(CorePaymentDetailsView):
                 return self.handle_place_order_submission(request)
 
         return super().get(request, *args, **kwargs)
+
 
 class ThankYouView(CoreThankYouView):
     def get_context_data(self, *args, **kwargs):
