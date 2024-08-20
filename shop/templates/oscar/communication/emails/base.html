@@ -281,14 +281,6 @@
                                             <td class="content-block">
                                                 <p>{% trans "Thanks for using our site!" %}</p>
                                                 <p>{% blocktrans with name=site.name %}The {{ name }} team{% endblocktrans %}</p>
-                                                <p><strong>
-                                                    <em>{% trans "This email is sent from an unmonitored account. You can contact us via " %}</em>
-                                                    <em>
-                                                        {% blocktrans with contact="CONTACT_US_URL"|settings_value %}
-                                                            <a href="{{ contact }}">this link.</a>
-                                                        {% endblocktrans %}
-                                                    </em>
-                                                </strong></p>
                                             </td>
                                         </tr>
                                     {% endblock %}
