@@ -8,25 +8,39 @@
             {% block nav %}
                 <ul class="navbar-nav mr-auto">
                     {% block nav_items %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                {% block browse_store_text %}{% trans "Browse store" %}{% endblock %}
-                            </a>
-                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                                {% category_tree depth=1 as tree_categories %}
-                                <a class="dropdown-item" href="{% url 'catalogue:index' %}">{% trans "All products" %}</a>
+                        {% with url_name=request.resolver_match.url_name app_name=request.resolver_match.app_name  %}
+{#                        <li class="nav-item">#}
+{#                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">#}
+{#                                {% block browse_store_text %}{% trans "Browse store" %}{% endblock %}#}
+{#                            </a>#}
+{#                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">#}
+{#                                {% category_tree depth=1 as tree_categories %}#}
+{#                                <a class="dropdown-item" href="{% url 'catalogue:index' %}">{% trans "All products" %}</a>#}
 {#                                {% if tree_categories %}#}
 {#                                    <div class="dropdown-divider"></div>#}
 {#                                    {% for tree_category in tree_categories %}#}
 {#                                        <a class="dropdown-item" href="{{ tree_category.get_absolute_url }}">{{ tree_category.name }}</a>#}
 {#                                    {% endfor %}#}
 {#                                {% endif %}#}
-                                <div class="dropdown-divider"></div>
-                                {% block nav_dropdown_extra_items %}
-                                    <a class="dropdown-item" href="{% url 'offer:list' %}">{% trans "Offers" %}</a>
-                                {% endblock %}
-                            </div>
-                        </li>
+{#                                <div class="dropdown-divider"></div>#}
+{#                                {% block nav_dropdown_extra_items %}#}
+{#                                    <a class="dropdown-item" href="{% url 'offer:list' %}">{% trans "Offers" %}</a>#}
+{#                                {% endblock %}#}
+{#                            </div>#}
+                            <a
+                                    class="nav-link font-weight-bold {% if app_name == "catalogue" and url_name == "index" %}active{% endif %}"
+                                    href="{% url 'catalogue:index' %}">
+                                {% trans "All products" %}
+                            </a>
+                            {% block nav_dropdown_extra_items %}
+                                <a
+                                        class="nav-link font-weight-bold {% if app_name == "offer" and url_name == "list" %}active{% endif %}"
+                                        href="{% url 'offer:list' %}">
+                                    {% trans "Offers" %}
+                                </a>
+                            {% endblock %}
+                        {% endwith %}
+{#                        </li>#}
                    {% endblock %}
                </ul>
             {% endblock %}

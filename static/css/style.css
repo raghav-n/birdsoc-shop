@@ -471,3 +471,15 @@ div.payment-form {
 .product_pod h3 {
     font-size: 1.25rem;
 }
+
+body, li.menu-item {
+	font-size: 90%;
+}
+
+.fs-09 {
+    font-size: 0.9rem;
+}
+
+.fs-08 {
+    font-size: 0.8rem;
+}
