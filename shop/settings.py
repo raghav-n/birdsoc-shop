@@ -85,7 +85,7 @@ if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     from sentry_sdk.integrations.redis import RedisIntegration
 
     sentry_sdk.init(
-        dsn="https://4b93b14e81bc4b4ebdbfa79be9ac9e78@o1066695.ingest.sentry.io/6059605",
+        dsn="https://a0d7f98f2180b92a2e5fccb7f903cfac@o1066695.ingest.us.sentry.io/4507791878782976",
         integrations=[RedisIntegration(), DjangoIntegration()],
         send_default_pii=True,
         before_send=before_send,
@@ -427,10 +427,10 @@ CANCELLED_STATUS = "Cancelled"
 COLLECTED_STATUS = "Collected"
 SHIPPED_STATUS = "Shipped"
 
-OSCAR_INITIAL_ORDER_STATUS = "Pending"
-OSCAR_INITIAL_LINE_STATUS = "Pending"
+OSCAR_INITIAL_ORDER_STATUS = "Pending payment confirmation"
+OSCAR_INITIAL_LINE_STATUS = "Pending payment confirmation"
 OSCAR_ORDER_STATUS_PIPELINE = {
-    "Pending": (
+    "Pending payment confirmation": (
         PAYMENT_CONFIRMED_STATUS,
         CANCELLED_STATUS,
     ),
@@ -525,10 +525,10 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "label": _("Offers"),
         "icon": "fas fa-bullhorn",
         "children": [
-            # {
-            #     "label": _("Offers"),
-            #     "url_name": "dashboard:offer-list",
-            # },
+            {
+                "label": _("Offers"),
+                "url_name": "dashboard:offer-list",
+            },
             {
                 "label": _("Vouchers"),
                 "url_name": "dashboard:voucher-list",
