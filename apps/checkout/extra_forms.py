@@ -21,7 +21,7 @@ class PayNowDetailsForm(forms.ModelForm):
 
         if basket_id:
             basket_id = settings.BASE_ORDER_NUMBER + basket_id
-            self.initial["reference"] = f"MER{basket_id}"
+            self.initial["reference"] = f"{settings.ORDER_PREFIX}{basket_id}"
 
     class Meta:
         model = Source

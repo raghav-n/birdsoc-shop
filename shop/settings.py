@@ -563,3 +563,5 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "url_name": "dashboard:reports-index",
     },
 ]
+
+ORDER_PREFIX = "MER-"
