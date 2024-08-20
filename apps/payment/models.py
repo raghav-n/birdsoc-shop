@@ -1,7 +1,8 @@
+import uuid
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.urls import reverse
 from django.utils import timezone
 from oscar.apps.payment.abstract_models import AbstractSource
 from oscar.core.loading import get_model
@@ -9,7 +10,7 @@ from oscar.core.loading import get_model
 
 def get_payment_proof_path(instance: "Source", filename: str) -> str:
     """Returns default image filename where images are stored after being uploaded"""
-    return f"payments/{instance.reference}_{filename}"
+    return f"payments/{instance.reference}_{uuid.uuid4()}_{filename}"
 
 
 class Source(AbstractSource):
