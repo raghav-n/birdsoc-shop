@@ -1,0 +1,13 @@
+{% extends "oscar/layout.html" %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Contact us" %} | {{ block.super }}
+{% endblock %}
+
+{% block headertext %}Contact us{% endblock %}
+
+{% block content %}
+    {% crispy form %}
+{% endblock %}

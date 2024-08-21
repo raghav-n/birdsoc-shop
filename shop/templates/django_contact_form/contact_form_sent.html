@@ -1,0 +1,12 @@
+{% extends "oscar/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Contact us" %} | {{ block.super }}
+{% endblock %}
+
+{% block headertext %}Contact us{% endblock %}
+
+{% block content %}
+<p>Thank you for your message. We will respond via email as soon as possible.</p>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "oscar/communication/emails/base.html" %}
+
+{% block body %}
+<strong>From:</strong> {{ name }} ({{ email }})
+<br>
+<strong>Content:</strong> {{ body }}
+{% endblock %}
+
+{% block footer %}
+{% endblock %}

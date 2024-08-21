@@ -146,6 +146,9 @@ INSTALLED_APPS = [
     "treebeard",
     "sorl.thumbnail",  # Default thumbnail backend, can be replaced
     "django_tables2",
+    "django_contact_form",
+    "crispy_forms",
+    "crispy_bootstrap4"
 ]
 
 FILE_UPLOAD_PERMISSIONS = 0o666
@@ -157,7 +160,7 @@ ANYMAIL = {
 }
 
 EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
-DEFAULT_FROM_EMAIL = "shop@birdsociety.sg"  # if you don't already have this in settings
+DEFAULT_FROM_EMAIL = "BirdSoc SG Shop <shop@birdsociety.sg>"  # if you don't already have this in settings
 OSCAR_FROM_EMAIL = DEFAULT_FROM_EMAIL
 REPLY_TO_EMAIL = "outreach.birdsocsg@gmail.com"
 SERVER_EMAIL = (
@@ -289,8 +292,8 @@ AUTHENTICATION_BACKENDS = (
 )
 
 ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
-
-ADMIN_EMAILS = [i[1] for i in ADMINS]
+MANAGERS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com"), ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com")]
+ADMIN_EMAILS = [i[1] for i in MANAGERS]
 
 HAYSTACK_CONNECTIONS = {
     "default": {
@@ -565,3 +568,6 @@ OSCAR_DASHBOARD_NAVIGATION = [
 ]
 
 ORDER_PREFIX = "MER-"
+CRISPY_TEMPLATE_PACK = "bootstrap4"
+
+OSCAR_GOOGLE_ANALYTICS_ID = "G-8Z3R0WMMV7"

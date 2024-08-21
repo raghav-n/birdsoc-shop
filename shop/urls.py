@@ -18,8 +18,11 @@ Including another URLconf
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import TemplateView
+from django_contact_form.views import ContactFormView
+
+from apps.util.forms import ContactForm
 
 handler404 = "apps.util.views.handler404"
 handler500 = "apps.util.views.handler500"
@@ -30,6 +33,16 @@ urlpatterns = [
     # Nonetheless, it's often useful for debugging.
     # path("admin/", admin.site.urls),
     path("", include(apps.get_app_config("oscar").urls[0])),
+    path("contact/",
+         ContactFormView.as_view(
+             form_class=ContactForm
+         ),
+         name="django_contact_form"),
+    path("contact/sent/",
+         TemplateView.as_view(
+             template_name="django_contact_form/contact_form_sent.html"
+         ),
+         name="django_contact_form_sent"),
 ]
 
 if not settings.SESSION_ENVIRONMENT_PRODUCTION:
