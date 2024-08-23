@@ -59,7 +59,7 @@ class PaymentDetailsView(CorePaymentDetailsView):
             if form.is_valid():
                 order_payment_source = form.save(commit=False)
                 source_type, _created = SourceType.objects.get_or_create(name="PayNow")
-                order_payment_source.amount_allocated = request.basket.total_incl_tax
+                order_payment_source.amount_debited = request.basket.total_incl_tax
                 order_payment_source.source_type = source_type
                 self.checkout_session.set_order_paynow_payment_id(
                     order_payment_source.id
@@ -70,7 +70,6 @@ class PaymentDetailsView(CorePaymentDetailsView):
                     request.basket.total_incl_tax,
                     reference=order_payment_source.reference,
                 )
-
                 return self.handle_place_order_submission(request)
             else:
                 return self.get(request, *args, form=form, **kwargs)
