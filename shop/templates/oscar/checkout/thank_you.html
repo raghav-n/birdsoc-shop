@@ -3,6 +3,26 @@
 {% load i18n %}
 {% load image_tags %}
 
+{% block extrastyles %}
+    <style>
+    h1, .h1 {
+        size: 2.5rem;
+    }
+
+    .sub-header h2, .h2 {
+        font-size: 1.5rem;
+    }
+
+    h3, .h3 {
+        font-size: 1.25rem;
+    }
+
+    h4, .h4 {
+        font-size: 1.1rem;
+    }
+</style>
+{% endblock %}
+
 {% block shipping_info %}
     <div class="sub-header">
         <h2>{% trans "Shipping" %}</h2>
@@ -97,3 +117,52 @@
         {% endblock basket_totals %}
 
     {% endblock order_contents %}
+
+    {% block payment_info %}
+                <div class="sub-header">
+                    <h2>{% trans "Payment" %}</h2>
+                </div>
+                <div class="card card-body bg-light">
+                    <h3>{% trans "Payment" %}</h3>
+                    {% for source in order.sources.all %}
+                        <p>
+                        {% if source.amount_allocated > 0 %}
+                            {% if source.reference %}
+                                {% blocktrans with amount=source.amount_allocated|currency:source.currency type=source.source_type.name reference=source.reference %}
+                                    Allocation of {{ amount }} from type {{ type }} (reference: {{ reference }})
+                                {% endblocktrans %}
+                            {% else %}
+                                {% blocktrans with amount=source.amount_allocated|currency:source.currency type=source.source_type.name %}
+                                    Allocation of {{ amount }} from type {{ type }}
+                                {% endblocktrans %}
+                            {% endif %}
+                        {% endif %}
+                        {% if source.amount_debited > 0 %}
+                            {% if source.reference %}
+                                {% blocktrans with amount=source.amount_debited|currency:source.currency type=source.source_type.name reference=source.reference %}
+                                    Payment of {{ amount }} from type {{ type }} (reference: {{ reference }})
+                                {% endblocktrans %}
+                            {% else %}
+                                {% blocktrans with amount=source.amount_debited|currency:source.currency type=source.source_type.name %}
+                                    Payment of {{ amount }} from type {{ type }}
+                                {% endblocktrans %}
+                            {% endif %}
+                        {% endif %}
+                        </p>
+                    {% empty %}
+                        <p>
+                        {% trans "No payment was required for this order." %}
+                        </p>
+                    {% endfor %}
+
+                    {% if order.billing_address %}
+                        <h4>{% trans "Billing address" %}</h4>
+                        <address>
+                            {% for field in order.billing_address.active_address_fields %}
+                                {{ field }}<br/>
+                            {% endfor %}
+                        </address>
+                    {% endif %}
+                </div>
+
+            {% endblock %}
