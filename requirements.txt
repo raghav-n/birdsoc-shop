@@ -1,4 +1,5 @@
 argon2-cffi==23.1.0
+black==24.8.0
 crispy-bootstrap4==2024.1
 Django==4.2.15
 django-anymail==11.1
@@ -15,3 +16,4 @@ pycountry==24.6.1
 pymysql==1.1.1
 sentry-sdk==2.13.0
 sorl-thumbnail==12.10.0
+weasyprint==62.3

@@ -1,1 +1,1 @@
-from oscar.apps.communication.models import * 
+from oscar.apps.communication.models import *

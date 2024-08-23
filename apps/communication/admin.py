@@ -1,1 +1,1 @@
-from oscar.apps.communication.admin import *  
+from oscar.apps.communication.admin import *

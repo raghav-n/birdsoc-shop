@@ -8,7 +8,11 @@ from django_contact_form.forms import ContactForm as BaseContactForm
 
 
 class ContactForm(BaseContactForm):
-    pdpa_agreement = forms.BooleanField(label=mark_safe("I have read and agree to the <a href='https://birdsociety.sg/data-protection-notice/'>data protection notice</a>."))
+    pdpa_agreement = forms.BooleanField(
+        label=mark_safe(
+            "I have read and agree to the <a href='https://birdsociety.sg/data-protection-notice/'>data protection notice</a>."
+        )
+    )
     subject_template_name = "django_contact_form/emails/contact_form_subject.txt"
     template_name = "django_contact_form/emails/contact_form.html"
 
@@ -20,7 +24,7 @@ class ContactForm(BaseContactForm):
             Field("email"),
             Field("body"),
             Field("pdpa_agreement"),
-            Submit('submit', 'Submit'),
+            Submit("submit", "Submit"),
         )
 
     def get_message_dict(self):
@@ -38,6 +42,8 @@ class ContactForm(BaseContactForm):
         :func:`~django.core.mail.send_mail` function.
 
         """
-        msg = EmailMessage(**self.get_message_dict(), reply_to=[settings.REPLY_TO_EMAIL])
+        msg = EmailMessage(
+            **self.get_message_dict(), reply_to=[settings.REPLY_TO_EMAIL]
+        )
         msg.content_subtype = "html"
         msg.send()

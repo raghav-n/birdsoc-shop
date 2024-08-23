@@ -2,9 +2,15 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, EmailMessage
 from oscar.apps.communication.utils import Dispatcher as CoreDispatcher
 
+
 class Dispatcher(CoreDispatcher):
     def send_email_messages(
-        self, recipient_email, messages, from_email=None, reply_to_email=None, attachments=None
+        self,
+        recipient_email,
+        messages,
+        from_email=None,
+        reply_to_email=None,
+        attachments=None,
     ):
         from_email = from_email or settings.OSCAR_FROM_EMAIL
 
