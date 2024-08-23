@@ -1,25 +1,30 @@
 {% extends "oscar/communication/emails/base.html" %}
+{% load shop_extras %}
 {% load currency_filters i18n url_tags %}
 
 {% block tbody %}
-<tr>
-    <td class="content-block">
-        <p xmlns="http://www.w3.org/1999/html">{% trans 'Hello,' %}</p>
-        <p>{% blocktrans with order_number=order.number %}We are pleased to confirm your order {{ order_number }} has been received and
-        will be processed shortly.{% endblocktrans %}</p>
-    </td>
-</tr>
+    <tr>
+        <td class="content-block">
+            <p>{% blocktrans %}
+                Thank you so much for supporting the Bird Society of Singapore!
+            {% endblocktrans %}</p>
+            <p>{% blocktrans with order_number=order.number %}
+                We are pleased to confirm your order {{ order_number }} has been received and will be processed shortly.
+                Once we verify your payment was received, you will receive a receipt confirming your purchase.
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
 
-<tr>
-    <td class="content-block">
-        <table class="order">
-            <tbody><tr>
-                <td>{% trans 'Your order contains:' %}</td>
-            </tr>
-            <tr>
-                <td>
-                    <table class="order-items" cellpadding="0" cellspacing="0">
-                        <tbody>
+    <tr>
+        <td class="content-block">
+            <table class="order">
+                <tbody><tr>
+                    <td>{% trans 'Your order contains:' %}</td>
+                </tr>
+                <tr>
+                    <td>
+                        <table class="order-items" cellpadding="0" cellspacing="0">
+                            <tbody>
                             {% for line in order.lines.all %}
                                 <tr>
                                     <td>{{ line.title }} &times; {{ line.quantity }}</td>
@@ -38,31 +43,50 @@
                                 <td class="alignright" width="80%">{% trans 'Order Total:' %}</td>
                                 <td class="alignright">{{ order.total_incl_tax|currency:order.currency }}</td>
                             </tr>
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-        </tbody></table>
-    </td>
-</tr>
-
-<tr>
-    {% if order.shipping_address %}
-        <td class="content-block">
-            <p>{% trans 'Shipping address:' %}</p>
-            <p>{% for field in order.shipping_address.active_address_fields %}  {{ field }}<br/>
-            {% endfor %}</p>
-        </td>
-    {% endif %}
-</tr>
-
-{% if status_url %}
-    <tr>
-        <td class="content-block">
-            {% absolute_url site.domain status_path as absolute_status_url %}
-            {% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+                </tbody></table>
         </td>
     </tr>
-{% endif %}
+    <tr>
+        <td class="content-block">
+            <p>{{ order.shipping_method|shipping_method_email_description|safe }}</p>
+            <p>{% blocktrans %}
+                Once again, thank you for supporting us – we genuinely appreciate it.
+                Happy birding, and see you at Henderson Waves!
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
+    {% if status_url %}
+        <tr>
+            <td class="content-block">
+                {% absolute_url site.domain status_path as absolute_status_url %}
+                {% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}
+            </td>
+        </tr>
+    {% endif %}
+    <tr>
+        <td class="content-block">
+            <p>{% blocktrans %}
+                Warm regards,<br>
+                Bird Society of Singapore
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
 
+    <tr>
+        {% if order.shipping_address %}
+            <td class="content-block">
+                <p>{% trans 'Shipping address:' %}</p>
+                <p>{% for field in order.shipping_address.active_address_fields %}  {{ field }}<br/>
+                {% endfor %}</p>
+            </td>
+        {% endif %}
+    </tr>
+
+{% endblock %}
+
+{% block footer %}
 {% endblock %}

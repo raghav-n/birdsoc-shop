@@ -1,0 +1,860 @@
+{% load shop_extras %}
+{% load static %}
+{% load currency_filters %}
+<html lang="en">
+<head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <style>@import url(https://themes.googleusercontent.com/fonts/css?kit=1_DGDtljMiPWFs5rl_p0yMrCj7blMLr9PPqkQ8xVls2a6Y78Q4HgWNGloQAhq2bgZEGxkZazL-YgPyAraOXvT-6cVrMXPKTM00BWfT5R5OfOfsfM6rvuuu7h1pY3r_-A);
+
+    @page {
+        size: A4; /* Change from the default size of A4 */
+        margin: 0;
+    }
+
+    body {
+        display: block;
+        margin: 0;
+    }
+
+    ol {
+        margin: 0;
+        padding: 0
+    }
+
+    table td, table th {
+        padding: 0
+    }
+
+    .c15 {
+        border-right-style: solid;
+        border-bottom-color: #b78ec1;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #b78ec1;
+        vertical-align: top;
+        border-right-color: #b78ec1;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        background-color: #f1e9f3;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 93.8pt;
+        border-top-color: #b78ec1;
+        border-bottom-style: solid
+    }
+
+    .c24 {
+        border-right-style: solid;
+        border-bottom-color: #b78ec1;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #b78ec1;
+        vertical-align: top;
+        border-right-color: #b78ec1;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        background-color: #f1e9f3;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 72pt;
+        border-top-color: #b78ec1;
+        border-bottom-style: solid
+    }
+
+    .c73 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 272.2pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c26 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 63.8pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c40 {
+        border-right-style: solid;
+        border-bottom-color: #b78ec1;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #b78ec1;
+        vertical-align: top;
+        border-right-color: #b78ec1;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        background-color: #f1e9f3;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 79.5pt;
+        border-top-color: #b78ec1;
+        border-bottom-style: solid
+    }
+
+    .c52 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 182.2pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c11 {
+        border-right-style: solid;
+        padding: 5pt 5pt 5pt 5pt;
+        border-bottom-color: #000000;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #000000;
+        vertical-align: top;
+        border-right-color: #000000;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 272.5pt;
+        border-top-color: #000000;
+        border-bottom-style: solid
+    }
+
+    .c0 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 63.8pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c57 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 182.2pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c8 {
+        border-right-style: solid;
+        border-bottom-color: #b78ec1;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #b78ec1;
+        vertical-align: top;
+        border-right-color: #b78ec1;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        background-color: #f1e9f3;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 272.2pt;
+        border-top-color: #b78ec1;
+        border-bottom-style: solid
+    }
+
+    .c2 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 63.8pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c21 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 1pt;
+        border-right-width: 1pt;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 182.2pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c22 {
+        border-right-style: solid;
+        padding: 2.2pt 2.2pt 2.2pt 2.2pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 1pt;
+        border-right-width: 0;
+        border-left-color: #ffffff;
+        vertical-align: middle;
+        border-right-color: #ffffff;
+        border-left-width: 1pt;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 272.2pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c69 {
+        border-right-style: solid;
+        padding: 5pt 5pt 5pt 5pt;
+        border-bottom-color: #ffffff;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #ffffff;
+        vertical-align: top;
+        border-right-color: #ffffff;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 272.5pt;
+        border-top-color: #ffffff;
+        border-bottom-style: solid
+    }
+
+    .c31 {
+        border-right-style: solid;
+        border-bottom-color: #b78ec1;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #fff5e7;
+        vertical-align: top;
+        border-right-color: #fff5e7;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 1pt;
+        width: 131.2pt;
+        border-top-color: #fff5e7;
+        border-bottom-style: solid
+    }
+
+    .c38 {
+        border-right-style: solid;
+        border-bottom-color: #fff5e7;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #fff5e7;
+        vertical-align: top;
+        border-right-color: #fff5e7;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 131.2pt;
+        border-top-color: #fff5e7;
+        border-bottom-style: solid
+    }
+
+    .c62 {
+        border-right-style: solid;
+        border-bottom-color: #fff5e7;
+        border-top-width: 1pt;
+        border-right-width: 0;
+        border-left-color: #fff5e7;
+        vertical-align: middle;
+        border-right-color: #fff5e7;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 131.2pt;
+        border-top-color: #b78ec1;
+        border-bottom-style: solid
+    }
+
+    .c64 {
+        border-right-style: solid;
+        border-bottom-color: #000000;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #000000;
+        vertical-align: top;
+        border-right-color: #000000;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 269.2pt;
+        border-top-color: #000000;
+        border-bottom-style: solid
+    }
+
+    .c20 {
+        border-right-style: solid;
+        border-bottom-color: #000000;
+        border-top-width: 0;
+        border-right-width: 0;
+        border-left-color: #000000;
+        vertical-align: top;
+        border-right-color: #000000;
+        border-left-width: 0;
+        border-top-style: solid;
+        border-left-style: solid;
+        border-bottom-width: 0;
+        width: 327.4pt;
+        border-top-color: #000000;
+        border-bottom-style: solid
+    }
+
+    .c45 {
+        color: #000000;
+        font-weight: 400;
+        text-decoration: none;
+        vertical-align: baseline;
+        font-size: 3pt;
+        font-family: "Noto Sans";
+        font-style: normal
+    }
+
+    .c4 {
+        color: #000000;
+        font-weight: 700;
+        text-decoration: none;
+        vertical-align: baseline;
+        font-size: 10pt;
+        font-family: "Noto Sans";
+        font-style: normal
+    }
+
+    .c5 {
+        color: #000000;
+        font-weight: 400;
+        text-decoration: none;
+        vertical-align: baseline;
+        font-size: 10pt;
+        font-family: "Noto Sans";
+        font-style: normal
+    }
+
+    .c33 {
+        color: #000000;
+        font-weight: 700;
+        text-decoration: none;
+        vertical-align: baseline;
+        font-size: 44pt;
+        font-family: "Libre Franklin";
+        font-style: normal
+    }
+
+    .c6 {
+        color: #000000;
+        font-weight: 700;
+        text-decoration: none;
+        vertical-align: baseline;
+        font-size: 10pt;
+        font-family: "Libre Franklin";
+        font-style: normal
+    }
+
+    .c30 {
+        margin-left: 16pt;
+        padding-top: 1pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        height: 11pt
+    }
+
+    .c36 {
+        margin-left: 7.1pt;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: right;
+        margin-right: 9.8pt
+    }
+
+    .c61 {
+        margin-left: 4.5pt;
+        padding-top: 6.5pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        margin-right: 4.5pt
+    }
+
+    .c16 {
+        margin-left: 4.5pt;
+        padding-top: 6pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        margin-right: 6.8pt
+    }
+
+    .c19 {
+        font-weight: 700;
+        text-decoration: none;
+        vertical-align: baseline;
+        font-size: 9pt;
+        font-family: "Noto Sans";
+        font-style: normal
+    }
+
+    .c13 {
+        margin-left: 7.1pt;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.15;
+        text-align: right;
+        margin-right: 10pt
+    }
+
+    .c35 {
+        margin-left: 4.5pt;
+        padding-top: 6.4pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        margin-right: 4.5pt
+    }
+
+    .c42 {
+        margin-left: 9.4pt;
+        padding-top: 6pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left
+    }
+
+    .c14 {
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        height: 11pt
+    }
+
+    .c32 {
+        margin-left: -7.1pt;
+        padding-top: 4.2pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left
+    }
+
+    .c7 {
+        padding-top: 4.2pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        height: 11pt
+    }
+
+    .c23 {
+        padding-top: 0.2pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left;
+        height: 11pt
+    }
+
+    .c12 {
+        margin-left: 16pt;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.3909090909090909;
+        text-align: left
+    }
+
+    .c37 {
+        padding-top: 10pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: right;
+        margin-right: 13.3pt
+    }
+
+    .c1 {
+        margin-left: 7.1pt;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.15;
+        text-align: left
+    }
+
+    .c70 {
+        margin-left: 10.1pt;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.2750000000000001;
+        text-align: left
+    }
+
+    .c25 {
+        margin-left: 10pt;
+        padding-top: 1.6pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left
+    }
+
+    .c58 {
+        padding-top: 2pt;
+        padding-bottom: 0;
+        line-height: 1.3045454545454545;
+        text-align: left
+    }
+
+    .c51 {
+        margin-left: 14.2pt;
+        border-spacing: 0;
+        border-collapse: collapse;
+        margin-right: auto
+    }
+
+    .c18 {
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left
+    }
+
+    .c67 {
+        margin-left: 5.7pt;
+        border-spacing: 0;
+        border-collapse: collapse;
+        margin-right: auto
+    }
+
+    .c59 {
+        padding-top: 0;
+        padding-bottom: 12pt;
+        line-height: 1.0;
+        text-align: left
+    }
+
+    .c68 {
+        margin-left: 13.8pt;
+        border-spacing: 0;
+        border-collapse: collapse;
+        margin-right: auto
+    }
+
+    .c50 {
+        border-spacing: 0;
+        border-collapse: collapse;
+        margin-right: auto
+    }
+
+    .c46 {
+        margin-left: 15pt;
+        border-spacing: 0;
+        border-collapse: collapse;
+        margin-right: auto
+    }
+
+    .c55 {
+        padding-top: 1pt;
+        padding-bottom: 0;
+        line-height: 1.0;
+        text-align: left
+    }
+
+    .c3 {
+        font-size: 9pt;
+        font-family: "Noto Sans";
+        font-weight: 400
+    }
+
+    .c41 {
+        font-size: 10pt;
+        font-family: "Noto Sans";
+        font-weight: 400
+    }
+
+    .c71 {
+        background-color: #ffffff;
+        max-width: 545pt;
+        padding: 39pt 26pt 14pt 24pt
+    }
+
+    .c65 {
+        font-weight: 700;
+        font-size: 11pt;
+        font-family: "Noto Sans"
+    }
+
+    .c66 {
+        text-decoration: none;
+        vertical-align: baseline;
+        font-style: italic
+    }
+
+    .c53 {
+        text-decoration: none;
+        vertical-align: baseline;
+        font-style: normal
+    }
+
+    .c34 {
+        font-size: 9pt;
+        font-family: "Noto Sans";
+        font-weight: 700
+    }
+
+    .c72 {
+        height: 12.8pt
+    }
+
+    .c43 {
+        height: 25.5pt
+    }
+
+    .c48 {
+        height: 11pt
+    }
+
+    .c63 {
+        margin-left: 7.1pt
+    }
+
+    .c54 {
+        margin-left: 16pt
+    }
+
+    .c60 {
+        height: 14.7pt
+    }
+
+    .c28 {
+        height: 17pt
+    }
+
+    .c17 {
+        height: 72.6pt
+    }
+
+    .c47 {
+        height: 131.3pt
+    }
+
+    .c9 {
+        height: 0pt
+    }
+
+    .c29 {
+        height: 17.2pt
+    }
+
+    .c44 {
+        height: 18.7pt
+    }
+
+    .c27 {
+        height: 35px;
+    }
+
+    .c10 {
+        height: 21pt
+    }
+
+    .c56 {
+        height: 14.2pt
+    }
+
+    .c39 {
+        height: 10.9pt
+    }
+
+    .c49 {
+        color: #000000
+    }
+
+    li {
+        color: #000000;
+        font-size: 11pt;
+        font-family: "Lucida Sans"
+    }
+
+    p {
+        margin: 0;
+        color: #000000;
+        font-size: 11pt;
+        font-family: "Noto Sans";
+    }
+    </style>
+</head>
+<body class="c71 doc-content"><p class="c7"><span class="c6"></span></p><a
+        id="t.9b8e1308363c06fcb505e24382eb25d495f1ecc5"></a><a id="t.0"></a>
+<table class="c51">
+    <tr class="c17">
+        <td class="c11" colspan="1" rowspan="1"><p class="c32"><span class="c33">RECEIPT</span></p></td>
+        <td class="c11" colspan="1" rowspan="1"><p class="c37"><span
+                style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 153.50px; height: 69.37px;"><img
+                alt="" src="{{ "OSCAR_STATIC_BASE_URL"|settings_value }}{% static "img/logo-soc.png" %}"
+                style="width: 153.50px; height: 69.37px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p></td>
+    </tr>
+</table>
+<p class="c7"><span class="c6"></span></p><a id="t.d0917531643b4d0bafbdf9b5761eba118bcbf112"></a><a id="t.1"></a>
+<table class="c67">
+    <tr class="c28">
+        <td class="c20" colspan="1" rowspan="1"><p class="c70"><span class="c4">Bird Society of Singapore</span></p>
+        </td>
+    </tr>
+    <tr class="c44">
+        <td class="c20" colspan="1" rowspan="1"><p class="c25"><span class="c5">birdsocsg@gmail.com</span></p></td>
+    </tr>
+    <tr class="c44">
+        <td class="c20" colspan="1" rowspan="1"><p class="c25"><span class="c5">{{ "SOCIETY_HOME_PAGE"|settings_value }}</span></p></td>
+    </tr>
+    <tr class="c44">
+        <td class="c20" colspan="1" rowspan="1"><p class="c25"><span class="c5">T23SS0038A</span></p></td>
+    </tr>
+</table>
+<p class="c23"><span class="c4"></span></p><a id="t.876c69067dfa05f081fb75110f7aea3fca710ed9"></a><a id="t.2"></a>
+<table class="c46">
+    <tr class="c10">
+        <td class="c22" colspan="1" rowspan="1"><p class="c18"><span class="c4">Bill to</span></p></td>
+        <td class="c2" colspan="1" rowspan="1"><p class="c18"><span class="c4">Receipt no.</span></p></td>
+        <td class="c52" colspan="1" rowspan="1"><p class="c18"><span class="c5">{{ year }}-{{ order_number }}</span></p>
+        </td>
+    </tr>
+    <tr class="c29">
+        <td class="c22" colspan="1" rowspan="1"><p class="c18"><span class="c5">{{ user_name }}</span></p></td>
+        <td class="c2" colspan="1" rowspan="1"><p class="c18"><span class="c4">Date</span></p></td>
+        <td class="c52" colspan="1" rowspan="1"><p class="c18"><span class="c5">{{ date }}</span></p></td>
+    </tr>
+    <tr class="c29">
+        <td class="c22" colspan="1" rowspan="1"><p class="c18"><span class="c5">{{ user_email }}</span></p></td>
+        <td class="c26" colspan="1" rowspan="1"><p class="c14"><span class="c4"></span></p></td>
+        <td class="c57" colspan="1" rowspan="1"><p class="c14"><span class="c5"></span></p></td>
+    </tr>
+</table>
+<p class="c23"><span class="c5"></span></p><a id="t.73eb44bd70874d6dc6fc46c558255690659881d3"></a><a id="t.3"></a>
+<table class="c68">
+    <tr class="c43">
+        <td class="c8" colspan="1" rowspan="1"><p class="c42"><span class="c19 c49">DESCRIPTION</span></p></td>
+        <td class="c15" colspan="1" rowspan="1"><p class="c16"><span class="c34">UNIT PRICE (S$)</span></p></td>
+        <td class="c24" colspan="1" rowspan="1"><p class="c16"><span class="c34">QUANTITY</span></p></td>
+        <td class="c40" colspan="1" rowspan="1"><p class="c35"><span class="c19">AMOUNT (S$)</span>
+    </tr>
+    {% for item in items %}
+        <tr class="c27">
+            <td class="c8" colspan="1" rowspan="1"><p class="c42"><span class="c3">{{ item.desc }}</span></p></td>
+            <td class="c15" colspan="1" rowspan="1"><p class="c16"><span class="c3">{{ item.price }}</span></p></td>
+            <td class="c24" colspan="1" rowspan="1"><p class="c16"><span class="c3">{{ item.quantity }}</span></p></td>
+            <td class="c40" colspan="1" rowspan="1"><p class="c61"><span class="c3">{{ item.total }}</span></p></td>
+        </tr>
+    {% endfor %}
+</table>
+<p class="c14"><span class="c5"></span></p><a id="t.630a13d447da2da7bef8beb7dbb23a06cc7404e3"></a><a id="t.4"></a>
+<table class="c50">
+    <tr class="c9">
+        <td class="c69" colspan="1" rowspan="1"><p class="c14 c54"><span class="c4"></span></p>
+            <p class="c12"><span class="c4">Notes:</span></p>
+            <p class="c54 c55"><span class="c41">For merchandise purchased via BirdSoc SG Shop (</span><span
+                    class="c41">{{ "OSCAR_STATIC_BASE_URL"|settings_value }}</span><span class="c5">).</span></p>
+            <p class="c30"><span class="c5"></span></p>
+            <p class="c55 c54"><span
+                    class="c41 c49 c66">This is a system-generated receipt. No signature is required.</span></p>
+            <p class="c30"><span class="c5"></span></p>
+            <p class="c12 c48"><span class="c4"></span></p></td>
+        <td class="c69" colspan="1" rowspan="1"><p class="c14"><span class="c5"></span></p><a
+                id="t.056b43c968834d3ef394fd071d2bfa6fed8b2a64"></a><a id="t.5"></a>
+            <table class="c50">
+                <tr class="c56">
+                    <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c4">Subtotal</span></p></td>
+                    <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c4">{{ subtotal|currency:use_currency }}</span></p>
+                    </td>
+                </tr>
+                <tr class="c9">
+                    <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c5">Discount</span></p></td>
+                    <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ discount|currency:use_currency }}</span></p>
+                    </td>
+                </tr>
+                <tr class="c9">
+                    <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c5">GST</span></p></td>
+                    <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ gst|currency:use_currency }}</span></p></td>
+                </tr>
+                <tr class="c56">
+                    <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c4">Total</span></p></td>
+                    <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c4">{{ total|currency:use_currency }}</span></p></td>
+                </tr>
+                <tr class="c9">
+                    <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c5">Payment by</span></p></td>
+                    <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ payment_method }}</span>
+                    </p></td>
+                </tr>
+                <tr class="c9">
+                    <td class="c31" colspan="1" rowspan="1"><p class="c1"><span class="c5">Paid</span></p></td>
+                    <td class="c31" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ total_paid|currency:use_currency }}</span></p></td>
+                </tr>
+                <tr class="c9">
+                    <td class="c62" colspan="1" rowspan="1"><p class="c18 c63"><span class="c53 c49 c65">Balance Due</span>
+                    </p></td>
+                    <td class="c62" colspan="1" rowspan="1"><p class="c36"><span class="c65 c53 c49">{{ balance_due|currency:use_currency }}</span></p>
+                    </td>
+                </tr>
+            </table>
+    </tr>
+</table>
+</body>
+</html>

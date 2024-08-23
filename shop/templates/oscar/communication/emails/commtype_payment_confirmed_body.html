@@ -1,0 +1,40 @@
+{% extends "oscar/communication/emails/base.html" %}
+{% load shop_extras %}
+{% load currency_filters i18n url_tags %}
+
+{% block tbody %}
+    <tr>
+        <td class="content-block">
+            <p>{% blocktrans %}
+                Thank you once again for your support.
+            {% endblocktrans %}</p>
+            <p>{% blocktrans with order_number=order.number %}
+                We have received payment for your merchandise order {{ order_number }}.
+                A receipt for your purchase is attached with this email.
+            {% endblocktrans %}</p>
+            <p>{{ order.shipping_method|shipping_method_email_description|safe }}</p>
+            <p>{% blocktrans %}
+                Happy birding, and see you at Henderson Waves!
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
+    {% if status_url %}
+        <tr>
+            <td class="content-block">
+                {% absolute_url site.domain status_path as absolute_status_url %}
+                {% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}
+            </td>
+        </tr>
+    {% endif %}
+    <tr>
+        <td class="content-block">
+            <p>{% blocktrans %}
+                Warm regards,<br>
+                Bird Society of Singapore
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
+{% endblock %}
+
+{% block footer %}
+{% endblock %}

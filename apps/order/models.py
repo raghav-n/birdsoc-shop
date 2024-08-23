@@ -1,8 +1,12 @@
+from django.conf import settings
 from django.db import models
+from django.template.loader import render_to_string
+from django.utils import timezone
 
 from oscar.apps.order.abstract_models import AbstractOrder
 from oscar.apps.order.abstract_models import AbstractPaymentEvent
 from oscar.core.loading import get_class
+from weasyprint import Document, HTML
 
 Repository = get_class("shipping.repository", "Repository")
 
@@ -10,6 +14,8 @@ Repository = get_class("shipping.repository", "Repository")
 class Order(AbstractOrder):
     collection_location = models.CharField(max_length=255, null=True, blank=True)
     collection_date = models.DateField(null=True, blank=True)
+
+    receipt_template = "pdf/receipt.html"
 
     def get_shipping_method(self):
         """
@@ -22,6 +28,55 @@ class Order(AbstractOrder):
         for method in methods:
             if method.name == self.shipping_method:
                 return method
+
+    def get_items_ordered(self):
+        items = {}
+        for line in self.lines.all():
+            desc = line.description
+            existing_item_for_line = items.get("desc")
+            if (
+                existing_item_for_line
+                and existing_item_for_line["price"] == line.unit_price_excl_tax
+            ):
+                items[desc]["quantity"] += line.quantity
+            else:
+                items[desc] = {}
+                items[desc]["quantity"] = line.quantity
+                items[desc]["price"] = line.unit_price_excl_tax
+                items[desc]["total"] = line.line_price_excl_tax
+
+        return [{**{"desc": desc}, **details} for desc, details in items.items()]
+
+    def get_receipt(self) -> Document:
+        context = {
+            "user_name": self.user.get_full_name(),
+            "user_email": self.user.email,
+            "year": self.date_placed.year,
+            "order_number": settings.ORDER_PREFIX + self.number,
+            "date": timezone.now().date().strftime("%d %b %Y"),
+            "subtotal": self.total_excl_tax,
+            "gst": self.total_tax,
+            "total": self.total_incl_tax,
+            "discount": self.total_discount_incl_tax,
+            "payment_method": "/".join(
+                self.sources.values_list("source_type__name", flat=True)
+            ),
+            "total_paid": sum(self.sources.values_list("amount_debited", flat=True)),
+            "items": self.get_items_ordered(),
+            "use_currency": self.currency,
+        }
+        context["balance_due"] = context["total"] - context["total_paid"]
+        template_str = render_to_string(self.receipt_template, context=context)
+
+        return HTML(string=template_str).render()
+
+    def get_receipt_as_pdf(self) -> bytes:
+        receipt_as_pdf = self.get_receipt().write_pdf()
+        with open(
+            settings.PROJECT_DIR / f"receipts/{self.number}.pdf", "wb"
+        ) as pdf_file:
+            pdf_file.write(receipt_as_pdf)
+        return receipt_as_pdf
 
 
 from oscar.apps.order.models import *

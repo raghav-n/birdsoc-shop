@@ -81,6 +81,9 @@ ALLOWED_HOSTS = [
     "shop.birdsociety.sg",
 ]
 
+OSCAR_STATIC_BASE_URL = "https://shop.birdsociety.sg/"
+SOCIETY_HOME_PAGE = "https://birdsociety.sg/"
+
 if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     from sentry_sdk.integrations.redis import RedisIntegration
 
@@ -148,7 +151,7 @@ INSTALLED_APPS = [
     "django_tables2",
     "django_contact_form",
     "crispy_forms",
-    "crispy_bootstrap4"
+    "crispy_bootstrap4",
 ]
 
 FILE_UPLOAD_PERMISSIONS = 0o666
@@ -292,7 +295,10 @@ AUTHENTICATION_BACKENDS = (
 )
 
 ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
-MANAGERS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com"), ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com")]
+MANAGERS = [
+    ("Raghav Narayanswamy", "raghavnswamy@gmail.com"),
+    ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com"),
+]
 ADMIN_EMAILS = [i[1] for i in MANAGERS]
 
 HAYSTACK_CONNECTIONS = {
@@ -422,8 +428,8 @@ OSCAR_SHOP_NAME = "BirdSoc SG Shop"
 
 GLOBAL_SELF_COLLECTION_REQUIRED = True
 GLOBAL_PAYNOW_REQUIRED = True
-BASE_ORDER_NUMBER = 128967
-CONTACT_US_URL = "https://birdsociety.sg/contact-us/"
+BASE_ORDER_NUMBER = 100000
+CONTACT_US_URL = "https://shop.birdsociety.sg/contact/"
 
 PAYMENT_CONFIRMED_STATUS = "Payment confirmed"
 CANCELLED_STATUS = "Cancelled"
