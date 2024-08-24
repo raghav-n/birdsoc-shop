@@ -121,6 +121,7 @@ INSTALLED_APPS = [
     "apps.payment.apps.PaymentConfig",
     "apps.util.apps.UtilConfig",  # added
     "apps.communication.apps.CommunicationConfig",
+    "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
     "oscar.apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",
     "oscar.apps.address.apps.AddressConfig",
@@ -134,7 +135,6 @@ INSTALLED_APPS = [
     "oscar.apps.dashboard.apps.DashboardConfig",
     "oscar.apps.dashboard.reports.apps.ReportsDashboardConfig",
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
-    "oscar.apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
     "oscar.apps.dashboard.offers.apps.OffersDashboardConfig",
     "oscar.apps.dashboard.partners.apps.PartnersDashboardConfig",
     "oscar.apps.dashboard.pages.apps.PagesDashboardConfig",
