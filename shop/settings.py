@@ -196,6 +196,7 @@ MIDDLEWARE = [
     "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "oscar.apps.basket.middleware.BasketMiddleware",
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
+    "apps.util.middleware.LoginRequiredMiddleware"
 ]
 
 INTERNAL_IPS = [
@@ -577,3 +578,5 @@ ORDER_PREFIX = "MER-"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 OSCAR_GOOGLE_ANALYTICS_ID = "G-8Z3R0WMMV7"
+
+LOGIN_ONLY_URL = "/accounts/login-only/"

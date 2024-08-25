@@ -1,8 +1,14 @@
 import oscar.apps.customer.apps as apps
+from django.urls import path
+from oscar.core.loading import get_class
 
 
 class CustomerConfig(apps.CustomerConfig):
     name = "apps.customer"
+
+    def ready(self):
+        super().ready()
+        self.login_only_view = get_class("customer.views", "LoginOnlyAccountAuthView")
 
     def get_urls(self):
         current_urls = super().get_urls()
@@ -26,4 +32,7 @@ class CustomerConfig(apps.CustomerConfig):
             "address-change-status",
         ]
 
-        return [url for url in current_urls if url.name not in to_remove]
+        urls = [url for url in current_urls if url.name not in to_remove]
+        urls.append(path("login-only/", self.login_only_view.as_view(), name="login-only"))
+
+        return urls
