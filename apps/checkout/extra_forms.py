@@ -17,7 +17,8 @@ class PayNowDetailsForm(forms.ModelForm):
         required=False, label=mark_safe("<strong>Payment reference</strong>")
     )
     payment_proof = forms.ImageField(
-        required=True, label=mark_safe("<strong>Payment confirmation (screenshot)</strong>")
+        required=True,
+        label=mark_safe("<strong>Payment confirmation (screenshot)</strong>"),
     )
 
     reference.widget.attrs.update({"readonly": True, "class": "font-weight-bold"})
@@ -29,14 +30,14 @@ class PayNowDetailsForm(forms.ModelForm):
 
         self.helper = FormHelper()
         self.helper.layout = Layout(
-            PrependedText('donation', '$', placeholder="amount", css_class="bg-white"),
+            PrependedText("donation", "$", placeholder="amount", css_class="bg-white"),
             Field("reference"),
             Field("payment_proof"),
             Submit("submit", "Complete order", css_class="w-100"),
         )
-        self.helper.form_class = 'form-horizontal'
-        self.helper.label_class = 'col-lg-4'
-        self.helper.field_class = 'col-lg-8'
+        self.helper.form_class = "form-horizontal"
+        self.helper.label_class = "col-lg-4"
+        self.helper.field_class = "col-lg-8"
 
         if basket_id:
             basket_id = settings.BASE_ORDER_NUMBER + basket_id

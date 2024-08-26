@@ -33,6 +33,8 @@ class CustomerConfig(apps.CustomerConfig):
         ]
 
         urls = [url for url in current_urls if url.name not in to_remove]
-        urls.append(path("login-only/", self.login_only_view.as_view(), name="login-only"))
+        urls.append(
+            path("login-only/", self.login_only_view.as_view(), name="login-only")
+        )
 
         return urls

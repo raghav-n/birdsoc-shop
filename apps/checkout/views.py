@@ -77,7 +77,9 @@ class PaymentDetailsView(CorePaymentDetailsView):
                     total_with_donation,
                     reference=order_payment_source.reference,
                 )
-                return self.handle_place_order_submission(request, donation_amount=donation_amount)
+                return self.handle_place_order_submission(
+                    request, donation_amount=donation_amount
+                )
             else:
                 return self.get(request, *args, form=form, **kwargs)
 

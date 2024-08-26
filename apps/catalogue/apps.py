@@ -7,4 +7,5 @@ class CatalogueConfig(apps.CatalogueConfig):
 
     def get_home_url_pattern(self):
         from apps.catalogue.views import HomeView
+
         return path("", HomeView.as_view(), name="home")
