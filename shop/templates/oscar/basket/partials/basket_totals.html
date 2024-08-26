@@ -1,0 +1,84 @@
+{% extends 'oscar/basket/partials/basket_totals.html' %}
+{% load currency_filters %}
+{% load i18n %}
+
+{% block shipping_totals %}
+    {{ block.super }}
+    <tr style="{% if not donation_amount %}display: none;{% endif %}" class="donation-block">
+        <th>&nbsp;</th>
+        <td></td>
+    </tr>
+    <tr style="{% if not donation_amount %}display: none;{% endif %}" class="donation-block">
+        <th colspan="2">
+            <h3>Others</h3>
+        </th>
+    </tr>
+    <tr style="{% if not donation_amount %}display: none;{% endif %}" class="donation-block">
+        <th class="total">
+            Donation
+        </th>
+        <th class="total text-right">
+            <span id="donationAmount">{{ donation_amount|currency:basket.currency }}</span>
+        </th>
+    </tr>
+{% endblock %}
+
+{% block order_total %}
+    <tr>
+        <th>&nbsp;</th>
+        <td></td>
+    </tr>
+    <tr>
+        <th class="total"><h3>{% trans "Order total" %}</h3></th>
+        <td class="total text-right">
+            <h3 class="price_color" id="orderTotal">
+                {% if order_total.is_tax_known %}
+                    {{ order_total.incl_tax|currency:basket.currency }}
+                {% else %}
+                    {{ order_total.excl_tax|currency:basket.currency }}
+                {% endif %}
+            </h3>
+        </td>
+    </tr>
+    {% if not order_total.is_tax_known %}
+        <tr>
+            <td><small>{% trans "Taxes will be added during checkout." %}</small></td>
+        </tr>
+    {% endif %}
+    {% if dynamic_donation_amount %}
+        <script>
+             {% if order_total.is_tax_known %}
+                 const initialOrderTotal = {{ order_total.incl_tax }};
+             {% else %}
+                 const initialOrderTotal = {{ order_total.excl_tax }};
+             {% endif %}
+            const formatter = new Intl.NumberFormat('en-SG', {
+                style: 'currency',
+                currency: 'SGD',
+            });
+            function defer() {
+                if (window.jQuery) {
+                    window.jQuery("{{ dynamic_donation_amount }}").on("input", function(){
+                        var donationAmount = parseInt($(this).val());
+                        if(donationAmount > 0){
+                            window.jQuery(".donation-block").show();
+                            window.jQuery("#donationAmount").text(formatter.format(donationAmount));
+                            window.jQuery("#orderTotal").text(formatter.format(initialOrderTotal + donationAmount));
+                            loadQR(donationAmount);
+                        }
+                        else {
+                            window.jQuery(".donation-block").hide();
+                            window.jQuery("#donationAmount").text(formatter.format(0));
+                            window.jQuery("#orderTotal").text(formatter.format(initialOrderTotal));
+                            loadQR();
+                        }
+                    })
+                } else {
+                    setTimeout(function() { defer() }, 100);
+                }
+            }
+            defer();
+
+        </script>
+    {% endif %}
+{% endblock %}

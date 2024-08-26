@@ -14,6 +14,7 @@ Repository = get_class("shipping.repository", "Repository")
 class Order(AbstractOrder):
     collection_location = models.CharField(max_length=255, null=True, blank=True)
     collection_date = models.DateField(null=True, blank=True)
+    donation_amount = models.PositiveIntegerField(null=False, default=0)
 
     receipt_template = "pdf/receipt.html"
 
@@ -54,9 +55,9 @@ class Order(AbstractOrder):
             "year": self.date_placed.year,
             "order_number": settings.ORDER_PREFIX + self.number,
             "date": timezone.now().date().strftime("%d %b %Y"),
-            "subtotal": self.total_excl_tax,
+            "subtotal": self.total_before_discounts_excl_tax_with_donation,
             "gst": self.total_tax,
-            "total": self.total_incl_tax,
+            "total": self.total_incl_tax_with_donation,
             "discount": self.total_discount_incl_tax,
             "payment_method": "/".join(
                 self.sources.values_list("source_type__name", flat=True)
@@ -64,6 +65,7 @@ class Order(AbstractOrder):
             "total_paid": sum(self.sources.values_list("amount_debited", flat=True)),
             "items": self.get_items_ordered(),
             "use_currency": self.currency,
+            "donation_amount": self.donation_amount,
         }
         context["balance_due"] = context["total"] - context["total_paid"]
         template_str = render_to_string(self.receipt_template, context=context)
@@ -77,6 +79,14 @@ class Order(AbstractOrder):
         ) as pdf_file:
             pdf_file.write(receipt_as_pdf)
         return receipt_as_pdf
+
+    @property
+    def total_incl_tax_with_donation(self):
+        return self.total_incl_tax + self.donation_amount
+
+    @property
+    def total_before_discounts_excl_tax_with_donation(self):
+        return self.total_before_discounts_excl_tax + self.donation_amount
 
 
 from oscar.apps.order.models import *

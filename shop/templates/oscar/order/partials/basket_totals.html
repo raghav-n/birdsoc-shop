@@ -1,0 +1,37 @@
+{% extends "oscar/order/partials/basket_totals.html" %}
+{% load i18n %}
+{% load currency_filters %}
+
+{% block shipping_total %}
+    {{ block.super }}
+    {% if order.donation_amount > 0 %}
+        <tr class="donation-block">
+            <th>&nbsp;</th>
+            <td></td>
+        </tr>
+        <tr class="donation-block">
+            <th colspan="2">
+                <h3>Others</h3>
+            </th>
+        </tr>
+        <tr class="donation-block">
+            <th class="total">
+                Donation
+            </th>
+            <th class="total text-right">
+                <span id="donationAmount">{{ order.donation_amount|currency:basket.currency }}</span>
+            </th>
+        </tr>
+    {% endif %}
+
+{% endblock shipping_total %}
+
+{% block order_total %}
+        <tr>
+            <th colspan="2">&nbsp;</th>
+        </tr>
+        <tr>
+            <td class="total"><h3>{% trans "Order total" %}</h3></td>
+            <td class="total text-right"><h3 class="price_color">{{ order.total_incl_tax_with_donation|currency:order.currency }}</h3></td>
+        </tr>
+    {% endblock order_total %}

@@ -1,3 +1,4 @@
+{% load humanize %}
 {% load shop_extras %}
 {% load static %}
 {% load currency_filters %}
@@ -804,6 +805,14 @@
             <td class="c40" colspan="1" rowspan="1"><p class="c61"><span class="c3">{{ item.total }}</span></p></td>
         </tr>
     {% endfor %}
+    {% if donation_amount > 0 %}
+        <tr class="c27">
+            <td class="c8" colspan="1" rowspan="1"><p class="c42"><span class="c3">Donation</span></p></td>
+            <td class="c15" colspan="1" rowspan="1"><p class="c16"><span class="c3">{{ donation_amount|floatformat:2|intcomma }}</span></p></td>
+            <td class="c24" colspan="1" rowspan="1"><p class="c16"><span class="c3"></span></p></td>
+            <td class="c40" colspan="1" rowspan="1"><p class="c61"><span class="c3">{{ donation_amount|floatformat:2|intcomma }}</span></p></td>
+        </tr>
+    {% endif %}
 </table>
 <p class="c14"><span class="c5"></span></p><a id="t.630a13d447da2da7bef8beb7dbb23a06cc7404e3"></a><a id="t.4"></a>
 <table class="c50">

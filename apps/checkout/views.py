@@ -59,22 +59,42 @@ class PaymentDetailsView(CorePaymentDetailsView):
             if form.is_valid():
                 order_payment_source = form.save(commit=False)
                 source_type, _created = SourceType.objects.get_or_create(name="PayNow")
-                order_payment_source.amount_debited = request.basket.total_incl_tax
+                donation_amount = form.cleaned_data.get("donation")
+
+                if donation_amount is None:
+                    donation_amount = 0
+                else:
+                    donation_amount = int(donation_amount)
+
+                total_with_donation = request.basket.total_incl_tax + donation_amount
+
+                order_payment_source.amount_debited = total_with_donation
                 order_payment_source.source_type = source_type
-                self.checkout_session.set_order_paynow_payment_id(
-                    order_payment_source.id
-                )
+
                 self.add_payment_source(order_payment_source)
                 self.add_payment_event(
                     "paynow-processing",
-                    request.basket.total_incl_tax,
+                    total_with_donation,
                     reference=order_payment_source.reference,
                 )
-                return self.handle_place_order_submission(request)
+                return self.handle_place_order_submission(request, donation_amount=donation_amount)
             else:
                 return self.get(request, *args, form=form, **kwargs)
 
         return self.render_preview(request)
+
+    def handle_place_order_submission(self, request, donation_amount: int = None):
+        submission = self.build_submission()
+
+        if donation_amount is None:
+            donation_amount = 0
+
+        if isinstance(submission.get("order_kwargs"), dict):
+            submission["order_kwargs"]["donation_amount"] = donation_amount
+        else:
+            submission["order_kwargs"] = {"donation_amount": donation_amount}
+
+        return self.submit(**submission)
 
     def get_context_data(self, form=None, **kwargs):
         context = super().get_context_data(**kwargs)

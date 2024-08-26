@@ -1,9 +1,34 @@
 {% extends "oscar/checkout/checkout.html" %}
+{% load crispy_forms_tags %}
 {% load currency_filters %}
 {% load i18n %}
 {% load image_tags %}
 {% load purchase_info_tags %}
 {% load static %}
+
+{% block extrastyles %}
+    <style>
+    h1, .h1 {
+        size: 2.5rem;
+    }
+
+    .sub-header h2, .h2 {
+        font-size: 1.5rem;
+    }
+
+    h3, .h3 {
+        font-size: 1.25rem;
+    }
+
+    #basket_totals h3 {
+        margin-bottom: 0;
+    }
+
+    h4, .h4 {
+        font-size: 1.1rem;
+    }
+</style>
+{% endblock %}
 
 {% block title %}
     {% trans "Payment details" %} | {{ block.super }}
@@ -55,8 +80,7 @@
                     </ul>
                     <form action="{% url 'checkout:payment-details' %}" method="post"  enctype="multipart/form-data" id="payment_details">
                         {% csrf_token %}
-                        {% include "oscar/partials/form_fields.html" with form=paynow_form style='horizontal' %}
-                        <button type="submit" class="btn btn-lg btn-primary" data-loading-text="{% trans 'Submitting...' %}">{% trans "Submit" %}</button>
+                        {% crispy paynow_form %}
                     </form>
                 </div>
             </div>
@@ -133,7 +157,7 @@
                     <div class="sub-header">
                         <h2>{% trans 'Totals' %}</h2>
                     </div>
-                    {% include 'oscar/basket/partials/basket_totals.html' %}
+                    {% include 'oscar/basket/partials/basket_totals.html' with dynamic_donation_amount="#id_donation" donation_amount=0 %}
                 </div>
             </div>
     {% endblock %}
@@ -144,30 +168,32 @@
     <script src="https://unpkg.com/paynowqr@latest/dist/paynowqr.min.js"></script>
     <script src="{% static "js/qrcode-with-logos.min.js" %}"></script>
     <script>
-        let QRstring = new PaynowQR({
-            uen:'T23SS0038A',
-            amount : {{ basket.total_incl_tax }},
-            editable: false,
-            //expiry: '20201231',
-            refNumber: "{{ reference_id }}",
-          }).output();
+        function loadQR(extraCost=0){
+            let QRstring = new PaynowQR({
+                uen:'T23SS0038A',
+                amount : {{ basket.total_incl_tax }} + extraCost,
+                editable: false,
+                //expiry: '20201231',
+                refNumber: "{{ reference_id }}",
+              }).output();
 
-          let qrcode = new QrCodeWithLogo({
-              canvas: document.getElementById("paynowQRCanvas"),
-              content: QRstring,
-              width: 270,
-              logo: {
-                src: "{% static "img/paynow-logo.png" %}",
-                  borderWidth: 1,
-              },
-              nodeQrCodeOptions: {
-                  color: {
-                      dark: "#731B6C",
-                      light: "#ffffff",
+              new QrCodeWithLogo({
+                  canvas: document.getElementById("paynowQRCanvas"),
+                  content: QRstring,
+                  width: 270,
+                  logo: {
+                    src: "{% static "img/paynow-logo.png" %}",
+                      borderWidth: 1,
                   },
-                  errorCorrectionLevel: "H"
-              }
-            });
-
+                  nodeQrCodeOptions: {
+                      color: {
+                          dark: "#731B6C",
+                          light: "#ffffff",
+                      },
+                      errorCorrectionLevel: "H"
+                  }
+              });
+        }
+        loadQR();
     </script>
 {% endblock %}
