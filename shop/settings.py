@@ -148,7 +148,6 @@ INSTALLED_APPS = [
     "widget_tweaks",
     "haystack",
     "treebeard",
-    "sorl.thumbnail",  # Default thumbnail backend, can be replaced
     "django_tables2",
     "django_contact_form",
     "crispy_forms",
@@ -585,4 +584,5 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 OSCAR_GOOGLE_ANALYTICS_ID = "G-8Z3R0WMMV7"
 
 LOGIN_ONLY_URL = "/accounts/login-only/"
+OSCAR_THUMBNAILER = "core.thumbnailer.FakeThumbnailer"
 OSCAR_HOMEPAGE = "/"
