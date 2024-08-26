@@ -121,6 +121,7 @@ INSTALLED_APPS = [
     "apps.customer.apps.CustomerConfig",
     "apps.payment.apps.PaymentConfig",
     "apps.util.apps.UtilConfig",  # added
+    "apps.home.apps.MyShop",
     "apps.communication.apps.CommunicationConfig",
     "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
     "oscar.apps.dashboard.orders.apps.OrdersDashboardConfig",

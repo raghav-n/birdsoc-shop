@@ -32,7 +32,7 @@ urlpatterns = [
     # The Django admin is not officially supported; expect breakage.
     # Nonetheless, it's often useful for debugging.
     # path("admin/", admin.site.urls),
-    path("", include(apps.get_app_config("oscar").urls[0])),
+    path('', include(apps.get_app_config('home').urls[0])),
     apps.get_app_config("catalogue").get_home_url_pattern(),
     path(
         "contact/",
