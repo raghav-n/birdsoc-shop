@@ -32,11 +32,11 @@
                                     href="{% url 'catalogue:index' %}">
                                 {% trans "All products" %}
                             </a>
-                            <a
-                                        class="nav-link font-weight-bold {% if app_name == "offer" and url_name == "list" %}active{% endif %}"
-                                        href="{% url 'offer:list' %}">
-                                    {% trans "Offers" %}
-                            </a>
+{#                            <a#}
+{#                                        class="nav-link font-weight-bold {% if app_name == "offer" and url_name == "list" %}active{% endif %}"#}
+{#                                        href="{% url 'offer:list' %}">#}
+{#                                    {% trans "Offers" %}#}
+{#                            </a>#}
                             <a
                                     class="nav-link font-weight-bold {% if url_name == "django_contact_form" %}active{% endif %}"
                                     href="{% url 'django_contact_form' %}">

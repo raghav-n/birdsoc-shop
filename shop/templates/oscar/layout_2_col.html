@@ -1,5 +1,10 @@
 {% extends "oscar/layout_2_col.html" %}
 
+{% block extrahead %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
 {% comment %}
 Keep the same header and footer as the standard layout template but override the
 main content area to split it into a sidebar and a content block
@@ -31,4 +36,9 @@ main content area to split it into a sidebar and a content block
         </div><!-- /row -->
     </div><!-- /page_inner -->
 </div><!-- /container -->
+{% endblock %}
+
+{% block extrascripts %}
+    {{ block.super }}
+    {% include "oscar/partials/alert_messages_swal.html" %}
 {% endblock %}

@@ -487,3 +487,12 @@ body, li.menu-item {
 .fs-07 {
     font-size: 0.7rem;
 }
+
+h3 {
+    font-size: 1.5rem;
+}
+
+.swal2-title a, .swal2-title button {
+    padding: 0.25rem;
+    margin-right: 0.25rem;
+}

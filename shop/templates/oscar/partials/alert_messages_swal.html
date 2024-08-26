@@ -1,0 +1,33 @@
+{% if messages %}
+
+    <script>
+        var toastMixin = Swal.mixin({
+            toast: true,
+            title: 'General Title',
+            animation: false,
+            position: 'top-right',
+            showConfirmButton: false,
+            timer: {% if messages|length > 1 %} 4000 {% else %} 7000 {% endif %},
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+
+        async function showToasts(){
+            {% for message in messages %}
+                await toastMixin.fire({
+                    animation: true,
+                    title: `{% spaceless %}
+                        {% if 'safe' in message.tags %}{{ message|safe }}{% else %}{{ message }}{% endif %}
+                    {% endspaceless %}`,
+                    icon: {% if 'success' in message.tags %} "success" {% elif 'info' in message.tags %} "info" {% elif 'warning' in message.tags %} "warning" {% elif 'danger' in message.tags or 'error' in message.tags %} "error" {% endif %}
+                });
+            {% endfor %}
+        }
+
+        showToasts();
+
+    </script>
+{% endif %}
