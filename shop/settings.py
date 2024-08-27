@@ -193,7 +193,7 @@ MIDDLEWARE = [
     "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "oscar.apps.basket.middleware.BasketMiddleware",
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
-    "apps.util.middleware.LoginRequiredMiddleware",
+    # "apps.util.middleware.LoginRequiredMiddleware",
 ]
 
 INTERNAL_IPS = [
@@ -431,15 +431,16 @@ SHIPPED_STATUS = "Shipped"
 OSCAR_INITIAL_ORDER_STATUS = "Pending payment confirmation"
 OSCAR_INITIAL_LINE_STATUS = "Pending payment confirmation"
 OSCAR_ORDER_STATUS_PIPELINE = {
-    "Pending payment confirmation": (
+    OSCAR_INITIAL_ORDER_STATUS: (
         PAYMENT_CONFIRMED_STATUS,
         CANCELLED_STATUS,
     ),
-    "Payment confirmed": (
+    PAYMENT_CONFIRMED_STATUS: (
         COLLECTED_STATUS,
         CANCELLED_STATUS,
     ),
-    "Cancelled": (),
+    COLLECTED_STATUS: (),
+    CANCELLED_STATUS: (),
 }
 
 OSCAR_DASHBOARD_NAVIGATION = [
