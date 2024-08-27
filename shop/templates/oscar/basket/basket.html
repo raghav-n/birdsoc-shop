@@ -1,0 +1,9 @@
+{% extends "oscar/basket/basket.html" %}
+{% load shop_extras %}
+
+{% block content %}
+    {% autoescape off %}
+        {% get_active_shipping_methods %}
+    {% endautoescape %}
+    {{ block.super }}
+{% endblock content %}

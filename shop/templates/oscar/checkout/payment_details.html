@@ -1,4 +1,5 @@
 {% extends "oscar/checkout/checkout.html" %}
+{% load shop_extras %}
 {% load crispy_forms_tags %}
 {% load currency_filters %}
 {% load i18n %}
@@ -58,9 +59,12 @@
 
             <div class="card border-0">
                 <div class="card-body payment-form">
-                    <p class="text-dark h5 mb-3">
-                        <strong>Please enter the reference number below when making your payment, so that your payment can be easily traced.</strong>
-                    </p>
+                        <div class="alert alert-info pb-0 mt-0">
+                            {% for desc in "description"|get_active_shipping_methods_fields %}
+                                {{ desc|safe }}
+                            {% endfor %}
+                        </div>
+
                     <ul class="errorlist">
                       {% if form.non_field_errors %}
                         <li>{{ form.non_field_errors }}</li>
@@ -81,6 +85,7 @@
                     <form action="{% url 'checkout:payment-details' %}" method="post"  enctype="multipart/form-data" id="payment_details">
                         {% csrf_token %}
                         {% crispy paynow_form %}
+
                     </form>
                 </div>
             </div>
@@ -92,10 +97,6 @@
             </canvas>
         </div>
     </div>
-
-    {#            FORM GOES HERE: REFERENCE NUMBER, SCREENSHOT #}
-
-
 
     <hr>
 

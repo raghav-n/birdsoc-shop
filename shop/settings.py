@@ -66,14 +66,8 @@ with open(os.path.join(BASE_DIR, "secrets/environment.txt")) as f:
     MIGRATING = sys.argv[1:2] == ["makemigrations"] or sys.argv[1:2] == ["migrate"]
     SESSION_MOD_WSGI = sys.argv[0] == "mod_wsgi"
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 with open(os.path.join(BASE_DIR, "secrets/secret_key.txt")) as f:
     SECRET_KEY = f.read().strip()
-
-DEBUG = True
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -83,6 +77,8 @@ ALLOWED_HOSTS = [
 
 OSCAR_STATIC_BASE_URL = "https://shop.birdsociety.sg/"
 SOCIETY_HOME_PAGE = "https://birdsociety.sg/"
+
+DEBUG = True
 
 if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     from sentry_sdk.integrations.redis import RedisIntegration
@@ -293,6 +289,23 @@ else:
         },
     }
 
+
+db_defaults = {
+    "ENGINE": "django.db.backends.postgresql",
+    "NAME": "shop",
+    "USER": DB_USER,
+    "PASSWORD": DB_PASS,
+    "HOST": "127.0.0.1",
+    "PORT": 5432,
+}
+
+if SESSION_ENVIRONMENT_PRODUCTION:
+    db_defaults["CONN_MAX_AGE"] = 90
+
+DATABASES = {
+    "default": db_defaults,
+}
+
 OSCAR_HIDDEN_FEATURES = ["reviews", "wishlists", "offers"]
 
 AUTHENTICATION_BACKENDS = (
@@ -346,14 +359,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "shop.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-
-# Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -377,9 +382,6 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.ScryptPasswordHasher",
 ]
 
-# Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "Asia/Singapore"
@@ -387,22 +389,6 @@ TIME_ZONE = "Asia/Singapore"
 USE_I18N = True
 
 USE_TZ = True
-
-db_defaults = {
-    "ENGINE": "django.db.backends.postgresql",
-    "NAME": "shop",
-    "USER": DB_USER,
-    "PASSWORD": DB_PASS,
-    "HOST": "127.0.0.1",
-    "PORT": 5432,
-}
-
-if SESSION_ENVIRONMENT_PRODUCTION:
-    db_defaults["CONN_MAX_AGE"] = 90
-
-DATABASES = {
-    "default": db_defaults,
-}
 
 OSCAR_DEFAULT_CURRENCY = "SGD"
 

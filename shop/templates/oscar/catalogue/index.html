@@ -1,9 +1,15 @@
 {% extends "oscar/catalogue/browse-new.html" %}
+{% load shop_extras %}
 {% load static %}
 
 {% block banner %}
     <img class="w-100 d-lg-none" src="{% static 'img/banner/banner_landscape.png' %}">
     <img class="w-100 d-none d-lg-block" src="{% static 'img/banner/banner_landscape2.png' %}">
+
 {% endblock %}
 
-{% block breadcrumbs %}{% endblock %}
+{% block breadcrumbs %}
+    {% autoescape off %}
+        {% get_active_shipping_methods %}
+    {% endautoescape %}
+{% endblock %}
