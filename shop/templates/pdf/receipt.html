@@ -839,10 +839,12 @@
                     <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ discount|currency:use_currency }}</span></p>
                     </td>
                 </tr>
-                <tr class="c9">
-                    <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c5">GST</span></p></td>
-                    <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ gst|currency:use_currency }}</span></p></td>
-                </tr>
+                {% if gst %}
+                    <tr class="c9">
+                        <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c5">GST</span></p></td>
+                        <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c5">{{ gst|currency:use_currency }}</span></p></td>
+                    </tr>
+                {% endif %}
                 <tr class="c56">
                     <td class="c38" colspan="1" rowspan="1"><p class="c1"><span class="c4">Total</span></p></td>
                     <td class="c38" colspan="1" rowspan="1"><p class="c13"><span class="c4">{{ total|currency:use_currency }}</span></p></td>
