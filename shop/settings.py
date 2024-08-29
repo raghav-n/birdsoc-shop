@@ -116,6 +116,7 @@ INSTALLED_APPS = [
     "apps.checkout.apps.CheckoutConfig",
     "apps.customer.apps.CustomerConfig",
     "apps.payment.apps.PaymentConfig",
+    "apps.offer.apps.OfferConfig",
     "apps.util.apps.UtilConfig",  # added
     "apps.home.apps.MyShop",
     "apps.communication.apps.CommunicationConfig",
@@ -126,7 +127,6 @@ INSTALLED_APPS = [
     "oscar.apps.catalogue.reviews.apps.CatalogueReviewsConfig",
     "oscar.apps.partner.apps.PartnerConfig",
     "oscar.apps.basket.apps.BasketConfig",
-    "oscar.apps.offer.apps.OfferConfig",
     "oscar.apps.search.apps.SearchConfig",
     "oscar.apps.voucher.apps.VoucherConfig",
     "oscar.apps.wishlists.apps.WishlistsConfig",
@@ -465,10 +465,10 @@ OSCAR_DASHBOARD_NAVIGATION = [
                 "label": _("Categories"),
                 "url_name": "dashboard:catalogue-category-list",
             },
-            # {
-            #     "label": _("Ranges"),
-            #     "url_name": "dashboard:range-list",
-            # },
+            {
+                "label": _("Ranges"),
+                "url_name": "dashboard:range-list",
+            },
             # {
             #     "label": _("Low stock alerts"),
             #     "url_name": "dashboard:stock-alert-list",
