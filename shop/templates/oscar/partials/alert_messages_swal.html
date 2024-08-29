@@ -3,15 +3,16 @@
     <script>
         var toastMixin = Swal.mixin({
             toast: true,
-            title: 'General Title',
             animation: false,
             position: 'top-right',
             showConfirmButton: false,
             timer: {% if messages|length > 1 %} 4000 {% else %} 7000 {% endif %},
+            allowOutsideClick: true,
             timerProgressBar: true,
             didOpen: (toast) => {
                 toast.addEventListener('mouseenter', Swal.stopTimer)
                 toast.addEventListener('mouseleave', Swal.resumeTimer)
+                document.addEventListener('click', () => Swal.close());
             }
         });
 
