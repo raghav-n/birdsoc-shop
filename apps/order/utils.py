@@ -26,7 +26,7 @@ class OrderDispatcher(CoreOrderDispatcher):
 
         attachments.append(
             [
-                f"receipt-{settings.ORDER_PREFIX}{order.number}",
+                f"receipt-{settings.ORDER_PREFIX}{order.number}.pdf",
                 order.get_receipt_as_pdf(),
                 "application/pdf",
             ]
