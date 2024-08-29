@@ -68,3 +68,22 @@
 {% endblock %}
 
 {% block line_actions %}{% endblock %}
+
+{% block order_actions %}
+    <div class="card card-body bg-light">
+        <h3><i class="fas fa-exclamation-triangle"></i> {% trans "Change order status" %}:</h3>
+        {% if order_status_form.has_choices %}
+            {% include "oscar/dashboard/partials/form_fields.html" with form=order_status_form %}
+            <input type="hidden" value="change_order_status" name="order_action" />
+            <div class="alert alert-danger mt-0">
+                Confirming payment can't be undone.
+                A receipt will be immediately sent to the customer when payment is confirmed.
+            </div>
+            <div class="flex-nowrap">
+                <button type="submit" class="btn btn-primary">{% trans "Change status" %}</button>
+            </div>
+        {% else %}
+            {% trans "This order can't have its status changed." %}
+        {% endif %}
+    </div>
+{% endblock %}

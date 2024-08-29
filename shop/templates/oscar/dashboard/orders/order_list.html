@@ -51,7 +51,32 @@
             {% csrf_token %}
 
             {% block order_actions %}
-                {{ block.super }}
+                <div class="card card-body bg-light">
+                    <h3><i class="fas fa-exclamation-circle"></i> {% trans "Change order status" %}:</h3>
+                    {% if order_statuses %}
+                        <div class="form-group">
+                            <div class="controls">
+                                <select name="new_status">
+                                    <option value=""> -- {% trans "choose new status" %} -- </option>
+                                    {% for status in order_statuses %}
+                                        <option>{{ status }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="alert alert-danger mt-0">
+                            Confirming payment can't be undone.
+                            A receipt will be immediately sent to the customer when payment is confirmed.
+                        </div>
+                        <div class="flex-nowrap">
+                            <button type="submit" name="action" value="change_order_statuses" class="btn btn-primary" data-loading-text="{% trans 'Changing...' %}">
+                                {% trans "Change status" %}
+                            </button>
+                        </div>
+                    {% else %}
+                        {% trans "This order can't have its status changed." %}
+                    {% endif %}
+                </div>
             {% endblock %}
             {% block order_list %}
                 {{ block.super }}
