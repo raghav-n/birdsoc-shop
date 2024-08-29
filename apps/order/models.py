@@ -44,7 +44,10 @@ class Order(AbstractOrder):
                 items[desc] = {}
                 items[desc]["quantity"] = line.quantity
                 items[desc]["price"] = line.unit_price_excl_tax
-                items[desc]["total"] = line.line_price_excl_tax
+                items[desc]["total"] = line.line_price_before_discounts_excl_tax
+
+        for desc in items.keys():
+            items[desc]["price"] = items[desc]["total"] / items[desc]["quantity"]
 
         return [{**{"desc": desc}, **details} for desc, details in items.items()]
 
