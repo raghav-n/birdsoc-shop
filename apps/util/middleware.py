@@ -1,12 +1,13 @@
 from django.shortcuts import redirect
 from django.conf import settings
+from django.urls import reverse
 
 
 class LoginRequiredMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.login_url = settings.LOGIN_ONLY_URL
-        self.open_urls = [self.login_url] + getattr(settings, "OPEN_URLS", [])
+        self.open_urls = [self.login_url, reverse("password-reset")] + getattr(settings, "OPEN_URLS", [])
 
     def __call__(self, request):
         if (
