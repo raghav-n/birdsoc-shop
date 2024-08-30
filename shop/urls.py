@@ -18,6 +18,7 @@ Including another URLconf
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from django_contact_form.views import ContactFormView
@@ -31,7 +32,7 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     # The Django admin is not officially supported; expect breakage.
     # Nonetheless, it's often useful for debugging.
-    # path("admin/", admin.site.urls),
+    path("admin/", admin.site.urls),
     path('', include(apps.get_app_config('home').urls[0])),
     apps.get_app_config("catalogue").get_home_url_pattern(),
     path(
