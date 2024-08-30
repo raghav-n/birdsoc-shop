@@ -375,6 +375,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 PASSWORD_HASHERS = [
+    "shop.hashers.MinArgon2PasswordHasher",
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
@@ -535,10 +536,10 @@ OSCAR_DASHBOARD_NAVIGATION = [
                 "label": _("Vouchers"),
                 "url_name": "dashboard:voucher-list",
             },
-            # {
-            #     "label": _("Voucher Sets"),
-            #     "url_name": "dashboard:voucher-set-list",
-            # },
+            {
+                "label": _("Voucher Sets"),
+                "url_name": "dashboard:voucher-set-list",
+            },
         ],
     },
     # {
