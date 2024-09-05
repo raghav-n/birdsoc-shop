@@ -1,9 +1,28 @@
-{% extends "oscar/basket/partials/basket_content.html" %}
 {% load i18n %}
 {% load image_tags %}
 {% load currency_filters %}
 {% load purchase_info_tags %}
 {% load widget_tweaks %}
+
+{% if basket_warnings %}
+    <h5>{% trans "Important messages about items in your basket" %}</h5>
+    {% for warning in basket_warnings %}
+        <div class="alert alert-warning">{{ warning }}</div>
+    {% endfor %}
+{% endif %}
+
+{% if not basket.is_empty %}
+    {% block basket_form_headers %}
+        <div class="basket-title d-none d-md-block">
+            <div class="row">
+                <h4 class="col-md-6">{% trans "Items to buy now" %}</h4>
+                <h4 class="col-md-3">{% trans "Quantity" %}</h4>
+                <h4 class="col-md-1 text-right">{% trans "Price" %}</h4>
+                <h4 class="col-md-2 text-right">{% trans "Total" %}</h4>
+            </div>
+        </div>
+    {% endblock %}
+
 
 {% block basket_form_main %}
         <form method="post" class="basket_summary" id="basket_formset">
@@ -89,7 +108,59 @@
                 {% endwith %}
             {% endfor %}
         </form>
-{% endblock %}
+    {% endblock %}
+
+    <div class="row">
+        {% block vouchers %}
+            {# Hide the entire section if a custom BasketView doesn't pass in a voucher form #}
+            {% if voucher_form %}
+                <div class="col-sm-6">
+                    <div class="sub-header">
+                        <h2>{% trans "Voucher/promo code" %}</h2>
+                    </div>
+                    <p id="voucher_form_link"><a href="#voucher" class="btn btn-secondary btn-full">{% trans "I have a voucher code..." %}</a></p>
+
+                    <div id="voucher_form_container" style="display:none">
+                        <form id="voucher_form" action="{% url 'basket:vouchers-add' %}" method="post">
+                            {% csrf_token %}
+                            {% include "oscar/partials/form_fields.html" with form=voucher_form %}
+                            <button type="submit" class="btn btn-info" data-loading-text="{% trans 'Adding...' %}">{% trans "Add voucher" %}</button>
+                            {% trans "or" %} <a href="#" id="voucher_form_cancel">{% trans "cancel" %}</a>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+        {% endblock vouchers %}
+
+        {% block baskettotals %}
+            <div class="col-sm-6">
+                <div class="sub-header">
+                    <h2>{% trans "Totals" %}</h2>
+                </div>
+                {% include 'oscar/basket/partials/basket_totals.html' with editable=1 %}
+            </div>
+        {% endblock baskettotals %}
+    </div>
+
+
+    {% block formactions %}
+        <div class="form-group clearfix">
+            <div class="row">
+                <div class="col-sm-4 offset-sm-8">
+                    <a href="{% url 'checkout:index' %}" class="btn btn-lg btn-primary btn-block">{% trans "Proceed to checkout" %}</a>
+                </div>
+            </div>
+        </div>
+    {% endblock formactions %}
+
+{% else %}
+    {% block emptybasket %}
+        <p>
+            {% trans "Your basket is empty." %}
+            <a href="{{ homepage_url }}">{% trans "Continue shopping" %}</a>
+        </p>
+    {% endblock %}
+{% endif %}
 
 {% block savedbasket %}
     {% if user.is_authenticated and saved_formset %}
