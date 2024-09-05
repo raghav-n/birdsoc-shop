@@ -47,6 +47,7 @@ urlpatterns = [
         ),
         name="django_contact_form_sent",
     ),
+    path("about/", TemplateView.as_view(template_name="oscar/about.html"), name="about")
 ]
 
 if not settings.SESSION_ENVIRONMENT_PRODUCTION:

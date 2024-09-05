@@ -1,0 +1,14 @@
+{% extends "oscar/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "About" %} | {{ block.super }}
+{% endblock %}
+
+{% block headertext %}
+    {% trans "About" %}
+{% endblock %}
+
+{% block content %}
+    Hello world.
+{% endblock %}
