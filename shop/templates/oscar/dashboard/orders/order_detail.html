@@ -4,6 +4,14 @@
 {% load image_tags %}
 {% load static %}
 
+{% block customer_information %}
+    {% if user.is_superuser %}
+        {{ block.super }}
+    {% else %}
+        <div class="mb-2 mt-0 alert alert-info">Customer information is hidden.</div>
+    {% endif %}
+{% endblock customer_information %}
+
 {% block tab_payment %}
 
     {% if order.billing_address %}
@@ -41,14 +49,15 @@
                         <td>{{ source.amount_refunded|currency:order.currency }}</td>
                         <td>
                             {{ source.reference|default:"-" }}
-
-                            <div class="d-block" style="max-width: 50vw;">
-                                {% if source.payment_proof %}
-                                    <a href="{{ source.payment_proof.url }}" target="_blank">
-                                        <img src="{{ source.payment_proof.url }}" alt="Payment proof" class="w-100">
-                                    </a>
-                                {% endif %}
-                            </div>
+                            {% if user.is_superuser %}
+                                <div class="d-block" style="max-width: 50vw;">
+                                    {% if source.payment_proof %}
+                                        <a href="{{ source.payment_proof.url }}" target="_blank">
+                                            <img src="{{ source.payment_proof.url }}" alt="Payment proof" class="w-100">
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endfor %}

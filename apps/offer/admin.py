@@ -1,1 +1,1 @@
-from oscar.apps.offer.admin import *  
+from oscar.apps.offer.admin import *

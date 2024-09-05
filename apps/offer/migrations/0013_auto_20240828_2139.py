@@ -4,11 +4,11 @@ from django.db import migrations
 from oscar.apps.offer.custom import create_benefit
 
 
-
-
 def create_benefit_runner(apps, schema_editor):
     from apps.offer.models import Discount20Cap10
+
     return create_benefit(Discount20Cap10)
+
 
 class Migration(migrations.Migration):
 

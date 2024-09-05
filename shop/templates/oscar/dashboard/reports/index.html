@@ -1,0 +1,9 @@
+{% extends "oscar/dashboard/reports/index.html" %}
+
+{% block dashboard_content %}
+    {% if user.is_superuser %}
+        {{ block.super }}
+    {% else %}
+        <div class="mb-2 mt-0 alert alert-info">This page is unavailable.</div>
+    {% endif %}
+{% endblock %}

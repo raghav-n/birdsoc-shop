@@ -121,6 +121,7 @@ INSTALLED_APPS = [
     "apps.home.apps.MyShop",
     "apps.communication.apps.CommunicationConfig",
     "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
+    "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "oscar.apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",
     "oscar.apps.address.apps.AddressConfig",
@@ -132,7 +133,6 @@ INSTALLED_APPS = [
     "oscar.apps.wishlists.apps.WishlistsConfig",
     "oscar.apps.dashboard.apps.DashboardConfig",
     "oscar.apps.dashboard.reports.apps.ReportsDashboardConfig",
-    "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "oscar.apps.dashboard.offers.apps.OffersDashboardConfig",
     "oscar.apps.dashboard.partners.apps.PartnersDashboardConfig",
     "oscar.apps.dashboard.pages.apps.PagesDashboardConfig",
@@ -194,6 +194,7 @@ MIDDLEWARE = [
     "oscar.apps.basket.middleware.BasketMiddleware",
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
     "apps.util.middleware.LoginRequiredMiddleware",
+    "apps.util.middleware.NoAdminMiddleware",
 ]
 
 INTERNAL_IPS = [
@@ -319,7 +320,7 @@ MANAGERS = [
     ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com"),
     ("BirdSoc SG Sales", "birdsocsgsales@gmail.com"),
 ]
-ADMIN_EMAILS = [i[1] for i in MANAGERS]
+ADMIN_EMAILS = [i[1] for i in ADMINS]
 
 HAYSTACK_CONNECTIONS = {
     "default": {
@@ -524,6 +525,7 @@ OSCAR_DASHBOARD_NAVIGATION = [
             #     "url_name": "dashboard:user-alert-list",
             # },
         ],
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
     },
     {
         "label": _("Offers"),
@@ -565,6 +567,7 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "label": _("Reports"),
         "icon": "fas fa-chart-bar",
         "url_name": "dashboard:reports-index",
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
     },
 ]
 

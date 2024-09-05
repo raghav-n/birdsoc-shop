@@ -14,8 +14,9 @@ class PayNowDetailsForm(forms.ModelForm):
         required=False, label=mark_safe("<strong>Add a donation (optional)</strong>")
     )
     reference = forms.CharField(
-        required=False, label=mark_safe("<strong>Payment reference</strong>"),
-        help_text="<strong class='text-warning'>Please enter this reference number when making your payment, so that your payment can be easily traced.</strong>"
+        required=False,
+        label=mark_safe("<strong>Payment reference</strong>"),
+        help_text="<strong class='text-warning'>Please enter this reference number when making your payment, so that your payment can be easily traced.</strong>",
     )
     payment_proof = forms.ImageField(
         required=True,

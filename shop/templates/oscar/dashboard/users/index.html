@@ -1,0 +1,7 @@
+{% extends "oscar/dashboard/users/index.html" %}
+
+{% block dashboard_content %}
+    {% if user.is_superuser %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}

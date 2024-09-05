@@ -18,7 +18,9 @@ class Discount20Cap10(Benefit):
         discount = D(0)
         max_discount = D("10.0")
 
-        total_discountable = D(sum([price * line.quantity for (price, line) in line_tuples]))
+        total_discountable = D(
+            sum([price * line.quantity for (price, line) in line_tuples])
+        )
 
         if (discount_percent / D("100.0")) * total_discountable > max_discount:
             discount_percent = (max_discount / total_discountable) * D("100.0")

@@ -19,10 +19,10 @@ class SelfCollectHW2024(methods.NoShippingRequired):
     )
     website_home_description = (
         "<div class='alert alert-info mt-0'>"
-            f"<strong>For this round of merchandise sales, we're accepting orders from now until {end_date.strftime('%d %b %Y')}</strong>. Collection will be at Henderson Waves, "
-            "where we'll be hosting the third edition of our Raptor Watch booth in the mornings of 20 October, 27 October, and 3 November. This event "
-            "is <a href='https://birdsociety.sg/2023/11/09/henderson-waves-raptor-watch-2023/' target='_blank'>always really popular</a>, and you can "
-            "join us for a session of raptor watching and collect your merchandise at the same time!"
+        f"<strong>For this round of merchandise sales, we're accepting orders from now until {end_date.strftime('%d %b %Y')}</strong>. Collection will be at Henderson Waves, "
+        "where we'll be hosting the third edition of our Raptor Watch booth in the mornings of 20 October, 27 October, and 3 November. This event "
+        "is <a href='https://birdsociety.sg/2023/11/09/henderson-waves-raptor-watch-2023/' target='_blank'>always really popular</a>, and you can "
+        "join us for a session of raptor watching and collect your merchandise at the same time!"
         "</div>"
     )
 
