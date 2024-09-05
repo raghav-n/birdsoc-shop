@@ -317,6 +317,7 @@ ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
 MANAGERS = [
     ("Raghav Narayanswamy", "raghavnswamy@gmail.com"),
     ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com"),
+    ("BirdSoc SG Sales", "birdsocsgsales@gmail.com"),
 ]
 ADMIN_EMAILS = [i[1] for i in MANAGERS]
 
