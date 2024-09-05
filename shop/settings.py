@@ -162,7 +162,7 @@ ANYMAIL = {
 EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
 DEFAULT_FROM_EMAIL = "BirdSoc SG Shop <shop@birdsociety.sg>"  # if you don't already have this in settings
 OSCAR_FROM_EMAIL = DEFAULT_FROM_EMAIL
-REPLY_TO_EMAIL = "outreach.birdsocsg@gmail.com"
+REPLY_TO_EMAIL = "birdsocsgsales@gmail.com"
 SERVER_EMAIL = (
     "shop-server@birdsociety.sg"  # ditto (default from-email for Django errors)
 )
