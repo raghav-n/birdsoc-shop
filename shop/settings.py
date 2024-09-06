@@ -193,7 +193,7 @@ MIDDLEWARE = [
     "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "oscar.apps.basket.middleware.BasketMiddleware",
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
-    "apps.util.middleware.LoginRequiredMiddleware",
+    # "apps.util.middleware.LoginRequiredMiddleware",
     "apps.util.middleware.NoAdminMiddleware",
 ]
 

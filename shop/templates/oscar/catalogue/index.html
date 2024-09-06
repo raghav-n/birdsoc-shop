@@ -13,3 +13,9 @@
         {% get_active_shipping_methods %}
     {% endautoescape %}
 {% endblock %}
+
+{% block endbanner %}
+    <img class="w-100 d-none d-lg-block" src="{% static 'img/banner/merch_offers2024.png' %}">
+    <img class="w-100 d-lg-none" src="{% static 'img/banner/merch_offers2024_left.png' %}">
+    <img class="w-100 d-lg-none" src="{% static 'img/banner/merch_offers2024_right.png' %}">
+{% endblock %}
