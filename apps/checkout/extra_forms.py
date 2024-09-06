@@ -11,19 +11,22 @@ Source = get_model("payment", "Source")
 
 class PayNowDetailsForm(forms.ModelForm):
     donation = forms.IntegerField(
-        required=False, label=mark_safe("<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"),
+        required=False,
+        label=mark_safe(
+            "<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
+        ),
         help_text="<span class='text-warning font-weight-bold'>"
-                      "Learn more about donating to the Bird Society of Singapore "
-                      "<u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>."
-                  "</span>"
+        "Learn more about donating to the Bird Society of Singapore "
+        "<u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>."
+        "</span>",
     )
     reference = forms.CharField(
         required=False,
         label=mark_safe("<strong>Payment reference</strong>"),
         help_text="<span class='text-info font-weight-bold'>"
-                      "Please enter this reference number when making your payment, "
-                      "so that your payment can be easily traced."
-                  "</span>",
+        "Please enter this reference number when making your payment, "
+        "so that your payment can be easily traced."
+        "</span>",
     )
     payment_proof = forms.ImageField(
         required=True,

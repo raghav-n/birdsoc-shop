@@ -1,4 +1,7 @@
-from oscar.apps.catalogue.search_handlers import SimpleProductSearchHandler as CoreSimpleProductSearchHandler
+from oscar.apps.catalogue.search_handlers import (
+    SimpleProductSearchHandler as CoreSimpleProductSearchHandler,
+)
+
 
 class SimpleProductSearchHandler(CoreSimpleProductSearchHandler):
     def get_queryset(self):
