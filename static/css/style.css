@@ -469,7 +469,8 @@ div.payment-form {
 }
 
 .product_pod h3 {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
 }
 
 body, li.menu-item {
