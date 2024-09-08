@@ -308,6 +308,7 @@ DATABASES = {
 }
 
 OSCAR_HIDDEN_FEATURES = ["reviews", "wishlists", "offers"]
+OSCAR_SEND_REGISTRATION_EMAIL = False
 
 AUTHENTICATION_BACKENDS = (
     "oscar.apps.customer.auth_backends.EmailBackend",
