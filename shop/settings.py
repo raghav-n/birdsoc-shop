@@ -149,6 +149,7 @@ INSTALLED_APPS = [
     "django_contact_form",
     "crispy_forms",
     "crispy_bootstrap4",
+    "sorl.thumbnail",
 ]
 
 FILE_UPLOAD_PERMISSIONS = 0o666
@@ -584,5 +585,5 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 OSCAR_GOOGLE_ANALYTICS_ID = "G-8Z3R0WMMV7"
 
 LOGIN_ONLY_URL = "/accounts/login-only/"
-OSCAR_THUMBNAILER = "core.thumbnailer.FakeThumbnailer"
+# OSCAR_THUMBNAILER = "core.thumbnailer.FakeThumbnailer"
 OSCAR_HOMEPAGE = "/"
