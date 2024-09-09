@@ -134,7 +134,7 @@ nav#nav-main {
 
 ::-webkit-scrollbar {
     height: 12px;
-    width: 6px;
+    width: 9px;
     background: var(--page-header-background);;
 }
 
