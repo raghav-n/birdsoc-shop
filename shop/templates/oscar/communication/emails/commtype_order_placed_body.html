@@ -63,18 +63,10 @@
         <tr>
             <td class="content-block">
                 {% absolute_url site.domain status_path as absolute_status_url %}
-                {% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}
+                {% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}.
             </td>
         </tr>
     {% endif %}
-    <tr>
-        <td class="content-block">
-            <p>{% blocktrans %}
-                Warm regards,<br>
-                Bird Society of Singapore
-            {% endblocktrans %}</p>
-        </td>
-    </tr>
 
     <tr>
         {% if order.shipping_address %}
@@ -84,6 +76,15 @@
                 {% endfor %}</p>
             </td>
         {% endif %}
+    </tr>
+
+    <tr>
+        <td class="content-block">
+            <p>{% blocktrans %}
+                Warm regards,<br>
+                Bird Society of Singapore
+            {% endblocktrans %}</p>
+        </td>
     </tr>
 
 {% endblock %}

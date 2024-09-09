@@ -1,0 +1,17 @@
+{% load shop_extras currency_filters i18n url_tags %}Hello,
+
+{% blocktrans %}Thank you once again for your support.{% endblocktrans %}
+
+{% blocktrans with order_number=order.number %}We have received payment for your merchandise order {{ order_number }}. A receipt for your purchase is attached with this email.{% endblocktrans %}
+
+{{ order.shipping_method|shipping_method_email_description|safe }}
+
+{% blocktrans %}Happy birding, and see you at Henderson Waves!{% endblocktrans %}
+{% if status_url %}{% absolute_url site.domain status_path as absolute_status_url %}
+{% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}
+{% endif %}
+
+{% blocktrans %}
+Warm regards,
+Bird Society of Singapore
+{% endblocktrans %}

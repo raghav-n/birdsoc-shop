@@ -1,0 +1,34 @@
+{% load currency_filters i18n url_tags %}{% blocktrans with order_number=order.number %}Hello,
+
+Thank you so much for supporting the Bird Society of Singapore!
+
+We are pleased to confirm your order {{ order_number }} has been received and will be processed shortly. Once we verify your payment was received, you will receive a receipt confirming your purchase. {% endblocktrans %}
+
+{% trans 'Your order contains:' %}
+
+{% for line in order.lines.all %} * {{ line.title }} - {%  trans 'quantity:' %} {{ line.quantity }} - {% trans 'price:' %} {{ line.line_price_incl_tax|currency:order.currency }}
+{% endfor %}
+{% trans 'Basket total:' %} {{ order.basket_total_incl_tax|currency:order.currency }}
+{% trans 'Shipping:' %} {{ order.shipping_incl_tax|currency:order.currency }}
+{% trans 'Order Total:' %} {{ order.total_incl_tax|currency:order.currency }}
+
+{% if order.shipping_address %}{% trans 'Shipping address:' %}
+
+{% for field in order.shipping_address.active_address_fields %}  {{ field }}
+{% endfor %}{% endif %}
+
+{% if status_url %}
+{% absolute_url site.domain status_path as absolute_status_url %}
+{% blocktrans %}You can view the status of this order at the below URL:
+{{ absolute_status_url }}{% endblocktrans %}
+{% endif %}
+
+{{ order.shipping_method|shipping_method_email_description|safe }}
+{% blocktrans %}
+Once again, thank you for supporting us – we genuinely appreciate it. Happy birding, and see you at Henderson Waves!
+{% endblocktrans %}
+
+{% blocktrans %}
+Warm regards,
+Bird Society of Singapore
+{% endblocktrans %}
