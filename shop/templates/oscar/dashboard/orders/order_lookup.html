@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Lookup</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+        }
+
+        h1 {
+            font-size: 1.75rem !important;
+        }
+
+        .container {
+            max-width: max(400px, 35vw);
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-top: 5vh;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 5px 10px;
+            font-size: 1.25rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .info-box, .fail-box, .collection-box {
+            padding: 10px;
+            font-size: 1.15rem;
+        }
+
+        .info-box {
+            min-height: 100px;
+        }
+
+        .info-box, .collection-box {
+            background-color: #f9f9f9;
+        }
+
+        .fail-box {
+            background-color: #e8a5a5;
+        }
+    </style>
+    {% include "oscar/header_contents.html" %}
+</head>
+<body>
+
+<div class="container">
+    <h1>Order lookup</h1>
+    <div class="input-group">
+        <input type="text" id="order-number" placeholder="Order number" class="form-control">
+    </div>
+    <div class="info-box" id="order-info" style="display: none;">
+        <div class="customer-name">
+            <strong>Customer name:</strong> <span id="customer-name"></span>
+        </div>
+        <div class="order-status mb-2">
+            <strong>Order status:</strong> <span id="order-status"></span>
+        </div>
+        <div class="items-ordered">
+            <table class="table table-light table-sm mb-0" id="items-ordered-table" style="font-size: 1rem;">
+                <thead class="font-weight-bold">
+                    <tr>
+                        <td>Item</td>
+                        <td>Quantity</td>
+                    </tr>
+                </thead>
+                <tbody id="items-ordered-tbody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="collection-box" id="order-collection" style="display: none;">
+        <button class="btn btn-dark btn-lg" id="collection-button">Mark as collected</button>
+    </div>
+    <div class="fail-box" id="lookup-fail" style="display: none;">
+        Order not found.
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    async function getOrderedItems(orderNumber) {
+        const request = new Request(
+            "",
+            {
+                method: 'post',
+                body: JSON.stringify({
+                    "order_number": orderNumber,
+                }),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                mode: 'cors'
+            }
+        );
+        const response = await fetch(request)
+        return await response.json();
+    }
+
+    async function markAsCollected(orderNumber){
+        const request = new Request(
+            "{% url "dashboard:order-collection" %}",
+            {
+                method: 'post',
+                body: JSON.stringify({
+                    "order_number": orderNumber,
+                }),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                mode: 'cors'
+            }
+        );
+        const response = await fetch(request)
+        return await response.json();
+    }
+
+    let infoBox = document.getElementById("order-info");
+    let failBox = document.getElementById("lookup-fail");
+    let collectionBox = document.getElementById('order-collection');
+    let orderNumberInput = document.getElementById('order-number');
+
+    orderNumberInput.addEventListener('input', async function() {
+        const orderNumber = this.value;
+        const itemsOrdered = document.getElementById('items-ordered-tbody');
+
+        if (orderNumber && orderNumber.length === 6) {
+
+            orderResponse = await getOrderedItems(orderNumber);
+
+            if(orderResponse.success){
+                infoBox.style.display = "block";
+
+                let name = document.getElementById("customer-name");
+                name.innerText = orderResponse.customer_name;
+
+                let status = document.getElementById("order-status");
+                status.innerText = orderResponse.status;
+
+                document.getElementById('items-ordered-tbody').innerHTML = ""; // make sure cleared
+
+                for(var item of orderResponse.items){
+                    let newRow = itemsOrdered.insertRow(-1);
+                    let title = newRow.insertCell(0);
+                    let quantity = newRow.insertCell(1);
+                    let titleText = document.createTextNode(item.title.substring(0, item.title.indexOf("[") - 1));
+                    let quantityText = document.createTextNode(item.quantity);
+                    title.appendChild(titleText);
+                    quantity.appendChild(quantityText);
+                }
+
+                collectionBox.style.display = "block";
+                return;
+            }
+            else {
+                failBox.style.display = "block";
+                return;
+            }
+        }
+        failBox.style.display = "none";
+        infoBox.style.display = "none";
+        collectionBox.style.display = "none";
+        document.getElementById('items-ordered-tbody').innerHTML = "";
+        document.getElementById('customer-name').innerHTML = "";
+    });
+
+    document.getElementById('collection-button').addEventListener("click", async function(){
+        const orderNumber = document.getElementById('order-number').value;
+        const collectionResponse = await markAsCollected(orderNumber);
+        console.log(collectionResponse);
+        if (collectionResponse.success) {
+            Swal.fire({
+                title: `Order ${orderNumber} marked as collected.`,
+                icon: "success"
+            });
+            failBox.style.display = "none";
+            infoBox.style.display = "none";
+            collectionBox.style.display = "none";
+        } else {
+            Swal.fire({
+                title: "An error occurred.",
+                text: collectionResponse.message,
+                icon: "error"
+            });
+        }
+    })
+</script>
+
+</body>
+</html>

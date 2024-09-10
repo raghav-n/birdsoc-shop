@@ -122,7 +122,7 @@ INSTALLED_APPS = [
     "apps.communication.apps.CommunicationConfig",
     "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
-    "oscar.apps.dashboard.orders.apps.OrdersDashboardConfig",
+    "apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",
     "oscar.apps.address.apps.AddressConfig",
     "oscar.apps.catalogue.reviews.apps.CatalogueReviewsConfig",
@@ -585,5 +585,10 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 OSCAR_GOOGLE_ANALYTICS_ID = "G-8Z3R0WMMV7"
 
 LOGIN_ONLY_URL = "/accounts/login-only/"
-OSCAR_THUMBNAILER = "core.thumbnailer.LargeSorlThumbnail"
+
+if SESSION_ENVIRONMENT_PRODUCTION:
+    OSCAR_THUMBNAILER = "core.thumbnailer.LargeSorlThumbnail"
+else:
+    OSCAR_THUMBNAILER = "core.thumbnailer.FakeThumbnail"
+
 OSCAR_HOMEPAGE = "/"
