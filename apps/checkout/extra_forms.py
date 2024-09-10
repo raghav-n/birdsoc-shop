@@ -15,7 +15,7 @@ class PayNowDetailsForm(forms.ModelForm):
         label=mark_safe(
             "<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
         ),
-        help_text="<span class='text-warning font-weight-bold'>"
+        help_text="<span class='text-info font-weight-bold'>"
         "Learn more about donating to the Bird Society of Singapore "
         "<u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>."
         "</span>",

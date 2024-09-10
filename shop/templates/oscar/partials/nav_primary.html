@@ -3,6 +3,8 @@
 {% load category_tags %}
 {% load i18n %}
 
+{% block nav_classes %}navbar navbar-expand-md navbar-dark bg-dark{% endblock %}
+
 {% block navbar_collapse %}
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
             {% block nav %}
@@ -27,11 +29,16 @@
 {#                                    <a class="dropdown-item" href="{% url 'offer:list' %}">{% trans "Offers" %}</a>#}
 {#                                {% endblock %}#}
 {#                            </div>#}
-                            <a
-                                    class="nav-link font-weight-bold {% if app_name == "catalogue" and url_name == "index" %}active{% endif %}"
-                                    href="{% url 'catalogue:index' %}">
-                                {% trans "All products" %}
-                            </a>
+                                <a
+                                    class="nav-link font-weight-bold {% if url_name == "faq" %}active{% endif %}"
+                                    href="{% url 'home' %}">
+                                <i class="fas fa fa-home"></i>
+                                </a>
+{#                            <a#}
+{#                                    class="nav-link font-weight-bold {% if app_name == "catalogue" and url_name == "index" %}active{% endif %}"#}
+{#                                    href="{% url 'catalogue:index' %}">#}
+{#                                {% trans "All products" %}#}
+{#                            </a>#}
 {#                            <a#}
 {#                                        class="nav-link font-weight-bold {% if app_name == "offer" and url_name == "list" %}active{% endif %}"#}
 {#                                        href="{% url 'offer:list' %}">#}
@@ -41,6 +48,11 @@
                                     class="nav-link font-weight-bold {% if url_name == "django_contact_form" %}active{% endif %}"
                                     href="{% url 'django_contact_form' %}">
                                 {% trans "Contact us" %}
+                            </a>
+                            <a
+                                    class="nav-link font-weight-bold {% if url_name == "faq" %}active{% endif %}"
+                                    href="{% url 'faq' %}">
+                                {% trans "FAQs" %}
                             </a>
                         {% endwith %}
 {#                        </li>#}

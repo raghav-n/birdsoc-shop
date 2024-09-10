@@ -1,0 +1,74 @@
+{% extends "oscar/layout.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% trans "FAQs" %} | {{ block.super }}
+{% endblock %}
+
+{% block headertext %}
+    {% trans "Frequently Asked Questions" %}
+{% endblock %}
+
+{% block content %}
+    <p class="mt-3">
+        These FAQs apply to our current round of merchandise sales until 29 September 2024.
+    </p>
+    <div class="card">
+
+        <div class="card-body p-0  rounded-0 border-0">
+
+            <div class="card m-0 rounded-0 border-0">
+
+                    <div class="card-header  rounded-0 border-0 bg-light">
+                        <h6 class="mb-0 ">
+                            How do I pay?
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        We accept payment via PayNow. Specific payment instructions will be available when you add items to your cart and check out.
+                    </div>
+
+                    <div class="card-header  rounded-0 border-0  bg-light">
+                        <h6 class="mb-0 ">
+                            What will BirdSoc SG do with the proceeds from merchandise sales?
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        We are a fully volunteer-run organization. All proceeds from merchandise sales, including donations, will go
+                        towards our signature projects, funding our events, and web server expenses for our websites. Thank you for your contributions!
+                    </div>
+
+                    <div class="card-header  rounded-0 border-0  bg-light">
+                        <h6 class="mb-0 ">
+                            How do I get my items?
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        We aren't doing delivery for our merchandise for now. Please come down to Henderson Waves, where we'll be
+                        hosting our Raptor Watch event for the <a class="font-weight-bold" href="https://birdsociety.sg/2023/11/09/henderson-waves-raptor-watch-2023/"
+                                                                  target="_blank">third year running</a> on these Sundays:
+                        <ul class='mt-2 pl-4 mb-2'>
+                            <li>20 October</li>
+                            <li>27 October</li>
+                            <li>3 November</li>
+                        </ul>
+                    </div>
+
+                    <div class="card-header  rounded-0 border-0  bg-light">
+                        <h6 class="mb-0 ">
+                            Can I buy the items on site?
+                        </h6>
+                    </div>
+
+                    <div class="card-body">
+                        We can't sell the items physically on site as we're using a public space for the event.
+                        Please preorder through our website before 29 September. Thank you for your understanding!
+                    </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

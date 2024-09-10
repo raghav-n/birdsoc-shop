@@ -1,6 +1,8 @@
 {% extends "oscar/layout.html" %}
 {% load static %}
 
+{% block title %}{{ shop_name }}{% endblock %}
+
 {% block styles %}
     {{ block.super }}
     {% include "oscar/header_contents.html" %}

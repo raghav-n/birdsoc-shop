@@ -26,7 +26,7 @@ class SelfCollectHW2024(methods.NoShippingRequired):
         "<li>27 October</li>"
         "<li>3 November</li>"
         "</ul>"
-        "This event is <a href='https://birdsociety.sg/2023/11/09/henderson-waves-raptor-watch-2023/' target='_blank'>always really popular</a>, "
+        "This event is <a class='font-weight-bold' href='https://birdsociety.sg/2023/11/09/henderson-waves-raptor-watch-2023/' target='_blank'>always really popular</a>, "
         "and you can join us for a session of raptor watching and collect your merchandise at the same time! BirdSoc SG is a fully volunteer-run "
         "organization, and all proceeds from these merchandise sales, including donations, will go towards our signature projects, funding our events, "
         "and web server expenses for our websites."
