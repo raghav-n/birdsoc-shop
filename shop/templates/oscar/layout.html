@@ -48,9 +48,9 @@
                     {# Div exists for AJAX updates to entire content section #}
                     <div id="content_inner">{% block content %}{% endblock %}</div>
                 </div>
+                {% block endbanner %}
+                {% endblock %}
             </div>
-            {% block endbanner %}
-            {% endblock %}
         </div>
     {% endblock %}
 

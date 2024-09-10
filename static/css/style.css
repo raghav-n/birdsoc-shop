@@ -185,8 +185,6 @@ body {
     position: absolute !important;
     bottom: 0 !important;
     width: 100% !important;
-    height: 40px !important;
-    line-height: 40px !important;
     background-color: var(--page-footer-background);
 }
 
@@ -430,6 +428,23 @@ h1, h2, h3, h4, h5, h6 {
     font-family: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
+h1, .h1 {
+    font-size: calc(1.375rem + 1.5vw);
+}
+
+h2, .h2 {
+	font-size: calc(1.15rem + 0.9vw)
+}
+
+h3, .h3 {
+	font-size: calc(1.15rem + 0.6vw)
+}
+
+h4, .h4 {
+	font-size: calc(1.15rem + 0.3vw);
+	font-weight: 600;
+}
+
 div.site-logo {
     height: 4rem;
 }
@@ -489,11 +504,11 @@ body, li.menu-item {
     font-size: 0.7rem;
 }
 
-h3 {
-    font-size: 1.5rem;
-}
-
 .swal2-title a, .swal2-title button {
     padding: 0.25rem;
     margin-right: 0.25rem;
+}
+
+.product_main .price_color {
+    font-size: 1.5rem;
 }
