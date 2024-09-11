@@ -1,4 +1,4 @@
-{% load currency_filters i18n url_tags %}{% blocktrans with order_number=order.number %}Hello,
+{% load currency_filters i18n url_tags shop_extras %}{% blocktrans with order_number=order.number %}Hello,
 
 Thank you so much for supporting the Bird Society of Singapore!
 
