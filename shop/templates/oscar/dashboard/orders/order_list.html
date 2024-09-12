@@ -106,6 +106,7 @@
                         <th>{% trans "Number of items" %}</th>
                         <th>{% trans "Status" %}</th>
                         <th>{% trans "Customer" %}</th>
+                        {% if user.is_superuser %}<th>{% trans "Donation" %}</th>{% endif %}
 {#                        <th>{% trans "Shipping address" %}</th>#}
 {#                        <th>{% trans "Billing address" %}</th>#}
                         <th>{% trans "Date of purchase" %}</th>
@@ -135,6 +136,11 @@
                                 {% endif %}
                             {% endif %}
                         </td>
+                        {% if user.is_superuser %}
+                        <td>
+                            {{ order.donation_amount|currency:order.currency }}
+                        </td>
+                        {% endif %}
 {#                        <td>#}
 {#                            {% if user.is_superuser %}#}
 {#                                {{ order.shipping_address|default:"-" }}#}
