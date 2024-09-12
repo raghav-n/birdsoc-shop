@@ -52,3 +52,4 @@ class Command(BaseCommand):
                 print(f"Email to {row.email} prepared successfully.")
             else:
                 email.send()
+                print(f"Email to {row.email} sent successfully.")
