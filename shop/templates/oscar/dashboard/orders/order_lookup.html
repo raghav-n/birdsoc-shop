@@ -167,7 +167,10 @@
                     let newRow = itemsOrdered.insertRow(-1);
                     let title = newRow.insertCell(0);
                     let quantity = newRow.insertCell(1);
-                    let titleText = document.createTextNode(item.title.substring(0, item.title.indexOf("[") - 1));
+                    let titleText = document.createTextNode(
+                        item.title.includes("[") ?
+                            (item.title.substring(0, item.title.indexOf("[") - 1)) : (item.title)
+                    );
                     let quantityText = document.createTextNode(item.quantity);
                     title.appendChild(titleText);
                     quantity.appendChild(quantityText);
