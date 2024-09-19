@@ -18,7 +18,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 "collect/",
                 OrderCollectionView.as_view(),
                 name="order-collection",
-            )
+            ),
         ]
 
         return self.post_process_urls(new_urls) + super().get_urls()

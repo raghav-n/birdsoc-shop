@@ -53,6 +53,8 @@ class OrderCollectionView(View):
         try:
             order.set_status(settings.COLLECTED_STATUS)
         except Exception as e:
-            return JsonResponse({"success": False, "message": f"{e.__class__.__name__}: {e}"})
+            return JsonResponse(
+                {"success": False, "message": f"{e.__class__.__name__}: {e}"}
+            )
 
         return JsonResponse({"success": True})
