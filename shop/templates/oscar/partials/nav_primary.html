@@ -1,65 +1,74 @@
 {% extends "oscar/partials/nav_primary.html" %}
+{% load shop_extras %}
 {% load currency_filters %}
 {% load category_tags %}
 {% load i18n %}
 
 {% block nav_classes %}navbar navbar-expand-md navbar-dark bg-dark{% endblock %}
 
+{% block navbar_basket %}
+    {% if "SHOP_OPEN"|settings_value %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}
+
 {% block navbar_collapse %}
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
             {% block nav %}
                 <ul class="navbar-nav mr-auto">
                     {% block nav_items %}
-                        {% with url_name=request.resolver_match.url_name app_name=request.resolver_match.app_name  %}
-{#                        <li class="nav-item">#}
-{#                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">#}
-{#                                {% block browse_store_text %}{% trans "Browse store" %}{% endblock %}#}
-{#                            </a>#}
-{#                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">#}
-{#                                {% category_tree depth=1 as tree_categories %}#}
-{#                                <a class="dropdown-item" href="{% url 'catalogue:index' %}">{% trans "All products" %}</a>#}
-{#                                {% if tree_categories %}#}
-{#                                    <div class="dropdown-divider"></div>#}
-{#                                    {% for tree_category in tree_categories %}#}
-{#                                        <a class="dropdown-item" href="{{ tree_category.get_absolute_url }}">{{ tree_category.name }}</a>#}
-{#                                    {% endfor %}#}
-{#                                {% endif %}#}
-{#                                <div class="dropdown-divider"></div>#}
-{#                                {% block nav_dropdown_extra_items %}#}
-{#                                    <a class="dropdown-item" href="{% url 'offer:list' %}">{% trans "Offers" %}</a>#}
-{#                                {% endblock %}#}
-{#                            </div>#}
+                        {% if "SHOP_OPEN"|settings_value %}
+                            {% with url_name=request.resolver_match.url_name app_name=request.resolver_match.app_name  %}
+    {#                        <li class="nav-item">#}
+    {#                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">#}
+    {#                                {% block browse_store_text %}{% trans "Browse store" %}{% endblock %}#}
+    {#                            </a>#}
+    {#                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">#}
+    {#                                {% category_tree depth=1 as tree_categories %}#}
+    {#                                <a class="dropdown-item" href="{% url 'catalogue:index' %}">{% trans "All products" %}</a>#}
+    {#                                {% if tree_categories %}#}
+    {#                                    <div class="dropdown-divider"></div>#}
+    {#                                    {% for tree_category in tree_categories %}#}
+    {#                                        <a class="dropdown-item" href="{{ tree_category.get_absolute_url }}">{{ tree_category.name }}</a>#}
+    {#                                    {% endfor %}#}
+    {#                                {% endif %}#}
+    {#                                <div class="dropdown-divider"></div>#}
+    {#                                {% block nav_dropdown_extra_items %}#}
+    {#                                    <a class="dropdown-item" href="{% url 'offer:list' %}">{% trans "Offers" %}</a>#}
+    {#                                {% endblock %}#}
+    {#                            </div>#}
+                                    <a
+                                        class="nav-link font-weight-bold {% if url_name == "faq" %}active{% endif %}"
+                                        href="{% url 'home' %}">
+                                    <i class="fas fa fa-home"></i>
+                                    </a>
+    {#                            <a#}
+    {#                                    class="nav-link font-weight-bold {% if app_name == "catalogue" and url_name == "index" %}active{% endif %}"#}
+    {#                                    href="{% url 'catalogue:index' %}">#}
+    {#                                {% trans "All products" %}#}
+    {#                            </a>#}
+    {#                            <a#}
+    {#                                        class="nav-link font-weight-bold {% if app_name == "offer" and url_name == "list" %}active{% endif %}"#}
+    {#                                        href="{% url 'offer:list' %}">#}
+    {#                                    {% trans "Offers" %}#}
+    {#                            </a>#}
                                 <a
-                                    class="nav-link font-weight-bold {% if url_name == "faq" %}active{% endif %}"
-                                    href="{% url 'home' %}">
-                                <i class="fas fa fa-home"></i>
+                                        class="nav-link font-weight-bold {% if url_name == "django_contact_form" %}active{% endif %}"
+                                        href="{% url 'django_contact_form' %}">
+                                    {% trans "Contact us" %}
                                 </a>
-{#                            <a#}
-{#                                    class="nav-link font-weight-bold {% if app_name == "catalogue" and url_name == "index" %}active{% endif %}"#}
-{#                                    href="{% url 'catalogue:index' %}">#}
-{#                                {% trans "All products" %}#}
-{#                            </a>#}
-{#                            <a#}
-{#                                        class="nav-link font-weight-bold {% if app_name == "offer" and url_name == "list" %}active{% endif %}"#}
-{#                                        href="{% url 'offer:list' %}">#}
-{#                                    {% trans "Offers" %}#}
-{#                            </a>#}
-                            <a
-                                    class="nav-link font-weight-bold {% if url_name == "django_contact_form" %}active{% endif %}"
-                                    href="{% url 'django_contact_form' %}">
-                                {% trans "Contact us" %}
-                            </a>
-                            <a
-                                    class="nav-link font-weight-bold {% if url_name == "faq" %}active{% endif %}"
-                                    href="{% url 'faq' %}">
-                                {% trans "FAQs" %}
-                            </a>
-                            <a
-                                    class="nav-link"
-                                    href="https://birdsociety.sg/">
-                                {% trans "BirdSoc SG Home" %}
-                            </a>
-                        {% endwith %}
+                                <a
+                                        class="nav-link font-weight-bold {% if url_name == "faq" %}active{% endif %}"
+                                        href="{% url 'faq' %}">
+                                    {% trans "FAQs" %}
+                                </a>
+                                <a
+                                        class="nav-link"
+                                        href="https://birdsociety.sg/">
+                                    {% trans "BirdSoc SG Home" %}
+                                </a>
+                            {% endwith %}
+                        {% endif %}
 {#                        </li>#}
                    {% endblock %}
                </ul>

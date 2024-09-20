@@ -1,3 +1,4 @@
+from debug_toolbar.middleware import show_toolbar
 from django.http import Http404
 from django.shortcuts import redirect
 from django.conf import settings
@@ -7,7 +8,12 @@ from django.urls import reverse
 class LoginRequiredMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        self.login_url = settings.LOGIN_ONLY_URL
+
+        if settings.SHOP_OPEN:
+            self.login_url = settings.LOGIN_ONLY_URL
+        else:
+            self.login_url = reverse("dashboard:login")
+
         self.open_urls = [
             self.login_url,
             reverse("password-reset"),
@@ -17,9 +23,14 @@ class LoginRequiredMiddleware:
         ] + getattr(settings, "OPEN_URLS", [])
 
     def __call__(self, request):
-        if not request.user.is_authenticated and not any(
-            open_url in request.path_info for open_url in self.open_urls
+        if (
+            not request.user.is_authenticated
+            and not any(open_url in request.path_info for open_url in self.open_urls)
+            and request.path_info != "/"
+            and "accounts/" not in request.path_info
         ):
+            if not settings.SHOP_OPEN and "/dashboard" not in request.path_info:
+                return redirect("/")
             return redirect(self.login_url + "?next=" + request.path)
 
         return self.get_response(request)
@@ -33,8 +44,11 @@ class NoAdminMiddleware:
         if request.path.startswith("/admin/"):
             if (
                 not request.user.is_authenticated
-                or not request.user.email in settings.ADMIN_EMAILS
+                or request.user.email not in settings.ADMIN_EMAILS
             ):
                 raise Http404()
         response = self.get_response(request)
         return response
+
+def show_debug_toolbar(request):
+    return show_toolbar(request) and request.path_info not in ["", "/"]

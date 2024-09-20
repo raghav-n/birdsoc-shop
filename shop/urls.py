@@ -48,11 +48,6 @@ urlpatterns = [
         name="django_contact_form_sent",
     ),
     path("faq/", TemplateView.as_view(template_name="oscar/faq.html"), name="faq"),
-    path(
-        "closed/",
-        TemplateView.as_view(template_name="shop-closed.html"),
-        name="shop_closed",
-    ),
 ]
 
 if not settings.SESSION_ENVIRONMENT_PRODUCTION:

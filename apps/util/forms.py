@@ -3,8 +3,11 @@ from crispy_forms.layout import Layout, Field, Submit
 from django import forms
 from django.conf import settings
 from django.core.mail import EmailMessage
+from django.forms import ModelForm
 from django.utils.safestring import mark_safe
 from django_contact_form.forms import ContactForm as BaseContactForm
+
+from apps.customer.models import EmailAlert
 
 
 class ContactForm(BaseContactForm):
@@ -47,3 +50,9 @@ class ContactForm(BaseContactForm):
         )
         msg.content_subtype = "html"
         msg.send()
+
+
+class EmailAlertForm(ModelForm):
+    class Meta:
+        model = EmailAlert
+        fields = "__all__"

@@ -27,6 +27,8 @@ from django.utils.translation import gettext_lazy as _
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
+SHOP_OPEN = True
+
 
 def traces_sampler(sampling_context):
     """Sets sampling rate for Sentry logging"""
@@ -194,9 +196,11 @@ MIDDLEWARE = [
     "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "oscar.apps.basket.middleware.BasketMiddleware",
     "django.contrib.flatpages.middleware.FlatpageFallbackMiddleware",
-    # "apps.util.middleware.LoginRequiredMiddleware",
     "apps.util.middleware.NoAdminMiddleware",
 ]
+
+if not SHOP_OPEN:
+    MIDDLEWARE.append("apps.util.middleware.LoginRequiredMiddleware")
 
 INTERNAL_IPS = [
     "127.0.0.1",
@@ -265,6 +269,7 @@ if not SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
     DEBUG_TOOLBAR_CONFIG = {
         "RESULTS_CACHE_SIZE": 100,
+        "SHOW_TOOLBAR_CALLBACK": "apps.util.middleware.show_debug_toolbar",
     }
 
 elif SESSION_ENVIRONMENT_PRODUCTION:

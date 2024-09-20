@@ -1,0 +1,68 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: "Noto Sans", sans-serif;
+    background: linear-gradient(135deg, #d38be5, #A8D79F, #F4B183);
+    background-size: 150% 150%;
+    animation: gradientShift 6s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+    0%, 12%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+.form-container {
+    max-width: 600px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+}
+
+h1 {
+    font-size: calc(1.2rem + 1vw);
+    font-family: "Libre Franklin", sans-serif;
+    line-height: 1;
+    letter-spacing: -0.05rem;
+    font-weight: 700;
+    color: #333;
+}
+
+p {
+    font-size: 1rem;
+    color: #666;
+}
+
+.form-control {
+    border-radius: 1rem;
+    padding: 10px;
+    width: 260px !important;
+}
+
+button.btn {
+    border-radius: 2rem;
+    padding: 10px 30px;
+    background-color: #A8D79F; /* Light green from the logo */
+    color: #333; /* Dark grey text for better contrast */
+    border: none;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+button.btn:hover {
+    background-color: #91C787; /* Slightly darker shade of the green for hover */
+    box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.15); /* Enhance the shadow on hover */
+    color: #222; /* Slightly darker text on hover for interactivity */
+}
+
+#confirmationMessage {
+    color: green;
+    font-size: 1rem;
+    display: none;
+}
