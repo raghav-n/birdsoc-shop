@@ -2,13 +2,13 @@ html, body {
     height: 100%;
     margin: 0;
     font-family: "Noto Sans", sans-serif;
-    background: linear-gradient(135deg, #d38be5, #A8D79F, #F4B183);
+    background: linear-gradient(135deg, #d38be5e0, #A8D79Fe0, #F4B183e0);
     background-size: 150% 150%;
     animation: gradientShift 6s ease-in-out infinite;
 }
 
 @keyframes gradientShift {
-    0%, 12%, 100% {
+    0%, 25%, 100% {
         background-position: 0% 50%;
     }
     50% {
@@ -17,7 +17,7 @@ html, body {
 }
 
 .form-container {
-    max-width: 600px;
+    max-width: 700px;
     width: 100%;
     background: rgba(255, 255, 255, 0.8);
     border-radius: 15px;
@@ -29,13 +29,15 @@ h1 {
     font-size: calc(1.2rem + 1vw);
     font-family: "Libre Franklin", sans-serif;
     line-height: 1;
-    letter-spacing: -0.05rem;
+    letter-spacing: calc(-0.015rem - 0.03vw);
     font-weight: 700;
-    color: #333;
+}
+
+p, input#email, button.btn {
+    font-size: calc(0.8rem + 0.35vw);
 }
 
 p {
-    font-size: 1rem;
     color: #666;
 }
 
@@ -63,6 +65,5 @@ button.btn:hover {
 
 #confirmationMessage {
     color: green;
-    font-size: 1rem;
     display: none;
 }
