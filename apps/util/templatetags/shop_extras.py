@@ -28,6 +28,13 @@ def shipping_method_email_description(shipping_method):
         if method.name == shipping_method:
             return method.email_description
 
+@register.filter
+def shipping_method_email_description_full(shipping_method):
+    methods = Repository().get_available_shipping_methods(basket=None)
+    for method in methods:
+        if method.name == shipping_method:
+            return method.email_description_full
+
 
 @register.simple_tag
 def get_active_shipping_methods():

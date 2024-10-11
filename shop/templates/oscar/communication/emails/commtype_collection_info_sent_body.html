@@ -1,0 +1,38 @@
+{% extends "oscar/communication/emails/base.html" %}
+{% load shop_extras %}
+{% load currency_filters i18n url_tags %}
+
+{% block tbody %}
+    <tr>
+        <td class="content-block">
+
+            <p>{% blocktrans %}
+                Dear {{ name }},
+            {% endblocktrans %}</p>
+            <p>{% blocktrans %}
+                Thank you, once again, for your support! Here are the collection details for your merchandise order:
+            {% endblocktrans %}</p>
+            <p>{{ order.shipping_method|shipping_method_email_description_full|linebreaks }}</p>
+            <p>{% blocktrans %}
+                As part of our commitment to sustainability, we won't be providing plastic bags; please bring your own bags. Thank you for your understanding.
+            {% endblocktrans %}</p>
+            <p>{% blocktrans with order_number=order.number %}
+                Please quote your order number {{ order_number }} for collection. If you would like to nominate a proxy to collect on your behalf, please inform the proxy to produce your name and this order number.
+            {% endblocktrans %}</p>
+            <p>{% blocktrans %}
+                Thank you, and see you there!
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
+    <tr>
+        <td class="content-block">
+            <p>{% blocktrans %}
+                Best,<br>
+                Bird Society of Singapore
+            {% endblocktrans %}</p>
+        </td>
+    </tr>
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
