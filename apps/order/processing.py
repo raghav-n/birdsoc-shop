@@ -14,7 +14,13 @@ class EventHandler(CoreEventHandler):
             context = {"order": order}
             dispatcher.send_payment_confirmed_email_for_user(order, context)
 
-        if new_status == settings.COLLECTED_STATUS:
+        elif new_status == settings.COLLECTION_INFO_SENT_STATUS:
+            OrderDispatcher = get_class("order.utils", "OrderDispatcher")
+            dispatcher = OrderDispatcher()
+            context = {"order": order, "name": order.user.first_name}
+            dispatcher.send_collection_info_sent_email_for_user(order, context)
+
+        elif new_status == settings.COLLECTED_STATUS:
             ShippingEventType = get_model("order", "ShippingEventType")
             collection_event_type = ShippingEventType._default_manager.get(
                 code="collected"

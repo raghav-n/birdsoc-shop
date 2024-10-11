@@ -1,0 +1,16 @@
+{% load shop_extras currency_filters i18n url_tags %}Dear {{ order.user.first_name }},
+
+{% blocktrans %}Thank you, once again, for your support! Here are the collection details for your merchandise order:{% endblocktrans %}
+
+{{ order.shipping_method|shipping_method_email_description_full|linebreaks }}
+
+{% blocktrans %}As part of our commitment to sustainability, we won't be providing plastic bags; please bring your own bags. Thank you for your understanding.{% endblocktrans %}
+
+{% blocktrans with order_number=order.number %}Please quote your order number {{ order_number }} for collection. If you would like to nominate a proxy to collect on your behalf, please inform the proxy to produce your name and this order number.{% endblocktrans %}
+
+{% blocktrans %}Thank you, and see you there!{% endblocktrans %}
+
+{% blocktrans %}
+Best,
+Bird Society of Singapore
+{% endblocktrans %}
