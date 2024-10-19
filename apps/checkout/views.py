@@ -37,7 +37,9 @@ class ShippingAddressView(CoreShippingAddressView):
 class ShippingMethodView(CoreShippingMethodView):
     def get(self, request, *args, **kwargs):
         if settings.GLOBAL_SELF_COLLECTION_REQUIRED:
-            self.checkout_session.use_shipping_method(methods.SelfCollectHW2024().code)
+            self.checkout_session.use_shipping_method(
+                methods.SelfCollectHW2024Round2().code
+            )
             return self.get_success_response()
         super().get(request, *args, **kwargs)
 

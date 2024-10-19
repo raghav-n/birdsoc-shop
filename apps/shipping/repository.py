@@ -1,6 +1,7 @@
 from oscar.apps.shipping import repository
-from . import methods
+from . import methods as shipping_methods
 
 
 class Repository(repository.Repository):
-    methods = (methods.SelfCollectHW2024(),)
+    methods = (shipping_methods.SelfCollectHW2024Round2(),)
+    archived_methods = (shipping_methods.SelfCollectHW2024(),)

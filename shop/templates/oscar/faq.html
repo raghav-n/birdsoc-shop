@@ -1,4 +1,5 @@
 {% extends "oscar/layout.html" %}
+{% load shop_extras %}
 {% load i18n %}
 {% load static %}
 
@@ -48,17 +49,9 @@
                     </div>
 
                     <div class="card-body">
-                        Please come down to Henderson Waves, where we'll be hosting our Raptor Watch event for the
-                        <a class="font-weight-bold" href="https://birdsociety.sg/2023/11/09/henderson-waves-raptor-watch-2023/"
-                           target="_blank">third year running</a> on these Sundays, from 9:00am until noon:
-                        <ul class='mt-2 pl-4 mb-2'>
-                            <li>20 October</li>
-                            <li>27 October</li>
-                            <li>3 November</li>
-                            <li>10 November</li>
-                        </ul>
-                        There's no need to register in advance for a collection date – you can collect on any of the
-                        four dates at your convenience. Please have your order number ready for collection.
+                        {% autoescape off %}
+                            {% get_active_shipping_methods_faq %}
+                        {% endautoescape %}
                     </div>
 
                     <div class="card-header  rounded-0 border-0  bg-light">
@@ -69,8 +62,7 @@
 
                     <div class="card-body">
                         We won't be selling the items physically on site.
-                        Please preorder through our website before 29 September, and collect on one of our Raptor Watch
-                        dates at Henderson Waves.
+                        Please preorder through our website and collect your items at Henderson Waves.
                     </div>
             </div>
         </div>
