@@ -36,12 +36,8 @@ class OrderDispatcher(CoreOrderDispatcher):
             order, messages, event_code, attachments=attachments
         )
 
-    def send_collection_info_sent_email_for_user(
-        self, order, extra_context
-    ):
+    def send_collection_info_sent_email_for_user(self, order, extra_context):
         event_code = self.COLLECTION_INFO_SENT_EVENT_CODE
         messages = self.dispatcher.get_messages(event_code, extra_context)
 
-        self.dispatch_order_messages(
-            order, messages, event_code
-        )
+        self.dispatch_order_messages(order, messages, event_code)

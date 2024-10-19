@@ -50,5 +50,6 @@ class NoAdminMiddleware:
         response = self.get_response(request)
         return response
 
+
 def show_debug_toolbar(request):
     return show_toolbar(request) and request.path_info not in ["", "/"]

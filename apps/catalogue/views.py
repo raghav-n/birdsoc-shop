@@ -12,6 +12,7 @@ class CatalogueView(RedirectView):
     def get_redirect_url(self):
         return reverse("home")
 
+
 class HomeView(CoreCatalogueView):
     template_name = "oscar/catalogue/index.html"
     template_name_closed = "shop-closed.html"
