@@ -77,7 +77,8 @@ class SelfCollectHW2024Round2(methods.NoShippingRequired):
     )
     website_home_description = (
         "<div class='alert alert-info mt-0'>"
-        f"<strong>For this round of merchandise sales, we're accepting orders from now until {end_date.strftime('%d %b %Y')}</strong>. "
+        f"<strong>For this round of merchandise sales (20 Oct-28 Oct) we're accepting orders from now until "
+        f"{end_date.strftime('%d %b %Y')}</strong>. "
         f"Collection will be at Henderson Waves, on 10 Nov, where we'll be hosting the third edition of our Raptor Watch "
         f"booth, from <strong>9:00am to noon.</strong> "
         "If you placed an order through our site in the first round of orders (until 29 Sep), you can collect on any of "
