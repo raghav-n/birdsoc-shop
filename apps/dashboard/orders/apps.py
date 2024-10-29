@@ -1,7 +1,11 @@
 import oscar.apps.dashboard.orders.apps as apps
 from django.urls import path
 
-from apps.dashboard.orders.views import OrderLookupView, OrderCollectionView
+from apps.dashboard.orders.views import (
+    OrderLookupView,
+    OrderCollectionView,
+    OrderExportView,
+)
 
 
 class OrdersDashboardConfig(apps.OrdersDashboardConfig):
@@ -18,6 +22,11 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 "collect/",
                 OrderCollectionView.as_view(),
                 name="order-collection",
+            ),
+            path(
+                "export/",
+                OrderExportView.as_view(),
+                name="order-download",
             ),
         ]
 
