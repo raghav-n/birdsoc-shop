@@ -7,7 +7,7 @@
 {% block nav_classes %}navbar navbar-expand-md navbar-dark bg-dark{% endblock %}
 
 {% block navbar_basket %}
-    {% if "SHOP_OPEN"|settings_value %}
+    {% if "SHOP_OPEN"|settings_value or whitelist %}
         {{ block.super }}
     {% endif %}
 {% endblock %}
@@ -17,7 +17,7 @@
             {% block nav %}
                 <ul class="navbar-nav mr-auto">
                     {% block nav_items %}
-                        {% if "SHOP_OPEN"|settings_value %}
+                        {% if "SHOP_OPEN"|settings_value or whitelist %}
                             {% with url_name=request.resolver_match.url_name app_name=request.resolver_match.app_name  %}
     {#                        <li class="nav-item">#}
     {#                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">#}

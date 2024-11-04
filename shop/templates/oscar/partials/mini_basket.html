@@ -2,7 +2,7 @@
 {% load currency_filters %}
 {% load i18n %}
 
-{% if "SHOP_OPEN"|settings_value %}
+{% if "SHOP_OPEN"|settings_value or whitelist %}
     <div class="basket-mini col-sm-5 text-right d-none d-md-block">
     {#    <strong>{% trans "Basket total:" %}</strong>#}
     {#    {% if request.basket.is_tax_known %}#}
