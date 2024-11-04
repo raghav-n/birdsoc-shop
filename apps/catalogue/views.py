@@ -6,6 +6,7 @@ from django.views.generic import RedirectView
 from oscar.apps.catalogue.views import CatalogueView as CoreCatalogueView
 
 from apps.util.forms import EmailAlertForm
+from apps.util.context_processors import whitelist
 
 
 class CatalogueView(RedirectView):
@@ -18,7 +19,7 @@ class HomeView(CoreCatalogueView):
     template_name_closed = "shop-closed.html"
 
     def get(self, request, *args, **kwargs):
-        if settings.SHOP_OPEN or request.user.is_staff:
+        if settings.SHOP_OPEN or whitelist(request):
             return super().get(request, *args, **kwargs)
 
         return render(request, self.template_name_closed)

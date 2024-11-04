@@ -24,7 +24,11 @@ class LoginRequiredMiddleware:
 
     def __call__(self, request):
         if (
-            not request.user.is_authenticated
+            not request.user.is_staff
+            and (
+                not hasattr(request.user, "email")
+                or request.user.email not in settings.WHITELIST_USERS
+            )
             and not any(open_url in request.path_info for open_url in self.open_urls)
             and request.path_info != "/"
             and "accounts/" not in request.path_info

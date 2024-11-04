@@ -46,6 +46,7 @@ def get_active_shipping_methods():
             output += method.website_home_description
     return output
 
+
 @register.simple_tag
 def get_active_shipping_methods_faq():
     methods = Repository().get_available_shipping_methods(basket=None)

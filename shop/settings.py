@@ -71,6 +71,9 @@ with open(os.path.join(BASE_DIR, "secrets/environment.txt")) as f:
 with open(os.path.join(BASE_DIR, "secrets/secret_key.txt")) as f:
     SECRET_KEY = f.read().strip()
 
+with open(os.path.join(PROJECT_DIR, "config/whitelist.txt")) as f:
+    WHITELIST_USERS = [e.strip() for e in f.read().strip().splitlines()]
+
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
@@ -351,6 +354,7 @@ TEMPLATES = [
                 "oscar.apps.checkout.context_processors.checkout",
                 "oscar.apps.communication.notifications.context_processors.notifications",
                 "oscar.core.context_processors.metadata",
+                "apps.util.context_processors.whitelist",
             ],
             "loaders": [
                 (
