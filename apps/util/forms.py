@@ -55,4 +55,4 @@ class ContactForm(BaseContactForm):
 class EmailAlertForm(ModelForm):
     class Meta:
         model = EmailAlert
-        fields = "__all__"
+        fields = ("email",)
