@@ -1,3 +1,4 @@
+from anymail.exceptions import AnymailRecipientsRefused
 from django.conf import settings
 from oscar.apps.order.utils import OrderNumberGenerator as CoreOrderNumberGenerator
 from oscar.apps.order.utils import OrderDispatcher as CoreOrderDispatcher
@@ -32,12 +33,18 @@ class OrderDispatcher(CoreOrderDispatcher):
                 "application/pdf",
             ]
         )
-        self.dispatch_order_messages(
-            order, messages, event_code, attachments=attachments
-        )
+        try:
+            self.dispatch_order_messages(
+                order, messages, event_code, attachments=attachments
+            )
+        except AnymailRecipientsRefused:
+            pass
 
     def send_collection_info_sent_email_for_user(self, order, extra_context):
         event_code = self.COLLECTION_INFO_SENT_EVENT_CODE
         messages = self.dispatcher.get_messages(event_code, extra_context)
 
-        self.dispatch_order_messages(order, messages, event_code)
+        try:
+            self.dispatch_order_messages(order, messages, event_code)
+        except AnymailRecipientsRefused:
+            pass
