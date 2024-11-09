@@ -19,7 +19,7 @@ class HomeView(CoreCatalogueView):
     template_name_closed = "shop-closed.html"
 
     def get(self, request, *args, **kwargs):
-        if settings.SHOP_OPEN or whitelist(request):
+        if settings.SHOP_OPEN or whitelist(request)["whitelist"]:
             return super().get(request, *args, **kwargs)
 
         return render(request, self.template_name_closed)
