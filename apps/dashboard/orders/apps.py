@@ -4,7 +4,7 @@ from django.urls import path
 from apps.dashboard.orders.views import (
     OrderLookupView,
     OrderCollectionView,
-    OrderExportView,
+    OrderSummaryView,
 )
 
 
@@ -23,11 +23,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 OrderCollectionView.as_view(),
                 name="order-collection",
             ),
-            path(
-                "export/",
-                OrderExportView.as_view(),
-                name="order-download",
-            ),
+            path("summary/", OrderSummaryView.as_view(), name="order-summary"),
         ]
 
         return self.post_process_urls(new_urls) + super().get_urls()

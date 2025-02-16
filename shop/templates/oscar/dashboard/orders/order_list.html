@@ -44,6 +44,10 @@
             </div>
 
         {% endif %}
+
+        {% if user.is_superuser %}
+            <a href="{% url 'dashboard:order-summary' %}" class="btn btn-success mt-2" style="max-width: 200px">{% trans "Order summary" %}</a>
+        {% endif %}
     </div>
 
     {% if orders %}
