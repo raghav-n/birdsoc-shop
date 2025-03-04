@@ -1,0 +1,52 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Shipping methods" %}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+                    <li class="breadcrumb-item active">{% trans "Shipping methods" %}</li>
+                </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <h1 class="d-inline-block mr-3">{% trans "Shipping methods" %}</h1>
+    <a href="{% url 'dashboard:dynamic-shipping-method-create' %}" class="btn btn-primary mb-2">
+        {% trans "Add new" %}
+    </a>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>{% trans "Name" %}</th>
+                <th>{% trans "Code" %}</th>
+                <th>{% trans "Price" %}</th>
+                <th>{% trans "Active" %}</th>
+                <th>{% trans "Actions" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for method in shipping_methods %}
+                <tr>
+                    <td>{{ method.name }}</td>
+                    <td>{{ method.code }}</td>
+                    <td>${{ method.price }}</td>
+                    <td>{{ method.active|yesno:"Yes,No" }}</td>
+                    <td>
+                        <a href="{% url 'dashboard:dynamic-shipping-method-edit' method.pk %}" class="btn btn-sm btn-warning">
+                            {% trans "Edit" %}
+                        </a>
+                        <a href="{% url 'dashboard:dynamic-shipping-method-delete' method.pk %}" class="btn btn-sm btn-danger">
+                            {% trans "Delete" %}
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

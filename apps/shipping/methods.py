@@ -1,3 +1,9 @@
+"""
+Deprecated static shipping repositories used in 2024.
+
+We now use dynamic shipping methods (see apps/shipping/models.py) instead.
+"""
+
 from datetime import date
 
 from oscar.apps.shipping import methods

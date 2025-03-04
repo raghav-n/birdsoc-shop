@@ -12,6 +12,7 @@ from django.utils.timezone import localtime
 from django.views import View
 from oscar.core.loading import get_model
 
+
 @method_decorator(staff_member_required, name="dispatch")
 class OrderLookupView(View):
     template_name = "oscar/dashboard/orders/order_lookup.html"

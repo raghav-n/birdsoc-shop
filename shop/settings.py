@@ -117,6 +117,7 @@ INSTALLED_APPS = [
     "oscar.config.Shop",
     "apps.order.apps.OrderConfig",
     "apps.shipping.apps.ShippingConfig",
+    "apps.dashboard.shipping.apps.ShippingDashboardConfig",
     "apps.catalogue.apps.CatalogueConfig",
     "apps.checkout.apps.CheckoutConfig",
     "apps.customer.apps.CustomerConfig",
@@ -145,7 +146,6 @@ INSTALLED_APPS = [
     "oscar.apps.dashboard.reviews.apps.ReviewsDashboardConfig",
     "oscar.apps.dashboard.vouchers.apps.VouchersDashboardConfig",
     "oscar.apps.dashboard.communications.apps.CommunicationsDashboardConfig",
-    "oscar.apps.dashboard.shipping.apps.ShippingDashboardConfig",
     # 3rd-party apps that oscar depends on
     "widget_tweaks",
     "haystack",
@@ -550,6 +550,17 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
     },
     {
+        "label": "Shipping",
+        "icon": "fa fa-truck",
+        "children": [
+            {
+                "label": _("Methods"),
+                "url_name": "dashboard:dynamic-shipping-method-list",
+            },
+        ],
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
+    },
+    {
         "label": _("Offers"),
         "icon": "fas fa-bullhorn",
         "children": [
@@ -606,3 +617,4 @@ else:
     OSCAR_THUMBNAILER = "core.thumbnailer.FakeThumbnail"
 
 OSCAR_HOMEPAGE = "/"
+OSCAR_SHIPPING_REPOSITORY = "apps.shipping.Repository"

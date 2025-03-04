@@ -1,0 +1,66 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n crispy_forms_tags %}
+
+{% block extrastyles %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block title %}
+    {% if object %}{% trans "Edit shipping method" %}{% else %}{% trans "Add shipping method" %}{% endif %}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard:dynamic-shipping-method-list' %}">{% trans "Shipping methods" %}</a></li>
+                    <li class="breadcrumb-item active">{% if object %}{% trans "Edit shipping method" %}{% else %}{% trans "Add shipping method" %}{% endif %}</li>
+                </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <h1>{% if object %}{% trans "Edit shipping method" %}{% else %}{% trans "Add shipping method" %}{% endif %}</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+    </form>
+{% endblock %}
+
+{% block extrascripts %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+          function initializeQuill(selector) {
+              // Get the hidden textarea/input field
+              const field = document.querySelector(selector);
+
+              // Create a container div for Quill (so we don't overwrite the actual field)
+              const quillContainer = document.createElement("div");
+              field.style.display = "none";  // Hide the original field
+              field.parentNode.insertBefore(quillContainer, field.nextSibling);
+
+              // Initialize Quill
+              const quill = new Quill(quillContainer, {
+                  theme: 'snow'
+              });
+
+              // Set initial value in Quill
+              quill.root.innerHTML = field.value;
+
+              // Sync Quill content back to hidden field before form submission
+              field.form.addEventListener("submit", function () {
+                  field.value = quill.root.innerHTML;
+              });
+
+              return quill;
+          }
+
+          initializeQuill("#id_description");
+          initializeQuill("#id_website_home_description");
+          initializeQuill("#id_website_faq_description");
+      });
+    </script>
+{% endblock %}
