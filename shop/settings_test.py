@@ -8,9 +8,6 @@ DATABASES['default']['NAME'] = 'shop_test'
 
 # Debug mode for development
 DEBUG = True
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-SECURE_SSL_REDIRECT = False
 
 # Static files settings
 STATIC_URL = '/static/'
