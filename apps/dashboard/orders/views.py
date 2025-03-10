@@ -206,6 +206,26 @@ class OnsitePurchaseView(TemplateView):
                 if has_available_children:
                     available_products.append(product)
         
+        # Sort products in the required order: keychains, stickers, hat, pin
+        def get_product_sort_key(product_info):
+            product = product_info[0] if isinstance(product_info, list) else product_info
+            title = product.title.lower()
+            
+            # Define priorities (lower number = higher priority)
+            if 'keychain' in title:
+                return 1
+            elif 'sticker' in title:
+                return 2
+            elif 'hat' in title:
+                return 3
+            elif 'pin' in title:
+                return 4
+            else:
+                return 5  # All other products last
+        
+        # Sort the products by the custom ordering
+        available_products.sort(key=get_product_sort_key)
+        
         ctx['products'] = available_products
         
         # Generate a unique 6-digit alphanumeric order number starting with 2
