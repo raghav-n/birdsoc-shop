@@ -65,3 +65,10 @@ def get_active_shipping_methods_fields(field_name):
         if method.active:
             output.append(getattr(method, field_name))
     return output
+
+@register.filter
+def dict_get(dictionary, key):
+    """Get a value from a dictionary by key"""
+    if dictionary and key:
+        return dictionary.get(str(key))
+    return None
