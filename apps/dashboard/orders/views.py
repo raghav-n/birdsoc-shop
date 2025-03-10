@@ -10,7 +10,33 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.utils.timezone import localtime
 from django.views import View
-from oscar.core.loading import get_model
+from oscar.core.loading import get_model, get_class
+from django.db import models
+from django.views.generic import TemplateView, FormView
+from django.shortcuts import redirect
+from django.contrib import messages
+from django.utils.crypto import get_random_string
+from django.db import transaction
+from django.utils import timezone
+from django.urls import reverse
+from oscar.apps.voucher.models import Voucher
+from decimal import Decimal
+
+Product = get_model('catalogue', 'Product')
+Line = get_model('basket', 'Line')
+Order = get_model('order', 'Order')
+Basket = get_model("basket", "Basket")
+Selector = get_class("partner.strategy", "Selector")
+OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
+Source = get_model("payment", "Source")
+DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
+ShippingAddress = get_model('order', 'ShippingAddress')
+Country = get_model('address', 'Country')
+PaymentEvent = get_model('order', 'PaymentEvent')
+PaymentEventType = get_model('order', 'PaymentEventType')
+PaymentEventQuantity = get_model('order', 'PaymentEventQuantity')
+SourceType = get_model('payment', 'SourceType')
+OrderCreator = get_class('order.utils', 'OrderCreator')
 
 
 @method_decorator(staff_member_required, name="dispatch")
@@ -133,3 +159,368 @@ class OrderSummaryView(View):
         df.to_excel(response, index=False)
 
         return response
+
+
+class OnsitePurchaseView(TemplateView):
+    template_name = 'oscar/dashboard/orders/onsite_purchase.html'
+    
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        
+        # Get all parent products and products without variants (standalones)
+        # Filter out products with no stock or price
+        products = Product.objects.filter(
+            is_public=True
+        ).filter(
+            # Include standalone products or parent products that have children
+            models.Q(structure='standalone') | 
+            models.Q(structure='parent')
+        ).distinct()
+        
+        # Filter further to ensure they have stock records and are purchasable
+        available_products = []
+        
+        for product in products:
+            # For standalone products, check if they have stock records
+            if product.structure == 'standalone':
+                if product.has_stockrecords and product.stockrecords.exists():
+                    # Check stock level
+                    stockrecord = product.stockrecords.first()
+                    if stockrecord.num_in_stock is not None and stockrecord.num_in_stock > 0:
+                        strategy = Selector().strategy()
+                        info = strategy.fetch_for_product(product)
+                        available_products.append([product, info])
+            
+            # For parent products, check if any of their children have stock records
+            elif product.structure == 'parent':
+                children = product.children.filter(is_public=True)
+                has_available_children = False
+                
+                for child in children:
+                    if child.has_stockrecords and child.stockrecords.exists():
+                        stockrecord = child.stockrecords.first()
+                        if stockrecord.num_in_stock is not None and stockrecord.num_in_stock > 0:
+                            has_available_children = True
+                            break
+                
+                if has_available_children:
+                    available_products.append(product)
+        
+        ctx['products'] = available_products
+        
+        # Generate a unique 6-digit alphanumeric order number starting with 2
+        # Attempt up to 10 times to generate a unique order number
+        max_attempts = 10
+        attempts = 0
+        order_number = None
+        
+        while attempts < max_attempts:
+            # Generate a new candidate order number
+            candidate_number = '2' + get_random_string(length=5, allowed_chars='0123456789ABCDEFGHJKLMNPQRSTUVWXYZ')
+            
+            # Check if this number is already used
+            if not Order.objects.filter(number=candidate_number).exists():
+                order_number = candidate_number
+                break
+                
+            attempts += 1
+        
+        # If all attempts failed, use timestamp-based fallback
+        if not order_number:
+            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
+            order_number = f"2{timestamp[-6:]}"
+            
+        ctx['order_number'] = order_number
+        ctx['reference_id'] = f"{settings.ORDER_PREFIX}{order_number}"
+        ctx['settings'] = settings  # Add settings to context for template access
+        
+        return ctx
+    
+    def post(self, request, *args, **kwargs):
+        from django.contrib.auth.models import User
+        from oscar.apps.partner.models import StockRecord
+
+        data = request.POST
+        product_quantities = {}
+        order_number = data.get('order_number')  # Get the order number from the form
+        voucher_code = data.get('voucher_code', '')
+        
+        # Get selected product quantities
+        for key, value in data.items():
+            if key.startswith('quantity_') and value and int(value) > 0:
+                product_id = key.replace('quantity_', '')
+                product_quantities[product_id] = int(value)
+        
+        if not product_quantities:
+            messages.error(request, "Please select at least one product.")
+            return self.get(request, *args, **kwargs)
+        
+        # Create a basket with the selected products
+        with transaction.atomic():
+            # Create or get a guest user for the order
+            guest_user, created = User.objects.get_or_create(
+                username=f'guest_{timezone.now().strftime("%Y%m%d%H%M%S")}',
+                defaults={
+                    'is_active': False,
+                    'first_name': 'Onsite',
+                    'last_name': 'Customer'
+                }
+            )
+            
+            # Create a new basket
+            basket = Basket.objects.create(owner=guest_user)
+            basket.strategy = Selector().strategy(request=request)
+            
+            # Add products to basket and track stock records for later update
+            stock_updates = []
+            for product_id, quantity in product_quantities.items():
+                product = Product.objects.get(id=product_id)
+                stockrecord = product.stockrecords.first()
+                if stockrecord:
+                    # Check if we have enough stock
+                    if stockrecord.num_in_stock is not None and stockrecord.num_in_stock < quantity:
+                        messages.error(
+                            request, 
+                            f"Not enough stock for {product.title}. Available: {stockrecord.num_in_stock}, Requested: {quantity}"
+                        )
+                        return self.get(request, *args, **kwargs)
+                    
+                    # Track for later update
+                    stock_updates.append((stockrecord, quantity))
+                
+                basket.add_product(product, quantity=quantity)
+            
+            # Get the basket total after vouchers/offers
+            total_incl_tax = basket.total_incl_tax
+            
+            # If payment was confirmed (from the form)
+            if 'confirm_order' in data:
+                # Create shipping address (required by Oscar)
+                # shipping_address = ShippingAddress.objects.create(
+                #     first_name='Onsite',
+                #     last_name='Customer',
+                #     line1='Onsite Purchase',
+                #     line4='Singapore',
+                #     country=Country.objects.get(iso_3166_1_a2='SG'),
+                #     postcode='000000'
+                # )
+                
+                # Use the order number from the form (generated during GET)
+                paynow_reference = f"{settings.ORDER_PREFIX}{order_number}"
+
+                shipping_method = DynamicShippingMethod.objects.get(code="ONSITE")
+                
+                order_creator = OrderCreator()
+                order = order_creator.place_order(
+                    basket=basket,
+                    total=OrderTotalCalculator().calculate(basket, shipping_charge=shipping_method.calculate(basket)),
+                    #shipping_address=shipping_address,
+                    shipping_method=shipping_method,
+                    shipping_charge=shipping_method.calculate(basket),
+                    user=guest_user,
+                    order_number=order_number,  # Use the order number from the form
+                    status=settings.PAYMENT_CONFIRMED_STATUS,
+                )
+                
+                # Apply voucher if one was used
+                voucher = None
+                if voucher_code:
+                    try:
+                        voucher = Voucher.objects.get(code=voucher_code)
+                        # Record the use of the voucher
+                        voucher.record_usage(order, request.user)
+                        # Add voucher to basket to apply the discount
+                        basket.vouchers.add(voucher)
+                        # Recalculate basket totals with voucher applied
+                        Applicator = get_class('offer.applicator', 'Applicator')
+                        Applicator().apply(basket, request.user, request)
+                    except Voucher.DoesNotExist:
+                        # Voucher doesn't exist, just continue without applying it
+                        pass
+
+                # Add note about voucher if used
+                if voucher:
+                    order.notes.create(
+                        user=request.user,
+                        message=f"Voucher {voucher.code} applied",
+                        note_type="System"
+                    )
+                
+                # Create payment source and event with the matching reference
+                source_type, _ = SourceType.objects.get_or_create(name="PayNow")
+                source = Source.objects.create(
+                    source_type=source_type,
+                    amount_allocated=total_incl_tax,
+                    amount_debited=total_incl_tax,
+                    reference=paynow_reference,
+                    order=order
+                )
+                
+                # Create payment event
+                event_type, _ = PaymentEventType.objects.get_or_create(name="Payment")
+                event = PaymentEvent.objects.create(
+                    event_type=event_type,
+                    amount=total_incl_tax,
+                    reference=paynow_reference,
+                    order=order
+                )
+                
+                # Link the payment event to the order lines
+                for line in order.lines.all():
+                    PaymentEventQuantity.objects.create(
+                        event=event,
+                        line=line,
+                        quantity=line.quantity
+                    )
+                
+                # Update stock levels after successful order creation
+                for stockrecord, quantity in stock_updates:
+                    # Reduce stock count
+                    if stockrecord.num_in_stock is not None:
+                        stockrecord.num_in_stock -= quantity
+                        stockrecord.save()
+                
+                # Add voucher usage information if used
+                if voucher:
+                    # If not already added by the order placement
+                    VoucherApplication = get_model('voucher', 'VoucherApplication')
+                    if not VoucherApplication.objects.filter(voucher=voucher, order=order).exists():
+                        VoucherApplication.objects.create(
+                            voucher=voucher,
+                            user=request.user,
+                            order=order,
+                            offer=voucher.offers.first()
+                        )
+                
+                messages.success(request, f"Order {paynow_reference} created successfully. Stock levels updated.")
+                return redirect('dashboard:order-detail', number=order.number)
+            
+            # If just generating QR code
+            return self.render_to_response({
+                'products': Product.objects.filter(
+                    is_public=True
+                ).filter(
+                    # Include standalone products or parent products that have children
+                    models.Q(structure='standalone') | 
+                    models.Q(structure='parent')
+                ).distinct(),
+                'selected_products': product_quantities,
+                'total_incl_tax': total_incl_tax,
+                'order_number': order_number,  # Pass the order number back to the template
+                'reference_id': data.get('reference_id'),
+                'settings': settings,
+                'show_payment': True,
+                'voucher_code': voucher_code
+            })
+
+
+class VoucherCheckView(View):
+    """View to validate vouchers via AJAX for the onsite purchase page"""
+    
+    @method_decorator(staff_member_required)
+    def post(self, request):
+        code = request.POST.get('voucher', '')
+        
+        # Get selected products and quantities
+        products = {}
+        for key, value in request.POST.items():
+            if key.startswith('product_') and value:
+                # Format: product_ID
+                product_id = key.replace('product_', '')
+                quantity = int(value)
+                if quantity > 0:
+                    products[product_id] = quantity
+        
+        # If no product IDs are provided directly, try to parse a JSON array
+        if not products and request.POST.get('products'):
+            try:
+                import json
+                products_data = json.loads(request.POST.get('products'))
+                for item in products_data:
+                    products[str(item['id'])] = int(item['quantity'])
+            except (ValueError, KeyError, TypeError) as e:
+                return JsonResponse({
+                    'valid': False,
+                    'message': f'Invalid product data: {str(e)}'
+                })
+        
+        try:
+            voucher = Voucher.objects.get(code=code)
+        except Voucher.DoesNotExist:
+            return JsonResponse({
+                'valid': False,
+                'message': 'Voucher code not found'
+            })
+        
+        # Create a real basket with the selected products
+        from django.contrib.auth.models import AnonymousUser
+        from oscar.apps.basket.models import Basket
+        
+        user = AnonymousUser()
+        basket = Basket()
+        # basket.owner = user
+        
+        # Add strategy to the basket
+        strategy = Selector().strategy(request=request)
+        basket.strategy = strategy
+        
+        # Add each selected product to the basket
+        for product_id, quantity in products.items():
+            try:
+                product = Product.objects.get(id=product_id)
+                basket.add_product(product, quantity=quantity)
+            except Product.DoesNotExist:
+                return JsonResponse({
+                    'valid': False, 
+                    'message': f'Product {product_id} not found'
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'valid': False,
+                    'message': f'Error adding product {product_id}: {str(e)}'
+                })
+        
+        # If we don't have any items in the basket, return error
+        if not basket.num_lines:
+            return JsonResponse({
+                'valid': False,
+                'message': 'Please select at least one product'
+            })
+            
+        # Check if voucher is available for this basket
+        is_available, message = voucher.is_available_for_basket(basket=basket)
+        if not is_available:
+            return JsonResponse({
+                'valid': False,
+                'message': message or 'Voucher cannot be applied to selected products'
+            })
+        
+        # Apply the voucher and calculate the discount
+        try:
+            basket.vouchers.add(voucher)
+            
+            # Apply offers to see the effect of the voucher
+            Applicator = get_class('offer.applicator', 'Applicator')
+            applicator = Applicator()
+            applicator.apply(basket, user, request)
+            
+            # Calculate pre-discount total
+            pre_discount_total = basket.total_excl_tax_excl_discounts
+            
+            # Calculate discount amount
+            discount_amount = pre_discount_total - basket.total_excl_tax
+            
+            # Get benefit description for display
+            benefit_desc = voucher.benefit.description
+            
+            return JsonResponse({
+                'valid': True,
+                'message': f'Voucher applied: {benefit_desc}',
+                'discount': float(discount_amount),
+                'new_total': float(basket.total_excl_tax)
+            })
+        except Exception as e:
+            return JsonResponse({
+                'valid': False,
+                'message': f'Error applying voucher: {str(e)}'
+            })
