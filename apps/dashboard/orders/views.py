@@ -259,6 +259,7 @@ class OnsitePurchaseView(TemplateView):
     def post(self, request, *args, **kwargs):
         from django.contrib.auth.models import User
         from oscar.apps.partner.models import StockRecord
+        from oscar.core.loading import get_class
 
         data = request.POST
         product_quantities = {}
@@ -310,63 +311,60 @@ class OnsitePurchaseView(TemplateView):
                 
                 basket.add_product(product, quantity=quantity)
             
-            # Get the basket total after vouchers/offers
+            # Apply voucher if one was used
+            voucher = None
+            if voucher_code:
+                try:
+                    voucher = Voucher.objects.get(code=voucher_code)
+                    # Add voucher to basket to apply the discount
+                    basket.vouchers.add(voucher)
+                    
+                    # Apply the offers to the basket (including voucher offers)
+                    Applicator = get_class('offer.applicator', 'Applicator')
+                    applicator = Applicator()
+                    applicator.apply(basket, request.user, request)
+                except Voucher.DoesNotExist:
+                    voucher = None
+            
+            # Get the basket total AFTER applying vouchers/offers
             total_incl_tax = basket.total_incl_tax
             
             # If payment was confirmed (from the form)
             if 'confirm_order' in data:
-                # Create shipping address (required by Oscar)
-                # shipping_address = ShippingAddress.objects.create(
-                #     first_name='Onsite',
-                #     last_name='Customer',
-                #     line1='Onsite Purchase',
-                #     line4='Singapore',
-                #     country=Country.objects.get(iso_3166_1_a2='SG'),
-                #     postcode='000000'
-                # )
-                
-                # Use the order number from the form (generated during GET)
-                paynow_reference = f"{settings.ORDER_PREFIX}{order_number}"
-
                 shipping_method = DynamicShippingMethod.objects.get(code="ONSITE")
                 
+                # Calculate the order total with any discounts from the voucher
+                order_total = OrderTotalCalculator().calculate(
+                    basket, 
+                    shipping_charge=shipping_method.calculate(basket)
+                )
+                
+                # Create the order with the discounted total
                 order_creator = OrderCreator()
                 order = order_creator.place_order(
                     basket=basket,
-                    total=OrderTotalCalculator().calculate(basket, shipping_charge=shipping_method.calculate(basket)),
-                    #shipping_address=shipping_address,
+                    total=order_total,  # This now includes any voucher discounts
                     shipping_method=shipping_method,
                     shipping_charge=shipping_method.calculate(basket),
                     user=guest_user,
-                    order_number=order_number,  # Use the order number from the form
+                    order_number=order_number,
                     status=settings.PAYMENT_CONFIRMED_STATUS,
                 )
                 
-                # Apply voucher if one was used
-                voucher = None
-                if voucher_code:
-                    try:
-                        voucher = Voucher.objects.get(code=voucher_code)
-                        # Record the use of the voucher
-                        voucher.record_usage(order, request.user)
-                        # Add voucher to basket to apply the discount
-                        basket.vouchers.add(voucher)
-                        # Recalculate basket totals with voucher applied
-                        Applicator = get_class('offer.applicator', 'Applicator')
-                        Applicator().apply(basket, request.user, request)
-                    except Voucher.DoesNotExist:
-                        # Voucher doesn't exist, just continue without applying it
-                        pass
-
-                # Add note about voucher if used
+                # Record voucher usage against the order
                 if voucher:
+                    voucher.record_usage(order, request.user)
+                    
+                    # Add a note about the voucher
                     order.notes.create(
                         user=request.user,
-                        message=f"Voucher {voucher.code} applied",
+                        message=f"Voucher {voucher.code} applied for a discount of "
+                                f"${(basket.total_excl_tax_excl_discounts - basket.total_excl_tax):.2f}",
                         note_type="System"
                     )
                 
-                # Create payment source and event with the matching reference
+                # Create payment source and event with the DISCOUNTED total
+                paynow_reference = f"{settings.ORDER_PREFIX}{order_number}"
                 source_type, _ = SourceType.objects.get_or_create(name="PayNow")
                 source = Source.objects.create(
                     source_type=source_type,
@@ -376,11 +374,11 @@ class OnsitePurchaseView(TemplateView):
                     order=order
                 )
                 
-                # Create payment event
+                # Create payment event with the DISCOUNTED total
                 event_type, _ = PaymentEventType.objects.get_or_create(name="Payment")
                 event = PaymentEvent.objects.create(
                     event_type=event_type,
-                    amount=total_incl_tax,
+                    amount=total_incl_tax,  # Use the discounted total
                     reference=paynow_reference,
                     order=order
                 )
@@ -412,7 +410,15 @@ class OnsitePurchaseView(TemplateView):
                             offer=voucher.offers.first()
                         )
                 
-                messages.success(request, f"Order {paynow_reference} created successfully. Stock levels updated.")
+                # Add a success message that mentions the discount if applicable
+                success_message = f"Order {paynow_reference} created successfully. Stock levels updated."
+                if voucher:
+                    original_total = basket.total_excl_tax_excl_discounts
+                    discounted_total = basket.total_excl_tax
+                    discount_amount = original_total - discounted_total
+                    success_message += f" Discount of ${discount_amount:.2f} applied."
+                    
+                messages.success(request, success_message)
                 return redirect('dashboard:order-detail', number=order.number)
             
             # If just generating QR code
@@ -425,12 +431,15 @@ class OnsitePurchaseView(TemplateView):
                     models.Q(structure='parent')
                 ).distinct(),
                 'selected_products': product_quantities,
-                'total_incl_tax': total_incl_tax,
+                'total_incl_tax': total_incl_tax,  # This now includes any discounts
                 'order_number': order_number,  # Pass the order number back to the template
                 'reference_id': data.get('reference_id'),
                 'settings': settings,
                 'show_payment': True,
-                'voucher_code': voucher_code
+                'voucher_code': voucher_code,
+                'original_total': getattr(basket, 'total_excl_tax_excl_discounts', total_incl_tax),
+                'discount_amount': getattr(basket, 'total_excl_tax_excl_discounts', total_incl_tax) - total_incl_tax 
+                                  if voucher else 0,
             })
 
 
