@@ -2,8 +2,13 @@
 {% load shop_extras %}
 
 {% block content %}
+    <style>
+        #shippingAlert p {
+            margin-bottom: 0;
+        }
+    </style>
     {% autoescape off %}
-        {% get_active_shipping_methods %}
+    <div class="alert alert-info mt-0" id="shippingAlert">{% get_active_shipping_methods %}</div>
     {% endautoescape %}
     {{ block.super }}
 {% endblock content %}

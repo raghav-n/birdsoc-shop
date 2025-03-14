@@ -4,7 +4,7 @@
         var toastMixin = Swal.mixin({
             toast: true,
             animation: false,
-            position: 'top-right',
+            position: 'top-left',
             showConfirmButton: false,
             timer: {% if messages|length > 1 %} 4000 {% else %} 7000 {% endif %},
             allowOutsideClick: true,

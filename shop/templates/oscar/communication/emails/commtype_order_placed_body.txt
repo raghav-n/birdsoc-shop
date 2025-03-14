@@ -25,7 +25,7 @@ We are pleased to confirm your order {{ order_number }} has been received and wi
 
 {{ order.shipping_method|shipping_method_email_description|safe }}
 {% blocktrans %}
-Once again, thank you for supporting us – we genuinely appreciate it. Happy birding, and see you at Henderson Waves!
+Once again, thank you for supporting us – we genuinely appreciate it. Happy birding!
 {% endblocktrans %}
 
 {% blocktrans %}

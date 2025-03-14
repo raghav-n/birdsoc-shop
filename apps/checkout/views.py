@@ -35,13 +35,24 @@ class ShippingAddressView(CoreShippingAddressView):
 
 
 class ShippingMethodView(CoreShippingMethodView):
+    def _get_shipping_method(self, self_collection=False):
+        DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
+        return DynamicShippingMethod._default_manager.filter(
+            active=True, 
+            is_self_collect=self_collection, 
+            available_to_public=True
+        ).first()
+    
     def get(self, request, *args, **kwargs):
-        if settings.GLOBAL_SELF_COLLECTION_REQUIRED:
-            self.checkout_session.use_shipping_method(
-                methods.SelfCollectHW2024Round2().code
-            )
-            return self.get_success_response()
-        super().get(request, *args, **kwargs)
+        # assume for public access, only one self-collection and one delivery method available at once
+
+        self.checkout_session.use_shipping_method(
+            self._get_shipping_method(
+                self_collection=settings.GLOBAL_SELF_COLLECTION_REQUIRED
+            ).code
+        )
+
+        return self.get_success_response()
 
 
 class PaymentMethodView(CorePaymentMethodView):

@@ -44,7 +44,7 @@ def get_active_shipping_methods():
     for method in methods:
         if method.active:
             output += method.website_home_description
-    return output
+    return output.replace("<p></p>", "").replace("<p><br></p>", "")
 
 
 @register.simple_tag
@@ -63,7 +63,10 @@ def get_active_shipping_methods_fields(field_name):
     output = []
     for method in methods:
         if method.active:
-            output.append(getattr(method, field_name))
+            val = getattr(method, field_name)
+            if isinstance(val, str):
+                val = val.replace("<p></p>", "").replace("<p><br></p>", "")
+            output.append(val)
     return output
 
 

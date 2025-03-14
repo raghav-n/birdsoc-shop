@@ -6,7 +6,7 @@
 
 {{ order.shipping_method|shipping_method_email_description|safe }}
 
-{% blocktrans %}Happy birding, and see you at Henderson Waves!{% endblocktrans %}
+{% blocktrans %}Happy birding!{% endblocktrans %}
 {% if status_url %}{% absolute_url site.domain status_path as absolute_status_url %}
 {% blocktrans %}You can view the status of this order by clicking <a href="{{ absolute_status_url }}" title="order status">here</a>{% endblocktrans %}
 {% endif %}
