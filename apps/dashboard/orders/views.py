@@ -348,7 +348,7 @@ class OnsitePurchaseView(TemplateView):
                     shipping_charge=shipping_method.calculate(basket),
                     user=guest_user,
                     order_number=order_number,
-                    status=settings.PAYMENT_CONFIRMED_STATUS,
+                    status=settings.COLLECTED_STATUS,
                 )
                 
                 # Record voucher usage against the order
