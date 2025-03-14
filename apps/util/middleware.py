@@ -4,6 +4,8 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.urls import reverse
 
+from apps.util.context_processors import whitelist
+
 
 class LoginRequiredMiddleware:
     def __init__(self, get_response):
@@ -23,12 +25,13 @@ class LoginRequiredMiddleware:
         ] + getattr(settings, "OPEN_URLS", [])
 
     def __call__(self, request):
+        request.session["method_id"] = request.GET.get(
+            "method_id", request.session.get("method_id")
+        )
+
         if (
             not request.user.is_staff
-            and (
-                not hasattr(request.user, "email")
-                or request.user.email not in settings.WHITELIST_USERS
-            )
+            and not whitelist(request)["whitelist"]
             and not any(open_url in request.path_info for open_url in self.open_urls)
             and request.path_info != "/"
             and "accounts/" not in request.path_info

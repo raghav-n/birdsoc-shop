@@ -4,3 +4,6 @@ venv/
 .idea/
 receipts/
 config/
+
+**/__pycache__
+.DS_Store

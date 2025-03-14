@@ -1,16 +1,17 @@
 """
 Test settings for shop project - used by runserver_test command
 """
+
 from shop.settings import *
 
 # Use test database instead of production
-DATABASES['default']['NAME'] = 'shop_test'
+DATABASES["default"]["NAME"] = "shop_test"
 
 # Debug mode for development
 DEBUG = True
 
 # Static files settings
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 
 # Properly configure static files for development
 if SESSION_ENVIRONMENT_PRODUCTION:

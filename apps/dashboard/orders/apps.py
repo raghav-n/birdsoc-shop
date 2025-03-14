@@ -1,6 +1,7 @@
 import oscar.apps.dashboard.orders.apps as apps
 from django.urls import path
 
+
 class OrdersDashboardConfig(apps.OrdersDashboardConfig):
     name = "apps.dashboard.orders"
 
@@ -10,7 +11,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             OrderCollectionView,
             OrderSummaryView,
             OnsitePurchaseView,
-            VoucherCheckView
+            VoucherCheckView,
         )
 
         new_urls = [
@@ -25,8 +26,10 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 name="order-collection",
             ),
             path("summary/", OrderSummaryView.as_view(), name="order-summary"),
-            path('onsite-purchase/', OnsitePurchaseView.as_view(), name='onsite-purchase'),
-            path('voucher-check/', VoucherCheckView.as_view(), name='voucher-check'),
+            path(
+                "onsite-purchase/", OnsitePurchaseView.as_view(), name="onsite-purchase"
+            ),
+            path("voucher-check/", VoucherCheckView.as_view(), name="voucher-check"),
         ]
 
         return self.post_process_urls(new_urls) + super().get_urls()
