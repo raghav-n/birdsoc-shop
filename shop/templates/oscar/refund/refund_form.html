@@ -1,0 +1,76 @@
+{% extends "oscar/layout.html" %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Request a refund" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+{% endblock %}
+
+{% block headertext %}Request a refund{% endblock %}
+
+{% block content %}
+<p>Please fill out this form to request a refund for your order. We'll review your request and get back to you shortly.</p>
+
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.paynow_phone.id_for_label }}">{{ form.paynow_phone.label }}</label>
+                        {{ form.paynow_phone }}
+                        {% if form.paynow_phone.errors %}
+                            <div class="text-danger">{{ form.paynow_phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.order_number.id_for_label }}">{{ form.order_number.label }}</label>
+                        {{ form.order_number }}
+                        {% if form.order_number.errors %}
+                            <div class="text-danger">{{ form.order_number.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+                        {{ form.amount }}
+                        {% if form.amount.errors %}
+                            <div class="text-danger">{{ form.amount.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.reason.id_for_label }}">{{ form.reason.label }}</label>
+                        {{ form.reason }}
+                        {% if form.reason.errors %}
+                            <div class="text-danger">{{ form.reason.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">{% trans "Submit" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+{% endblock %}

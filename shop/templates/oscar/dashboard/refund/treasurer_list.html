@@ -1,0 +1,66 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Pending Refund Disbursements" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Pending Refund Disbursements" %}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block header %}
+<div class="page-header">
+    <h1>{% trans "Pending Refund Disbursements" %}</h1>
+</div>
+{% endblock header %}
+
+{% block dashboard_content %}
+<div class="alert alert-info">
+    <strong>Treasurer Portal:</strong> This page shows refunds that have been approved but not yet disbursed.
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>{% trans "ID" %}</th>
+                <th>{% trans "Date Approved" %}</th>
+                <th>{% trans "Customer" %}</th>
+                <th>{% trans "PayNow Phone" %}</th>
+                <th>{% trans "Order" %}</th>
+                <th>{% trans "Amount" %}</th>
+                <th>{% trans "Actions" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if refunds %}
+                {% for refund in refunds %}
+                <tr>
+                    <td>{{ refund.id }}</td>
+                    <td>{{ refund.updated_at|date:"d M Y H:i" }}</td>
+                    <td>{{ refund.name }}<br>{{ refund.email }}</td>
+                    <td><strong>{{ refund.paynow_phone }}</strong></td>
+                    <td>{{ refund.order_number }}</td>
+                    <td>${{ refund.amount }}</td>
+                    <td>
+                        <a href="{% url 'dashboard-refund:treasurer-detail' refund.id %}" class="btn btn-info btn-sm">
+                            {% trans "Process" %}
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7">{% trans "No refunds pending disbursement." %}</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock dashboard_content %}

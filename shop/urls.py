@@ -16,6 +16,7 @@ Including another URLconf
 """
 
 from django.apps import apps
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -36,6 +37,14 @@ urlpatterns = [
     path("", include(apps.get_app_config("home").urls[0])),
     apps.get_app_config("catalogue").get_home_url_pattern(),
     path(
+        "dashboard/refund/",
+        include("apps.dashboard.refund.urls", namespace="dashboard-refund"),
+    ),
+    path(
+        "dashboard/event/",
+        include("apps.dashboard.event.urls", namespace="dashboard-event"),
+    ),
+    path(
         "contact/",
         ContactFormView.as_view(form_class=ContactForm),
         name="django_contact_form",
@@ -48,6 +57,10 @@ urlpatterns = [
         name="django_contact_form_sent",
     ),
     path("faq/", TemplateView.as_view(template_name="oscar/faq.html"), name="faq"),
+    path("promo/", TemplateView.as_view(template_name="promo.html"), name="promo"),
+    path("refund/", include("apps.refund.urls", namespace="refund")),
+    # Include the event dashboard URLs with the namespace already defined in the urls.py
+    path("dashboard/events/", include("apps.dashboard.event.urls")),
 ]
 
 if not settings.SESSION_ENVIRONMENT_PRODUCTION:

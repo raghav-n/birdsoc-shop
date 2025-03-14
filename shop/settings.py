@@ -126,6 +126,8 @@ INSTALLED_APPS = [
     "apps.util.apps.UtilConfig",  # added
     "apps.home.apps.MyShop",
     "apps.communication.apps.CommunicationConfig",
+    "apps.refund.apps.RefundConfig",  # Add the new refund app
+    "apps.dashboard.refund.apps.RefundDashboardConfig",  # Add the new refund app
     "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "apps.dashboard.orders.apps.OrdersDashboardConfig",
@@ -330,7 +332,13 @@ MANAGERS = [
     ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com"),
     ("BirdSoc SG Sales", "birdsocsgsales@gmail.com"),
 ]
+MANAGER_EMAILS = [i[1] for i in MANAGERS]
 ADMIN_EMAILS = [i[1] for i in ADMINS]
+TREASURER_EMAIL = "treasurer.birdsocsg@gmail.com"
+
+if not SESSION_ENVIRONMENT_PRODUCTION: # test config
+    MANAGER_EMAILS = ADMIN_EMAILS
+    TREASURER_EMAIL = "raghavnswamy@gmail.com" 
 
 HAYSTACK_CONNECTIONS = {
     "default": {
@@ -593,6 +601,12 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "label": _("Reports"),
         "icon": "fas fa-chart-bar",
         "url_name": "dashboard:reports-index",
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
+    },
+    {
+        "label": _("Refunds"),
+        "icon": "fas fa-hand-holding-usd",
+        "url_name": "dashboard-refund:refund-request-list",
         "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
     },
 ]

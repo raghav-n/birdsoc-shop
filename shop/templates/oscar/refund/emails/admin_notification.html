@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f8f9fa; padding: 15px; border-bottom: 3px solid #007bff; margin-bottom: 20px; }
+        .footer { margin-top: 30px; font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef; padding-top: 15px; }
+        .btn { display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>New Refund Request</h2>
+        </div>
+        
+        <p>A new refund request has been submitted with the following details:</p>
+        
+        <h3>Customer Information:</h3>
+        <ul>
+            <li>Name: {{ refund.name }}</li>
+            <li>Email: {{ refund.email }}</li>
+            <li>PayNow Phone: {{ refund.paynow_phone }}</li>
+        </ul>
+        
+        <h3>Refund Details:</h3>
+        <ul>
+            <li>Order Number: {{ refund.order_number }}</li>
+            <li>Refund Amount: ${{ refund.amount }}</li>
+            <li>Date Requested: {{ refund.created_at|date:"d M Y H:i" }}</li>
+        </ul>
+        
+        <h3>Reason for Refund:</h3>
+        <p>{{ refund.reason }}</p>
+        
+        <p>
+            <a href="{{ admin_url }}" class="btn" style="color: white;">View and Process Refund</a>
+        </p>
+        
+        <p>Please review this request and take appropriate action.</p>
+        
+        <div class="footer">
+            <p>This is an automated notification from the BirdSoc SG Shop system.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+Dear {{ refund.name }},
+
+We have received your refund request for order {{ refund.order_number }} in the amount of ${{ refund.amount }}.
+
+Your request will be reviewed by our team, and we'll get back to you shortly with the decision.
+
+REFUND DETAILS:
+- Order Number: {{ refund.order_number }}
+- Refund Amount: ${{ refund.amount }}
+- Date Requested: {{ refund.created_at|date:"d M Y H:i" }}
+- PayNow Phone: {{ refund.paynow_phone }}
+
+If you have any questions or need further assistance, please contact us.
+
+Thank you for shopping with BirdSoc SG!
+
+Best regards,
+The BirdSoc SG Team
+
+---
+This is an automated message. Please do not reply directly to this email.

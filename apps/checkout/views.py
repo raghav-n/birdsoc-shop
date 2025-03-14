@@ -38,11 +38,9 @@ class ShippingMethodView(CoreShippingMethodView):
     def _get_shipping_method(self, self_collection=False):
         DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
         return DynamicShippingMethod._default_manager.filter(
-            active=True, 
-            is_self_collect=self_collection, 
-            available_to_public=True
+            active=True, is_self_collect=self_collection, available_to_public=True
         ).first()
-    
+
     def get(self, request, *args, **kwargs):
         # assume for public access, only one self-collection and one delivery method available at once
 

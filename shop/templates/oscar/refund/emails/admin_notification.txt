@@ -1,0 +1,24 @@
+NEW REFUND REQUEST
+
+A new refund request has been submitted with the following details:
+
+CUSTOMER INFORMATION:
+- Name: {{ refund.name }}
+- Email: {{ refund.email }}
+- PayNow Phone: {{ refund.paynow_phone }}
+
+REFUND DETAILS:
+- Order Number: {{ refund.order_number }}
+- Refund Amount: ${{ refund.amount }}
+- Date Requested: {{ refund.created_at|date:"d M Y H:i" }}
+
+REASON FOR REFUND:
+{{ refund.reason }}
+
+To view and process this refund, please visit:
+{{ admin_url }}
+
+Please review this request and take appropriate action.
+
+---
+This is an automated notification from the BirdSoc SG Shop system.

@@ -1,0 +1,139 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Process Refund" %} #{{ refund.id }} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard-refund:treasurer-list' %}">{% trans "Pending Refund Disbursements" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Process Refund" %} #{{ refund.id }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block header %}
+<div class="page-header">
+    <h1>{% trans "Process Refund" %} #{{ refund.id }}</h1>
+</div>
+{% endblock header %}
+
+{% block dashboard_content %}
+<div class="alert alert-info">
+    <strong>Treasurer Action Required:</strong> Please process this refund via PayNow and then mark it as disbursed.
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title">{% trans "Refund Disbursement Details" %}</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>{% trans "Order Number" %}</dt>
+                            <dd>{{ refund.order_number }}</dd>
+                            
+                            <dt>{% trans "Refund Amount" %}</dt>
+                            <dd><strong class="text-danger">${{ refund.amount }}</strong></dd>
+                            
+                            <dt>{% trans "Status" %}</dt>
+                            <dd>
+                                <span class="badge badge-success">Approved</span>
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>{% trans "Date Requested" %}</dt>
+                            <dd>{{ refund.created_at|date:"d M Y H:i" }}</dd>
+                            
+                            <dt>{% trans "Date Approved" %}</dt>
+                            <dd>{{ refund.updated_at|date:"d M Y H:i" }}</dd>
+                            
+                            <dt>{% trans "Approved By" %}</dt>
+                            <dd>{{ refund.processed_by|default:"Unknown" }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h3 class="card-title">{% trans "PayNow Transfer Details" %}</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <dl>
+                            <dt>{% trans "Customer Name" %}</dt>
+                            <dd>{{ refund.name }}</dd>
+                            
+                            <dt>{% trans "PayNow Phone Number" %}</dt>
+                            <dd><h3 class="text-danger">{{ refund.paynow_phone }}</h3></dd>
+                            
+                            <dt>{% trans "Email" %}</dt>
+                            <dd>{{ refund.email }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Refund Reason" %}</h3>
+            </div>
+            <div class="card-body">
+                <p>{{ refund.reason|linebreaks }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="card-title">{% trans "Mark as Disbursed" %}</h3>
+            </div>
+            <div class="card-body">
+                <p><strong>Instructions:</strong> After sending the payment via PayNow, mark this refund as disbursed.</p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <!-- Hidden input for status - automatically set to disbursed -->
+                    <input type="hidden" name="status" value="disbursed">
+                    
+                    <div class="form-group mt-3">
+                        <button type="submit" class="btn btn-success btn-lg btn-block">
+                            <i class="fas fa-check-circle"></i> {% trans "Confirm Disbursement" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Actions" %}</h3>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'dashboard-refund:treasurer-list' %}" class="btn btn-secondary">
+                    {% trans "Back to Refund List" %}
+                </a>
+                
+                <div class="mt-3">
+                    <a href="#" class="btn btn-primary" onclick="window.print(); return false;">
+                        <i class="fas fa-print"></i> Print Page
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock dashboard_content %}

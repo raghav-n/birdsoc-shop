@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f8f9fa; padding: 15px; border-bottom: 3px solid #28a745; margin-bottom: 20px; }
+        .footer { margin-top: 30px; font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef; padding-top: 15px; }
+        .important { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Refund Disbursement Request</h2>
+        </div>
+        
+        <p class="important">ACTION REQUIRED: Please process this refund at your earliest convenience.</p>
+        
+        <p>A refund request has been approved by {{ processed_by }} and requires disbursement:</p>
+        
+        <h3>Refund Details:</h3>
+        <ul>
+            <li>Order Number: {{ refund.order_number }}</li>
+            <li>Customer Name: {{ refund.name }}</li>
+            <li>Refund Amount: <strong>${{ refund.amount }}</strong></li>
+            <li>PayNow Phone Number: <strong>{{ refund.paynow_phone }}</strong></li>
+            <li>Date Requested: {{ refund.created_at|date:"d M Y H:i" }}</li>
+            <li>Date Approved: {{ refund.updated_at|date:"d M Y H:i" }}</li>
+        </ul>
+        
+        <h3>Customer Contact Information:</h3>
+        <ul>
+            <li>Email: {{ refund.email }}</li>
+        </ul>
+        
+        <h3>Refund Reason:</h3>
+        <p>{{ refund.reason }}</p>
+        
+        <p>Please process this refund via PayNow to the customer's provided phone number and update the treasury records accordingly.</p>
+        
+        <p>Thank you,<br>
+        BirdSoc SG Shop System</p>
+        
+        <div class="footer">
+            <p>This is an automated notification from the BirdSoc SG Shop system.</p>
+        </div>
+    </div>
+</body>
+</html>

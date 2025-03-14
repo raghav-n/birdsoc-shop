@@ -1,0 +1,27 @@
+REFUND DISBURSEMENT REQUEST
+
+ACTION REQUIRED: Please process this refund at your earliest convenience.
+
+A refund request has been approved by {{ processed_by }} and requires disbursement:
+
+REFUND DETAILS:
+- Order Number: {{ refund.order_number }}
+- Customer Name: {{ refund.name }}
+- Refund Amount: ${{ refund.amount }}
+- PayNow Phone Number: {{ refund.paynow_phone }}
+- Date Requested: {{ refund.created_at|date:"d M Y H:i" }}
+- Date Approved: {{ refund.updated_at|date:"d M Y H:i" }}
+
+CUSTOMER CONTACT INFORMATION:
+- Email: {{ refund.email }}
+
+REFUND REASON:
+{{ refund.reason }}
+
+Please process this refund via PayNow to the customer's provided phone number and update the treasury records accordingly.
+
+Thank you,
+BirdSoc SG Shop System
+
+---
+This is an automated notification from the BirdSoc SG Shop system.

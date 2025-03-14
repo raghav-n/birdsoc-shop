@@ -1,0 +1,141 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Refund Request" %} #{{ refund.id }} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard-refund:refund-request-list' %}">{% trans "Refund Requests" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Refund Request" %} #{{ refund.id }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block header %}
+<div class="page-header">
+    <h1>{% trans "Refund Request" %} #{{ refund.id }}</h1>
+</div>
+{% endblock header %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Refund Details" %}</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>{% trans "Order Number" %}</dt>
+                            <dd>{{ refund.order_number }}</dd>
+                            
+                            <dt>{% trans "Refund Amount" %}</dt>
+                            <dd>${{ refund.amount }}</dd>
+                            
+                            <dt>{% trans "Status" %}</dt>
+                            <dd>
+                                {% if refund.status == 'pending' %}
+                                    <span class="badge badge-warning">Pending</span>
+                                {% elif refund.status == 'approved' %}
+                                    <span class="badge badge-success">Approved</span>
+                                {% elif refund.status == 'rejected' %}
+                                    <span class="badge badge-danger">Rejected</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>{% trans "Date Requested" %}</dt>
+                            <dd>{{ refund.created_at|date:"d M Y H:i" }}</dd>
+                            
+                            <dt>{% trans "Last Updated" %}</dt>
+                            <dd>{{ refund.updated_at|date:"d M Y H:i" }}</dd>
+                            
+                            <dt>{% trans "Processed By" %}</dt>
+                            <dd>{{ refund.processed_by|default:"Not processed yet" }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Customer Information" %}</h3>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>{% trans "Name" %}</dt>
+                    <dd>{{ refund.name }}</dd>
+                    
+                    <dt>{% trans "Email" %}</dt>
+                    <dd>{{ refund.email }}</dd>
+                    
+                    <dt>{% trans "PayNow Phone" %}</dt>
+                    <dd>{{ refund.paynow_phone }}</dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Refund Reason" %}</h3>
+            </div>
+            <div class="card-body">
+                <p>{{ refund.reason|linebreaks }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if refund.status == 'pending' %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Process Refund" %}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="{{ form.status.id_for_label }}">{% trans "Status" %}</label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                            <div class="text-danger">{{ form.status.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group mt-3">
+                        <button type="submit" class="btn btn-primary">{% trans "Update Status" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{% trans "Actions" %}</h3>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'dashboard-refund:refund-request-list' %}" class="btn btn-secondary">
+                    {% trans "Back to Refund List" %}
+                </a>
+                
+                {% if refund.status == 'approved' %}
+                <div class="mt-3 alert alert-info">
+                    <strong>{% trans "Note:" %}</strong> {% trans "A notification has been sent to the treasurer to process this refund." %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock dashboard_content %}

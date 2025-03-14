@@ -1,0 +1,37 @@
+{% extends "oscar/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Refund Request Submitted" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">{% trans "Home" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'refund:request' %}">{% trans "Request a refund" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Request submitted" %}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h3 class="card-title mb-0">{% trans "Thank you" %}</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success mt-0">
+                    <i class="fas fa-check-circle mr-2"></i> Your refund request has been submitted successfully.
+                </div>
+                
+                <p>We have received your refund request and will process it as soon as possible. A confirmation email has been sent to the email address you provided.</p>
+                
+                <p>If you have any questions, please <a href="{% url "django_contact_form" %}">contact us</a>.</p>
+                
+                <div class="mt-4">
+                    <a href="/" class="btn btn-primary">Return to Home</a>
+                </div>
+            </div>
+        </div>
+{% endblock %}

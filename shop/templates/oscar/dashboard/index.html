@@ -1,4 +1,5 @@
 {% extends "oscar/dashboard/index.html" %}
+{% load shop_extras %}
 
 {% block extrahead %}
 {{ block.super }}
@@ -7,4 +8,21 @@
         display: none;
     }
 </style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="row mt-0">
+    <div class="col-md-12 mt-0">
+        {% if request.user.email == "TREASURER_EMAIL"|settings_value %}
+        <div class="alert alert-info mt-0 mb-4">
+            <h4><i class="icon-user"></i> Treasurer Tools</h4>
+            <a href="{% url 'dashboard-refund:treasurer-list' %}" class="btn btn-primary">
+                <i class="icon-money"></i> Pending Refund Disbursements
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{{ block.super }}
 {% endblock %}
