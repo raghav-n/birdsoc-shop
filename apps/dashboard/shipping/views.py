@@ -28,6 +28,8 @@ class DynamicShippingMethodCreateView(CreateView):
         "website_home_description",
         "website_faq_description",
         "price",
+        "is_self_collect",
+        "available_to_public",
     ]
     template_name = "oscar/dashboard/shipping/shipping_method_form.html"
     success_url = reverse_lazy("dashboard:dynamic-shipping-method-list")
@@ -49,6 +51,8 @@ class DynamicShippingMethodUpdateView(UpdateView):
         "website_home_description",
         "website_faq_description",
         "price",
+        "is_self_collect",
+        "available_to_public",
     ]
     template_name = "oscar/dashboard/shipping/shipping_method_form.html"
     success_url = reverse_lazy("dashboard:dynamic-shipping-method-list")

@@ -24,6 +24,8 @@ class DynamicShippingMethod(models.Model):
         blank=True, null=True, verbose_name="Website FAQ description"
     )
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    available_to_public = models.BooleanField(default=True, null=False)
+    is_self_collect = models.BooleanField(default=False, null=False)
     is_discounted = False
 
     @property
