@@ -166,7 +166,7 @@
 {% endblock content %}
 
 {% block extrascripts %}
-    <script src="https://unpkg.com/paynowqr@latest/dist/paynowqr.min.js"></script>
+    <script src="{% static "js/lib/paynowqr.min.js" %}"></script>
     <script src="{% static "js/qrcode-with-logos.min.js" %}"></script>
     <script>
         function loadQR(extraCost=0){
