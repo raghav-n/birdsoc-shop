@@ -36,6 +36,36 @@ class Benefit(CoreAbstractBenefit):
         # We sort lines to be cheapest first to ensure consistent applications
         return sorted(line_tuples, key=operator.itemgetter(0))
 
+    def apply(self, basket, condition, offer):
+        """
+        Apply the benefit to the basket
+        
+        This override ensures the result is always returned and properly parsed
+        """
+        result = super().apply(basket, condition, offer)
+        
+        # Make sure we return a valid result even if the benefit didn't impact anything
+        if not result:
+            from oscar.apps.offer.results import BasketDiscount
+            return BasketDiscount(basket, Decimal('0.00'))
+            
+        return result
+    
+    def clean(self):
+        """
+        Clean the benefit options.
+        
+        This override ensures that the range is always set when using certain benefit types.
+        """
+        super().clean()
+        
+        # If using certain benefit types, ensure range is set
+        if self.type in ['ValueDollar', 'PercentageDiscount'] and not self.range:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({
+                'range': "This benefit type requires a product range to be specified"
+            })
+
 
 class Discount20Cap10(Benefit):
     class Meta:

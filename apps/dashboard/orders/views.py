@@ -37,7 +37,9 @@ PaymentEventType = get_model("order", "PaymentEventType")
 PaymentEventQuantity = get_model("order", "PaymentEventQuantity")
 SourceType = get_model("payment", "SourceType")
 OrderCreator = get_class("order.utils", "OrderCreator")
-
+ConditionalOffer = get_model("offer", "ConditionalOffer")
+Applicator = get_class("offer.applicator", "Applicator")
+User = get_model("auth", "User")
 
 @method_decorator(staff_member_required, name="dispatch")
 class OrderLookupView(View):
@@ -291,7 +293,7 @@ class OnsitePurchaseView(TemplateView):
         # Create a basket with the selected products
         with transaction.atomic():
             # Create or get a guest user for the order
-            guest_user, created = User.objects.get_or_create(
+            guest_user, _created = User.objects.get_or_create(
                 username=f'guest_{timezone.now().strftime("%Y%m%d%H%M%S")}',
                 defaults={
                     "is_active": False,
@@ -335,7 +337,6 @@ class OnsitePurchaseView(TemplateView):
                     basket.vouchers.add(voucher)
 
                     # Apply the offers to the basket (including voucher offers)
-                    Applicator = get_class("offer.applicator", "Applicator")
                     applicator = Applicator()
                     applicator.apply(basket, request.user, request)
                 except Voucher.DoesNotExist:
@@ -348,7 +349,20 @@ class OnsitePurchaseView(TemplateView):
             if "confirm_order" in data:
                 shipping_method = DynamicShippingMethod.objects.get(code="ONSITE")
 
-                # Calculate the order total with any discounts from the voucher
+                # First, apply all available offers to the basket
+                # This includes both site offers and any voucher
+                applicator = Applicator()
+                applicator.apply(basket, request.user, request)
+
+                # Get the discount amount for reference
+                original_total = basket.total_excl_tax_excl_discounts
+                discounted_total = basket.total_excl_tax
+                total_discount = original_total - discounted_total
+
+                # Store offer applications for later use
+                offer_applications = basket.offer_applications
+
+                # Calculate the order total with all discounts applied
                 order_total = OrderTotalCalculator().calculate(
                     basket, shipping_charge=shipping_method.calculate(basket)
                 )
@@ -357,7 +371,7 @@ class OnsitePurchaseView(TemplateView):
                 order_creator = OrderCreator()
                 order = order_creator.place_order(
                     basket=basket,
-                    total=order_total,  # This now includes any voucher discounts
+                    total=order_total,  # This now includes all discounts
                     shipping_method=shipping_method,
                     shipping_charge=shipping_method.calculate(basket),
                     user=guest_user,
@@ -365,25 +379,44 @@ class OnsitePurchaseView(TemplateView):
                     status=settings.COLLECTED_STATUS,
                 )
 
-                # Record voucher usage against the order
+                # Record voucher usage against the order if used
                 if voucher:
                     voucher.record_usage(order, request.user)
 
-                    # Add a note about the voucher
+                    # Add a note about the voucher discount
+                    voucher_discount = Decimal('0.00')
+                    for discount in offer_applications.voucher_discounts:
+                        voucher_discount += discount['discount']
+                    
+                    if voucher_discount > 0:
+                        order.notes.create(
+                            user=request.user,
+                            message=f"Voucher {voucher.code} applied for a discount of ${voucher_discount:.2f}",
+                            note_type="System",
+                        )
+
+                # Record any site offer discounts
+                site_offer_discount = Decimal('0.00')
+                site_offer_names = []
+                for discount in offer_applications.offer_discounts:
+                    site_offer_discount += discount['discount']
+                    site_offer_names.append(discount['name'])
+                
+                if site_offer_discount > 0:
+                    offer_names = ", ".join(site_offer_names)
                     order.notes.create(
                         user=request.user,
-                        message=f"Voucher {voucher.code} applied for a discount of "
-                        f"${(basket.total_excl_tax_excl_discounts - basket.total_excl_tax):.2f}",
+                        message=f"Site offers applied: {offer_names} for a discount of ${site_offer_discount:.2f}",
                         note_type="System",
                     )
-
-                # Create payment source and event with the DISCOUNTED total
+                
+                # Create payment source and event with the TOTAL discounted amount
                 paynow_reference = f"{settings.ORDER_PREFIX}{order_number}"
                 source_type, _ = SourceType.objects.get_or_create(name="PayNow")
                 source = Source.objects.create(
                     source_type=source_type,
-                    amount_allocated=total_incl_tax,
-                    amount_debited=total_incl_tax,
+                    amount_allocated=order_total.incl_tax,
+                    amount_debited=order_total.incl_tax,
                     reference=paynow_reference,
                     order=order,
                 )
@@ -392,7 +425,7 @@ class OnsitePurchaseView(TemplateView):
                 event_type, _ = PaymentEventType.objects.get_or_create(name="Payment")
                 event = PaymentEvent.objects.create(
                     event_type=event_type,
-                    amount=total_incl_tax,  # Use the discounted total
+                    amount=order_total.incl_tax,  # Use the discounted total
                     reference=paynow_reference,
                     order=order,
                 )
@@ -410,27 +443,10 @@ class OnsitePurchaseView(TemplateView):
                         stockrecord.num_in_stock -= quantity
                         stockrecord.save()
 
-                # Add voucher usage information if used
-                if voucher:
-                    # If not already added by the order placement
-                    VoucherApplication = get_model("voucher", "VoucherApplication")
-                    if not VoucherApplication.objects.filter(
-                        voucher=voucher, order=order
-                    ).exists():
-                        VoucherApplication.objects.create(
-                            voucher=voucher,
-                            user=request.user,
-                            order=order,
-                            offer=voucher.offers.first(),
-                        )
-
-                # Add a success message that mentions the discount if applicable
+                # Add a success message that mentions any discounts
                 success_message = f"Order {paynow_reference} created successfully. Stock levels updated."
-                if voucher:
-                    original_total = basket.total_excl_tax_excl_discounts
-                    discounted_total = basket.total_excl_tax
-                    discount_amount = original_total - discounted_total
-                    success_message += f" Discount of ${discount_amount:.2f} applied."
+                if total_discount > 0:
+                    success_message += f" Discount of ${total_discount:.2f} applied."
 
                 messages.success(request, success_message)
                 return redirect("dashboard:order-detail", number=order.number)
@@ -504,9 +520,9 @@ class VoucherCheckView(View):
         from django.contrib.auth.models import AnonymousUser
         from oscar.apps.basket.models import Basket
 
-        user = AnonymousUser()
         basket = Basket()
-        # basket.owner = user
+        # use the current user as the basket owner
+        basket.owner = request.user
 
         # Add strategy to the basket
         strategy = Selector().strategy(request=request)
@@ -546,33 +562,212 @@ class VoucherCheckView(View):
                 }
             )
 
-        # Apply the voucher and calculate the discount
+        # Store original basket total before applying voucher
+        original_total = basket.total_excl_tax
+
         try:
+            # Apply the voucher to the basket
             basket.vouchers.add(voucher)
-
-            # Apply offers to see the effect of the voucher
-            Applicator = get_class("offer.applicator", "Applicator")
+            
+            # Create a fresh applicator to apply all offers including the voucher
             applicator = Applicator()
-            applicator.apply(basket, user, request)
-
-            # Calculate pre-discount total
-            pre_discount_total = basket.total_excl_tax_excl_discounts
-
-            # Calculate discount amount
-            discount_amount = pre_discount_total - basket.total_excl_tax
+            applicator.apply_offers(basket, voucher.offers.all())
+            
+            # Get the basket total after applying the voucher
+            discounted_total = basket.total_excl_tax
+            
+            # Calculate the actual discount amount
+            discount_amount = original_total - discounted_total
+            
+            # Log details for debugging
+            print(f"Voucher check - Original: ${original_total}, After voucher: ${discounted_total}, Discount: ${discount_amount}")
+            print(f"Voucher offers applied: {[o.id for o in voucher.offers.all()]}")
+            
+            # Ensure we have a positive discount
+            if discount_amount <= 0:
+                return JsonResponse({
+                    "valid": False,
+                    "message": "This voucher does not provide any discount for the selected products"
+                })
 
             # Get benefit description for display
-            benefit_desc = voucher.benefit.description
+            benefit_desc = voucher.benefit.description or "Discount applied"
 
             return JsonResponse(
                 {
                     "valid": True,
                     "message": f"Voucher applied: {benefit_desc}",
                     "discount": float(discount_amount),
-                    "new_total": float(basket.total_excl_tax),
+                    "new_total": float(discounted_total),
+                    "original_total": float(original_total),
                 }
             )
         except Exception as e:
+            import traceback
+            print(f"Error applying voucher: {str(e)}")
+            print(traceback.format_exc())
             return JsonResponse(
                 {"valid": False, "message": f"Error applying voucher: {str(e)}"}
             )
+
+class SiteOffersView(View):
+    """View to calculate and apply site offers automatically"""
+
+    def _condition_is_satisfied(self, condition, offer, basket):
+        """
+        Determines whether a given basket meets this condition
+        """
+        num_matches = 0
+        for line in basket.all_lines():
+            if condition.can_apply_condition(line):
+                num_matches += line.quantity_without_offer_discount(offer)
+            if num_matches >= condition.value:
+                return True
+        return False
+
+    def _get_applicable_offers(self, basket, user):
+        applicable_offers = []
+        offers = ConditionalOffer.active.all().filter(offer_type="Site")
+        
+        for offer in offers:
+            if not offer.is_available(user=user):
+                continue
+            
+            if self._condition_is_satisfied(offer.condition, offer, basket):
+                applicable_offers.append(offer)
+        
+        return applicable_offers
+    
+    @method_decorator(staff_member_required)
+    def post(self, request):        
+        # Parse product data
+        products_data = []
+        voucher_code = request.POST.get('voucher', '')
+        
+        try:
+            products_data = json.loads(request.POST.get('products', '[]'))
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'site_offers_applied': False,
+                'message': 'Invalid product data format'
+            })
+            
+        # If no products, return empty result
+        if not products_data:
+            return JsonResponse({
+                'site_offers_applied': False,
+                'message': 'No products provided'
+            })
+            
+        # Create a temporary basket to apply offers
+        from django.contrib.auth.models import AnonymousUser
+        from oscar.apps.basket.models import Basket
+        
+        user = AnonymousUser()
+        basket = Basket()
+        
+        # Add strategy to the basket
+        strategy = Selector().strategy(request=request)
+        basket.strategy = strategy
+        
+        # Add each product to the basket
+        for product_data in products_data:
+            try:
+                product_id = product_data['id']
+                quantity = int(product_data['quantity'])
+                
+                if quantity <= 0:
+                    continue
+                    
+                product = Product.objects.get(id=product_id)
+                basket.add_product(product, quantity=quantity)
+            except (KeyError, ValueError, Product.DoesNotExist):
+                continue
+                
+        # If basket is empty, return no offers
+        if not basket.num_lines:
+            return JsonResponse({
+                'site_offers_applied': False,
+                'message': 'No valid products in basket'
+            })
+            
+        # Store the original total before applying any offers
+        original_total = basket.total_excl_tax
+        
+        # Apply site offers (excluding vouchers)
+        site_applicator = Applicator()
+        site_offers = self._get_applicable_offers(basket, user)
+        site_applicator.apply_offers(basket, site_offers)
+        
+        # Calculate discount from site offers only
+        total_after_site_offers = basket.total_excl_tax
+        site_offer_discount = original_total - total_after_site_offers
+        
+        # Apply voucher if provided
+        voucher_discount = Decimal('0.00')
+        final_total = total_after_site_offers
+        
+        if voucher_code:
+            try:
+                # Create a separate basket for voucher calculation
+                voucher_basket = Basket()
+                voucher_basket.strategy = strategy
+                
+                # Copy the same products to voucher basket
+                for line in basket.all_lines():
+                    voucher_basket.add_product(line.product, quantity=line.quantity)
+                
+                # Apply site offers first to simulate the same state
+                site_applicator = Applicator()
+                site_applicator.apply_offers(voucher_basket, site_offers)
+                
+                # Get voucher and check if it's valid
+                voucher = Voucher.objects.get(code=voucher_code)
+                is_available, _ = voucher.is_available_for_basket(voucher_basket)
+                
+                if is_available:
+                    # Apply the voucher
+                    voucher_basket.vouchers.add(voucher)
+                    
+                    # Apply voucher offers
+                    voucher_applicator = Applicator()
+                    voucher_applicator.apply(voucher_basket, user, request)
+                    
+                    # Calculate voucher discount as the difference between baskets
+                    total_after_all_offers = voucher_basket.total_excl_tax
+                    voucher_discount = total_after_site_offers - total_after_all_offers
+                    
+                    # Set final total after all discounts
+                    final_total = total_after_all_offers
+                    
+                    # Log for debugging
+                    print(f"Site offers endpoint - Original: ${original_total}, After site offers: ${total_after_site_offers}, After voucher: ${final_total}")
+                    print(f"Site discount: ${site_offer_discount}, Voucher discount: ${voucher_discount}")
+            except Voucher.DoesNotExist:
+                # Voucher not found, ignore
+                pass
+            except Exception as e:
+                import traceback
+                print(f"Error calculating voucher discount: {str(e)}")
+                print(traceback.format_exc())
+        
+        # Generate a description of applied offers
+        site_offers_description = "Automatic discount"
+        if basket.offer_applications.offer_discounts:
+            offer_names = [discount['name'] for discount in basket.offer_applications.offer_discounts]
+            site_offers_description = ", ".join(offer_names)
+        
+        # Ensure all values are positive and final total is not negative
+        site_offer_discount = max(Decimal('0.00'), site_offer_discount)
+        voucher_discount = max(Decimal('0.00'), voucher_discount)
+        final_total = max(Decimal('0.00'), final_total)
+        
+        # Return the calculated values
+        return JsonResponse({
+            'site_offers_applied': site_offer_discount > Decimal('0.00'),
+            'site_offers_discount': float(site_offer_discount),
+            'site_offers_description': site_offers_description,
+            'voucher_discount': float(voucher_discount),
+            'final_total': float(final_total),
+            'original_total': float(original_total)
+        })

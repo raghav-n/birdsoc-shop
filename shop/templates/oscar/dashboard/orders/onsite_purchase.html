@@ -130,11 +130,20 @@
                             </tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot>
+                    <tfoot class="totals-section">
                         <tr>
                             <th colspan="2" class="text-right">{% trans "Subtotal:" %}</th>
                             <th id="subtotal-amount">${{ total_incl_tax|default:"0.00" }}</th>
                         </tr>
+                        
+                        <!-- Add site offers row (initially hidden) -->
+                        <tr id="site-offers-row" style="display: none;">
+                            <th colspan="2" class="text-right text-success">
+                                <span id="site-offers-description">{% trans "Automatic Discount:" %}</span>
+                            </th>
+                            <th id="site-offers-amount" class="text-success">-$0.00</th>
+                        </tr>
+                        
                         <!-- Add voucher/promo code field -->
                         <tr>
                             <td colspan="3">
@@ -157,11 +166,13 @@
                                 </div>
                             </td>
                         </tr>
+                        
                         <!-- Discount row (shown when voucher applied) -->
                         <tr id="discount-row" style="display: none;">
-                            <th colspan="2" class="text-right text-danger">{% trans "Discount:" %}</th>
+                            <th colspan="2" class="text-right text-danger">{% trans "Voucher Discount:" %}</th>
                             <th id="discount-amount" class="text-danger">-$0.00</th>
                         </tr>
+                        
                         <!-- Final total row -->
                         <tr id="total-row">
                             <th colspan="2" class="text-right">{% trans "Total:" %}</th>
@@ -210,6 +221,16 @@
                 <p class="mt-3">Reference: <strong id="reference-display">{{ reference_id }}</strong></p>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Move the loading overlay outside the table structure -->
+<div class="loading-overlay" id="totals-loading">
+    <div class="spinner-container">
+        <div class="spinner-border" role="status">
+            <span class="sr-only">Calculating...</span>
+        </div>
+        <p class="mt-2">Calculating total...</p>
     </div>
 </div>
 
@@ -533,6 +554,90 @@
             });
         }
     </script>
+    {{ block.super }}
+    
+    <script type="text/javascript">
+        // Global variables needed by the onsite-purchase.js script
+        const siteOffersUrl = "{% url 'dashboard:site-offers' %}";
+        const voucherCheckUrl = "{% url 'dashboard:voucher-check' %}";
+        const csrfToken = "{{ csrf_token }}";
+        const paynowLogoUrl = "{% static 'img/paynow-logo.png' %}";
+        let qrCodeGenerated = {% if show_payment %}true{% else %}false{% endif %};
+        
+        // Add debug logging for discount application
+        $(document).ready(function() {
+            // Add a debug handler to log order submission data
+            $('#onsite-purchase-form').on('submit', function() {
+                if ($(document.activeElement).attr('name') === 'confirm_order') {
+                    console.log('Submitting order with:');
+                    console.log('- Total amount: ' + $('#total-amount').text());
+                    
+                    if ($('#site-offers-row').is(':visible')) {
+                        console.log('- Site offer discount: ' + $('#site-offers-amount').text());
+                        console.log('- Site offer description: ' + $('#site-offers-description').text());
+                    }
+                    
+                    if ($('#discount-row').is(':visible')) {
+                        console.log('- Voucher discount: ' + $('#discount-amount').text());
+                        console.log('- Voucher code: ' + $('#voucher_code').val());
+                    }
+                }
+            });
+            
+            // Add extra debugging for site offers
+            $(document).on('applySiteOffersComplete', function(e, data) {
+                console.log('Site offers applied:', data);
+            });
+        });
+    </script>
+    
+    <!-- Include the new JavaScript file -->
+    <script src="{% static 'js/onsite-purchase.js' %}"></script>
+    
+    <!-- Add some debugging code to help trace discount issues -->
+
+    <script type="text/javascript">
+        // Add more debug info for voucher application
+        $(document).ready(function() {
+            // Add debug tracking for voucher application
+            $('#apply-voucher').on('click', function() {
+                console.log('Applying voucher code:', $('#id_voucher').val());
+            });
+            
+            // Log all discount calculations
+            $(document).on('discountApplied', function(e, data) {
+                console.log('Discount applied:', data);
+            });
+            
+            // Add listener for form submission to ensure voucher is included
+            $('#onsite-purchase-form').on('submit', function() {
+                if ($(document.activeElement).attr('name') === 'confirm_order') {
+                    // Verify voucher is included
+                    if ($('#voucher_code').val()) {
+                        console.log('Submitting order with voucher:', $('#voucher_code').val());
+                    }
+                    
+                    // Ensure discount info is included in the form
+                    if ($('#discount-row').is(':visible')) {
+                        let discountAmount = parseFloat($('#discount-amount').text().replace('-$', '')) || 0;
+                        let voucherField = $('input[name="voucher_discount"]');
+                        
+                        if (voucherField.length === 0) {
+                            $('<input>').attr({
+                                type: 'hidden',
+                                name: 'voucher_discount',
+                                value: discountAmount
+                            }).appendTo($(this));
+                            console.log('Added voucher_discount field:', discountAmount);
+                        } else {
+                            voucherField.val(discountAmount);
+                            console.log('Updated voucher_discount field:', discountAmount);
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 {% endblock %}
 
 {% block extrahead %}
@@ -610,6 +715,53 @@
         margin-right: 5px;
         margin-bottom: 5px;
         font-size: 0.85rem;
+    }
+    
+    /* Loading overlay for totals section */
+    .loading-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1050;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.2s, visibility 0.2s;
+    }
+    
+    .loading-overlay.active {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    .spinner-container {
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 20px;
+        /* border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); */
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        color: #6c757d;
+    }
+    
+    /* Make totals section stand out during calculations */
+    .totals-calculating {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    .btn-processing {
+        cursor: not-allowed;
+        pointer-events: none;
+        opacity: 0.65;
     }
     
 </style>
