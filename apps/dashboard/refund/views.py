@@ -172,3 +172,25 @@ class TreasurerRefundDetailView(TreasurerOnlyMixin, UpdateView):
         #     )
 
         email.send(fail_silently=False)
+
+
+class CompletedRefundListView(SuperUserOnlyMixin, ListView):
+    """View for displaying completed (disbursed) refunds to superusers"""
+    model = RefundRequest
+    template_name = "oscar/dashboard/refund/completed_list.html"
+    context_object_name = "refunds"
+    
+    def get_queryset(self):
+        # Only show disbursed refunds
+        return RefundRequest.objects.filter(status=RefundRequest.STATUS_DISBURSED).order_by('-disbursed_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "Completed Refunds"
+        
+        # Add summary statistics
+        refunds = self.get_queryset()
+        context['total_count'] = refunds.count()
+        context['total_amount'] = sum(refund.amount for refund in refunds)
+        
+        return context

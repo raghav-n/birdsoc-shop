@@ -17,7 +17,11 @@
 
 {% block header %}
 <div class="page-header">
+    {% if refund.status == "disbursed" %}
+        <h1>{% trans "Refund" %} {{ refund.refund_number }}</h1>
+    {% else %}
     <h1>{% trans "Refund Request" %} #{{ refund.id }}</h1>
+    {% endif %}
 </div>
 {% endblock header %}
 
@@ -44,6 +48,8 @@
                                     <span class="badge badge-warning">Pending</span>
                                 {% elif refund.status == 'approved' %}
                                     <span class="badge badge-success">Approved</span>
+                                {% elif refund.status == 'disbursed' %}
+                                    <span class="badge badge-success">Disbursed</span>
                                 {% elif refund.status == 'rejected' %}
                                     <span class="badge badge-danger">Rejected</span>
                                 {% endif %}

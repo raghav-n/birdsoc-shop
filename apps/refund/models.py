@@ -46,6 +46,7 @@ class RefundRequest(models.Model):
         blank=True,
         related_name="disbursed_refunds",
     )
+    refund_number = models.CharField(max_length=30, blank=True)
 
     refund_voucher_template = "pdf/refund_voucher.html"
 

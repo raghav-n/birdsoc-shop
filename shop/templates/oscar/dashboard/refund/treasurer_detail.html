@@ -109,6 +109,17 @@
                     <!-- Hidden input for status - automatically set to disbursed -->
                     <input type="hidden" name="status" value="disbursed">
                     
+                    <div class="form-group">
+                        <label for="refund_number"><strong>{% trans "Refund Number" %}</strong></label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="id_refund_number" 
+                               name="refund_number" 
+                               value="RFND-{{ refund.order_number }}" 
+                               required>
+                        <small class="form-text text-muted">{% trans "You can customize the refund number if needed" %}</small>
+                    </div>
+                    
                     <div class="form-group mt-3">
                         <button type="submit" class="btn btn-success btn-lg btn-block">
                             <i class="fas fa-check-circle"></i> {% trans "Confirm Disbursement" %}

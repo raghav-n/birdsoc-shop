@@ -1,0 +1,103 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Completed Refunds" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard-refund:refund-request-list' %}">{% trans "Refund Requests" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Completed Refunds" %}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block header %}
+<div class="page-header">
+    <h1>{% trans "Completed Refunds" %}</h1>
+</div>
+{% endblock header %}
+
+{% block dashboard_content %}
+
+<div class="row">
+    <div class="col-md-12">
+        <!-- Summary statistics card -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="card-title">{% trans "Summary" %}</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <h4>{% trans "Total Completed Refunds" %}</h4>
+                        <h2>{{ total_count }}</h2>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h4>{% trans "Total Amount Refunded" %}</h4>
+                        <h2>${{ total_amount|floatformat:2 }}</h2>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <a href="{% url 'dashboard-refund:refund-request-list' %}" class="btn btn-primary mt-3">
+                            <i class="fas fa-arrow-left"></i> {% trans "Back to Pending Refunds" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">{% trans "Disbursed Refunds" %}</h3>
+    </div>
+    <div class="card-body">
+        {% if refunds %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>{% trans "ID" %}</th>
+                    <th>{% trans "Refund Number" %}</th>
+                    <th>{% trans "Order Number" %}</th>
+                    <th>{% trans "Customer" %}</th>
+                    <th>{% trans "Amount" %}</th>
+                    <th>{% trans "Requested" %}</th>
+                    <th>{% trans "Disbursed" %}</th>
+                    <th>{% trans "Processed By" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for refund in refunds %}
+                <tr>
+                    <td>{{ refund.id }}</td>
+                    <td>{{ refund.refund_number|default:"N/A" }}</td>
+                    <td>{{ refund.order_number }}</td>
+                    <td>
+                        {{ refund.name }}<br>
+                        <small>{{ refund.email }}</small>
+                    </td>
+                    <td class="text-right">${{ refund.amount }}</td>
+                    <td>{{ refund.created_at|date:"d M Y" }}</td>
+                    <td>{{ refund.disbursed_at|date:"d M Y" }}</td>
+                    <td>{{ refund.processed_by.get_full_name|default:refund.processed_by.username }}</td>
+                    <td>
+                        <a href="{% url 'dashboard-refund:refund-request-detail' pk=refund.id %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-eye"></i> {% trans "View" %}
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>{% trans "No completed refunds found." %}</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock dashboard_content %}

@@ -1,5 +1,6 @@
 {% extends "oscar/dashboard/index.html" %}
 {% load shop_extras %}
+{% load i18n %}
 
 {% block extrahead %}
 {{ block.super }}
@@ -23,6 +24,5 @@
         {% endif %}
     </div>
 </div>
-
 {{ block.super }}
 {% endblock %}

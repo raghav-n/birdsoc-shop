@@ -50,7 +50,7 @@ class RefundDisbursementForm(forms.ModelForm):
 
     class Meta:
         model = RefundRequest
-        fields = ["status"]
+        fields = ["status", "refund_number"]
         widgets = {
             "status": forms.Select(
                 choices=(
