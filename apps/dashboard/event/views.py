@@ -17,7 +17,7 @@ import csv
 import io
 from django.http import HttpResponseRedirect
 from django.views.generic.edit import FormMixin
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 
 from django import forms
@@ -434,6 +434,11 @@ class EventParticipantRemoveView(DashboardMixin, View):
 class BatchEmailForm(forms.Form):
     subject = forms.CharField(max_length=255, required=True)
     message = forms.CharField(widget=forms.Textarea, required=True)
+    attachment1 = forms.FileField(required=False, label="Attachment 1")
+    attachment2 = forms.FileField(required=False, label="Attachment 2")
+    attachment3 = forms.FileField(required=False, label="Attachment 3")
+    attachment4 = forms.FileField(required=False, label="Attachment 4")
+    attachment5 = forms.FileField(required=False, label="Attachment 5")
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -441,6 +446,15 @@ class BatchEmailForm(forms.Form):
             "You can use the following variables: {{first_name}}, {{last_name}}, "
             "{{email}}, {{phone_number}}, {{event_title}}, {{event_date}}, {{event_location}}"
         )
+        
+    def get_attachments(self):
+        """Get all non-empty attachments from the form"""
+        attachments = []
+        for i in range(1, 6):
+            field_name = f'attachment{i}'
+            if self.cleaned_data.get(field_name):
+                attachments.append(self.cleaned_data[field_name])
+        return attachments
 
 
 class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
@@ -462,6 +476,9 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
         
         # Get all participants for this event
         event_participants = event.eventparticipant_set.all()
+        
+        # Get attachments
+        attachments = form.get_attachments()
         
         # Keep track of successful and failed emails
         successful = 0
@@ -497,27 +514,28 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
             try:
                 # Render HTML email using the base template
                 html_message = render_to_string('dashboard/event/email/batch_email.html', email_context)
-                # Create plain text version by stripping HTML
-                from django.utils.html import strip_tags
-                plain_message = strip_tags(personalized_message)
                 
-                # Send the email with both HTML and plain text versions
-                send_mail(
+                # Create email
+                email = EmailMultiAlternatives(
                     subject,
-                    plain_message,  # Plain text fallback
+                    html_message,  # Plain text fallback
                     settings.DEFAULT_FROM_EMAIL,
                     [participant.email],  # Send to actual participant email
                     bcc=[settings.REPLY_TO_EMAIL],  # BCC the reply-to email
-                    html_message=html_message,  # HTML version
-                    fail_silently=False,
                 )
+                email.content_subtype = "html"
+                
+                # Add attachments
+                for attachment in attachments:
+                    email.attach(attachment.name, attachment.read(), attachment.content_type)
+                
+                email.send()
                 successful += 1
+                break
             except Exception as e:
                 failed += 1
                 # Log the error
                 print(f"Failed to send email to {participant.email}: {str(e)}")
-            
-            # Remove the break statement that was stopping the loop after first participant
         
         if failed > 0:
             messages.warning(

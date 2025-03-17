@@ -43,7 +43,7 @@
                 </ul>
             </div>
 
-            <form method="post" id="email-form">
+            <form method="post" id="email-form" enctype="multipart/form-data">
                 {% csrf_token %}
                 
                 <div class="form-group">
@@ -67,6 +67,29 @@
                         </div>
                     {% endif %}
                     <small class="form-text text-muted">{{ form.message.help_text }}</small>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5>{% trans "Attachments" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">{% trans "You can attach up to 5 files to this email." %}</p>
+                        
+                        {% for field in form %}
+                            {% if field.name|slice:":10" == "attachment" %}
+                                <div class="form-group">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    <input type="file" name="{{ field.name }}" id="{{ field.auto_id }}" class="form-control-file">
+                                    {% if field.errors %}
+                                        <div class="alert alert-danger mt-2">
+                                            {{ field.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                 </div>
                 
                 <div class="form-actions">
@@ -221,6 +244,20 @@
                 
                 // Submit the form manually
                 this.submit();
+            });
+
+            // Update file input label with selected files
+            $('input[type="file"]').on('change', function() {
+                var fileCount = $(this)[0].files.length;
+                if (fileCount > 0) {
+                    if (fileCount === 1) {
+                        $(this).next('.custom-file-label').html($(this)[0].files[0].name);
+                    } else {
+                        $(this).next('.custom-file-label').html(fileCount + ' files selected');
+                    }
+                } else {
+                    $(this).next('.custom-file-label').html('Choose files...');
+                }
             });
         });
     </script>
