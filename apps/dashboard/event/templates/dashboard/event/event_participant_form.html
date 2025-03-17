@@ -1,0 +1,49 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {{ title }} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'dashboard-event:event-list' %}">{% trans "Events" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'dashboard-event:event-detail' pk=event.id %}">{{ event.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans "Add Participant" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <p>{% trans "Select an existing participant to add to this event:" %}</p>
+                
+                {% include 'oscar/dashboard/partials/form_fields.html' with form=form %}
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">{% trans "Add to Event" %}</button>
+                    or <a href="{% url 'dashboard-event:event-detail' pk=event.id %}">{% trans "cancel" %}</a>
+                </div>
+            </form>
+            
+            <hr />
+            
+            <p>{% trans "Or create a new participant:" %}</p>
+            <a href="{% url 'dashboard-event:event-participant-create' pk=event.id %}" class="btn btn-success">
+                {% trans "Create & Add New Participant" %}
+            </a>
+        </div>
+    </div>
+{% endblock dashboard_content %}

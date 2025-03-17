@@ -1,0 +1,75 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {{ title }} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event-dashboard:event-list' %}">{% trans "Events" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>{% trans "Event Details" %}</h2>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% include 'oscar/dashboard/partials/form_fields.html' with form=form %}
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+                    or <a href="{% url 'event-dashboard:event-list' %}">{% trans "cancel" %}</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if object and import_form %}
+    <div class="card">
+        <div class="card-header">
+            <h2>{% trans "Import Participants" %}</h2>
+        </div>
+        <div class="card-body">
+            <p>{% trans "Upload a CSV file to bulk import participants. The CSV must include the following headers:" %}</p>
+            <ul>
+                <li>{% trans "Email" %} - {% trans "Participant email address (required)" %}</li>
+                <li>{% trans "First Name" %} - {% trans "Participant first name (required)" %}</li>
+                <li>{% trans "Last Name" %} - {% trans "Participant last name (required)" %}</li>
+                <li>{% trans "Quantity" %} - {% trans "Number of participants with this name (default: 1)" %}</li>
+                <li>{% trans "Cell Phone" %} - {% trans "Participant phone number (optional)" %}</li>
+            </ul>
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% include 'oscar/dashboard/partials/form_fields.html' with form=import_form %}
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success">{% trans "Upload and Import" %}</button>
+                </div>
+            </form>
+            
+            <div class="alert alert-info mt-3">
+                <strong>{% trans "Note:" %}</strong> 
+                {% trans "For entries with quantity greater than 1, the system will create multiple participants with the same name but numbers appended, e.g. 'John Smith (1)', 'John Smith (2)', etc." %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock dashboard_content %}

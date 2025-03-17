@@ -1,0 +1,206 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {{ event.title }} | {% trans "Event Details" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'dashboard-event:event-list' %}">{% trans "Events" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ event.title }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{{ event.title }}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>{% trans "Event Details" %}</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <table class="table">
+                        <tr>
+                            <th>{% trans "Title" %}</th>
+                            <td>{{ event.title }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Description" %}</th>
+                            <td>{{ event.description|linebreaks }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Start Date" %}</th>
+                            <td>{{ event.start_date }}</td>
+                        </tr>
+                        {% if event.end_date %}
+                        <tr>
+                            <th>{% trans "End Date" %}</th>
+                            <td>{{ event.end_date }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>{% trans "Location" %}</th>
+                            <td>{{ event.location|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Maximum Participants" %}</th>
+                            <td>{{ event.max_participants|default:"Unlimited" }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Participants" %}</th>
+                            <td>
+                                {{ event.participant_count }} {% trans "people" %} 
+                                <small class="text-muted">({{ event.unique_participant_count }} {% trans "unique registrations" %})</small>
+                                {% if event.max_participants %} / {{ event.max_participants }}{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Status" %}</th>
+                            <td>
+                                {% if event.is_active %}
+                                    <span class="badge badge-success">{% trans "Active" %}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{% trans "Inactive" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">{% trans "Actions" %}</div>
+                        <div class="card-body">
+                            <a href="{% url 'dashboard-event:event-update' pk=event.id %}" class="btn btn-primary btn-block">
+                                <i class="fas fa-edit"></i> {% trans "Edit Event" %}
+                            </a>
+                            <a href="{% url 'event-dashboard:event-batch-email' pk=event.id %}" class="btn btn-info btn-block">
+                                <i class="fas fa-envelope"></i> {% trans "Send Batch Email" %}
+                            </a>
+                            <a href="{% url 'dashboard-event:event-delete' pk=event.id %}" class="btn btn-danger btn-block">
+                                <i class="fas fa-trash"></i> {% trans "Delete Event" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3>{% trans "Participants" %}</h3>
+            <div>
+                <span class="badge {% if event.is_full %}badge-danger{% else %}badge-info{% endif %}">
+                    {{ event.participant_count }} {% trans "people" %} {% if event.max_participants %} / {{ event.max_participants }}{% endif %}
+                </span>
+                <a href="{% url 'dashboard-event:event-participant-add' pk=event.id %}" class="btn btn-primary btn-sm ml-2">
+                    <i class="fas fa-plus"></i> {% trans "Add Existing Participant" %}
+                </a>
+                <a href="{% url 'dashboard-event:event-participant-create' pk=event.id %}" class="btn btn-success btn-sm ml-2">
+                    <i class="fas fa-user-plus"></i> {% trans "Create New Participant" %}
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if event.eventparticipant_set.exists %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Name" %}</th>
+                            <th>{% trans "Email" %}</th>
+                            <th>{% trans "Phone Number" %}</th>
+                            <th>{% trans "Party Size" %}</th>
+                            <th>{% trans "Registered" %}</th>
+                            <th>{% trans "Attended" %}</th>
+                            <th>{% trans "Actions" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ep in event.eventparticipant_set.all %}
+                            <tr id="participant-{{ ep.participant.id }}">
+                                <td>{{ ep.participant.first_name }} {{ ep.participant.last_name }}</td>
+                                <td>{{ ep.participant.email }}</td>
+                                <td>{{ ep.participant.phone_number|default:"-" }}</td>
+                                <td>{{ ep.participant.quantity }}</td>
+                                <td>{{ ep.registered_at }}</td>
+                                <td>
+                                    {% if ep.attended %}
+                                        <span class="badge badge-success">{% trans "Yes" %}</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">{% trans "No" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'dashboard-event:participant-detail' pk=ep.participant.id %}" class="btn btn-info btn-sm">
+                                        {% trans "View" %}
+                                    </a>
+                                    <button class="btn btn-danger btn-sm remove-participant" 
+                                            data-participant-id="{{ ep.participant.id }}"
+                                            data-event-id="{{ event.id }}"
+                                            data-participant-name="{{ ep.participant.full_name }}">
+                                        {% trans "Remove" %}
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="3">{% trans "Total" %}</th>
+                            <th>{{ event.participant_count }}</th>
+                            <th colspan="3"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            {% else %}
+                <p>{% trans "No participants have been added to this event yet." %}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock dashboard_content %}
+
+{% block extrascripts %}
+    {{ block.super }}
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $('.remove-participant').on('click', function() {
+                var eventId = $(this).data('event-id');
+                var participantId = $(this).data('participant-id');
+                var participantName = $(this).data('participant-name');
+
+                if (confirm('Are you sure you want to remove "' + participantName + '" from this event?')) {
+                    $.ajax({
+                        url: '{% url "dashboard-event:event-participant-remove" event_pk=event.id pk=0 %}'.replace('0', participantId),
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': "{{ csrf_token }}"
+                        },
+                        success: function(response) {
+                            $('#participant-' + participantId).fadeOut(function() {
+                                $(this).remove();
+                                location.reload(); // Reload to update counts
+                            });
+                        },
+                        error: function(xhr) {
+                            var errorMsg = 'An error occurred while removing the participant.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMsg = xhr.responseJSON.message;
+                            }
+                            alert(errorMsg);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock %}

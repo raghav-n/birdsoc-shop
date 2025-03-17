@@ -40,10 +40,10 @@ urlpatterns = [
         "dashboard/refund/",
         include("apps.dashboard.refund.urls", namespace="dashboard-refund"),
     ),
-    # path(
-    #     "dashboard/event/",
-    #     include("apps.dashboard.event.urls", namespace="dashboard-event"),
-    # ),
+    path(
+        "dashboard/event/",
+        include("apps.dashboard.event.urls", namespace="dashboard-event"),
+    ),
     path(
         "contact/",
         ContactFormView.as_view(form_class=ContactForm),
@@ -60,7 +60,7 @@ urlpatterns = [
     path("promo/", TemplateView.as_view(template_name="promo.html"), name="promo"),
     path("refund/", include("apps.refund.urls", namespace="refund")),
     # Include the event dashboard URLs with the namespace already defined in the urls.py
-    # path("dashboard/events/", include("apps.dashboard.event.urls")),
+    path("dashboard/events/", include("apps.dashboard.event.urls")),
 ]
 
 if not settings.SESSION_ENVIRONMENT_PRODUCTION:

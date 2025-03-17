@@ -1,0 +1,79 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Events" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans "Events" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{% trans "Events" %}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="table-header">
+        <a href="{% url 'dashboard-event:event-create' %}" class="btn btn-primary float-right">
+            <i class="fas fa-plus"></i> {% trans "Create new event" %}
+        </a>
+        <h3>{% trans "Event List" %}</h3>
+    </div>
+
+    {% if events %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>{% trans "Title" %}</th>
+                    <th>{% trans "Start Date" %}</th>
+                    <th>{% trans "Location" %}</th>
+                    <th>{% trans "Participants" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in events %}
+                    <tr>
+                        <td>{{ event.title }}</td>
+                        <td>{{ event.start_date }}</td>
+                        <td>{{ event.location|default:"-" }}</td>
+                        <td>{{ event.participant_count }}{% if event.max_participants %} / {{ event.max_participants }}{% endif %}</td>
+                        <td>
+                            {% if event.is_active %}
+                                <span class="badge badge-success">{% trans "Active" %}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{% trans "Inactive" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'dashboard-event:event-detail' pk=event.id %}" class="btn btn-info btn-sm">
+                                    {% trans "View" %}
+                                </a>
+                                <a href="{% url 'dashboard-event:event-update' pk=event.id %}" class="btn btn-primary btn-sm">
+                                    {% trans "Edit" %}
+                                </a>
+                                <a href="{% url 'dashboard-event:event-delete' pk=event.id %}" class="btn btn-danger btn-sm">
+                                    {% trans "Delete" %}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{% trans "No events found." %}</p>
+    {% endif %}
+
+    {% include 'oscar/dashboard/partials/pagination.html' %}
+{% endblock dashboard_content %}

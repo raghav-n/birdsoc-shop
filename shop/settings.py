@@ -129,6 +129,8 @@ INSTALLED_APPS = [
     "apps.refund.apps.RefundConfig",  # Add the new refund app
     "apps.dashboard.refund.apps.RefundDashboardConfig",  # Add the new refund app
     "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
+    "apps.event.apps.EventConfig",  # Add the new events app
+    "apps.dashboard.event.apps.EventDashboardConfig",  # Event dashboard app - Add this line
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",
@@ -602,6 +604,22 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "icon": "fas fa-chart-bar",
         "url_name": "dashboard:reports-index",
         "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
+    },
+    {
+        "label": _("Events"),
+        "icon": "fas fa-calendar-alt",
+        "children": [
+            {
+                "label": _("Events"),
+                "url_name": "dashboard-event:event-list",
+                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+            },
+            {
+                "label": _("Participants"),
+                "url_name": "dashboard-event:participant-list",
+                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+            },
+        ],
     },
     {
         "label": _("Refunds"),

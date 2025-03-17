@@ -1,0 +1,51 @@
+{% extends "oscar/communication/emails/base.html" %}
+{% load i18n %}
+
+{% block header %}
+<tr>
+    <td class="content-block aligncenter">
+        <h2>{{ event.title }}</h2>
+    </td>
+</tr>
+{% endblock %}
+
+{% block body %}
+    <!-- <p>Hello {{ participant.first_name }},</p> -->
+    
+    {{ message|safe }}
+    
+    <!-- <p style="margin-top: 20px;">
+        {% trans "Event details:" %}
+    </p>
+    
+    <table class="order order-items" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td><strong>{% trans "Event" %}:</strong></td>
+            <td>{{ event.title }}</td>
+        </tr>
+        <tr>
+            <td><strong>{% trans "Date" %}:</strong></td>
+            <td>{{ event.start_date|date:"F j, Y" }}</td>
+        </tr>
+        {% if event.location %}
+        <tr>
+            <td><strong>{% trans "Location" %}:</strong></td>
+            <td>{{ event.location }}</td>
+        </tr>
+        {% endif %}
+    </table> -->
+    
+    <!-- <div style="margin-top: 20px;">
+        <p>
+            {% trans "Thank you for your participation!" %}
+        </p>
+    </div> -->
+{% endblock %}
+
+{% block footer %}
+<!-- <tr>
+    <td class="content-block aligncenter">
+        <p>{% trans "If you have any questions, please contact us." %}</p>
+    </td>
+</tr> -->
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Send Batch Email" %} | {{ event.title }} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event-dashboard:event-list' %}">{% trans "Events" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event-dashboard:event-detail' pk=event.id %}">{{ event.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans "Send Batch Email" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{% trans "Send Batch Email" %} - {{ event.title }}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>{% trans "Email Details" %}</h3>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <p>{% trans "You are about to send an email to" %} <strong>{{ participant_count }}</strong> {% trans "participants of this event." %}</p>
+                <p>{% trans "You can use template variables to personalize your message. Available variables:" %}</p>
+                <ul>
+                    
+                    <li><code>{% verbatim %}{{first_name}}{% endverbatim %}</code> - {% trans "Participant's first name" %}</li>
+                    <li><code>{% verbatim %}{{last_name}}{% endverbatim %}</code> - {% trans "Participant's last name" %}</li>
+                    <li><code>{% verbatim %}{{email}}{% endverbatim %}</code> - {% trans "Participant's email address" %}</li>
+                    <li><code>{% verbatim %}{{phone_number}}{% endverbatim %}</code> - {% trans "Participant's phone number" %}</li>
+                    <li><code>{% verbatim %}{{event_title}}{% endverbatim %}</code> - {% trans "Event title" %}</li>
+                    <li><code>{% verbatim %}{{event_date}}{% endverbatim %}</code> - {% trans "Event date (formatted)" %}</li>
+                    <li><code>{% verbatim %}{{event_location}}{% endverbatim %}</code> - {% trans "Event location" %}</li>
+                </ul>
+            </div>
+
+            <form method="post" id="email-form">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="{{ form.subject.id_for_label }}">{% trans "Subject" %}</label>
+                    <div class="input-group">
+                        <input type="text" name="subject" maxlength="255" class="form-control" required id="id_subject" placeholder="{% trans 'Enter email subject' %}">
+                    </div>
+                    {% if form.subject.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {{ form.subject.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.message.id_for_label }}">{% trans "Message body" %}</label>
+                    {{ form.message }}
+                    {% if form.message.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {{ form.message.errors }}
+                        </div>
+                    {% endif %}
+                    <small class="form-text text-muted">{{ form.message.help_text }}</small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="preview-email" class="btn btn-secondary mr-2">
+                        <i class="fas fa-eye"></i> {% trans "Preview Email" %}
+                    </button>
+                    <button type="submit" class="btn btn-primary">{% trans "Send Emails" %}</button>
+                    <a href="{% url 'event-dashboard:event-detail' pk=event.id %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Email Preview Modal -->
+    <div class="modal fade" id="emailPreviewModal" tabindex="-1" role="dialog" aria-labelledby="emailPreviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="emailPreviewModalLabel">{% trans "Email Preview" %}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="email-preview-container">
+                        <div class="email-preview-subject mb-3">
+                            <strong>{% trans "Subject:" %}</strong> <span id="preview-subject"></span>
+                        </div>
+                        <div class="email-preview-content p-3 border rounded" style="max-height: 500px; overflow-y: auto;">
+                            <iframe id="email-preview-iframe" style="width: 100%; height: 500px; border: none;"></iframe>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            {% trans "Note: This is a preview using sample data. The actual email will use each participant's information." %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Close" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock dashboard_content %}
+
+{% block extrascripts %}
+    {{ block.super }}
+    <!-- Include TinyMCE from CDN -->
+    <script src="https://cdn.tiny.cloud/1/kifouz8br5h4jxd86qad37cshlsdzkq4jkytzkcfwis0e8fh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Remove the required attribute from the textarea since TinyMCE will handle validation
+            $('#id_message').removeAttr('required');
+            
+            // Initialize TinyMCE for the message textarea
+            tinymce.init({
+                selector: '#id_message',
+                height: 400,
+                menubar: true,
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                ],
+                toolbar: 'undo redo | formatselect | ' +
+                'bold italic backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | help',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                setup: function(editor) {
+                    // Update original textarea when editor content changes
+                    editor.on('change', function() {
+                        editor.save(); // Sync content to the original textarea
+                    });
+                }
+            });
+            
+            // Handle preview button click
+            $('#preview-email').on('click', function() {
+                var editor = tinymce.get('id_message');
+                var content = editor.getContent();
+                var subject = $('#id_subject').val();
+                
+                // Validate before preview
+                if (!subject) {
+                    alert("{% trans 'Please enter an email subject.' %}");
+                    return;
+                }
+                
+                if (!content) {
+                    alert("{% trans 'Please enter a message body.' %}");
+                    return;
+                }
+                
+                // Update the textarea with editor content
+                $('#id_message').val(content);
+                
+                // Send AJAX request to get the preview
+                $.ajax({
+                    url: '{% url "event-dashboard:event-batch-email-preview" pk=event.id %}',
+                    method: 'POST',
+                    data: {
+                        subject: subject,
+                        message: content,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        // Display the preview in the modal
+                        $('#preview-subject').text(response.subject);
+                        
+                        // Use an iframe to properly display the HTML email
+                        var iframe = $('#email-preview-iframe')[0];
+                        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        iframeDoc.open();
+                        iframeDoc.write(response.html);
+                        iframeDoc.close();
+                        
+                        // Show the modal
+                        $('#emailPreviewModal').modal('show');
+                    },
+                    error: function() {
+                        alert("{% trans 'An error occurred while generating the preview. Please try again.' %}");
+                    }
+                });
+            });
+            
+            // Handle form submission
+            $('#email-form').on('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                
+                var editor = tinymce.get('id_message');
+                var content = editor.getContent();
+                var subject = $('#id_subject').val();
+                
+                // Validate content
+                if (!subject) {
+                    alert("{% trans 'Please enter an email subject.' %}");
+                    return false;
+                }
+                
+                if (!content) {
+                    alert("{% trans 'Please enter a message body.' %}");
+                    return false;
+                }
+                
+                // Update the textarea with editor content before submission
+                $('#id_message').val(content);
+                
+                // Confirm before sending emails
+                if (!confirm("{% trans 'Are you sure you want to send this email to all participants? This action cannot be undone.' %}")) {
+                    return false;
+                }
+                
+                // Submit the form manually
+                this.submit();
+            });
+        });
+    </script>
+{% endblock %}
