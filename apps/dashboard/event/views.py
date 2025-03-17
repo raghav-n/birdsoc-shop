@@ -479,6 +479,7 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
         
         # Get attachments
         attachments = form.get_attachments()
+        attachments = [(attachment, attachment.read()) for attachment in attachments]
         
         # Keep track of successful and failed emails
         successful = 0
@@ -526,12 +527,11 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
                 email.content_subtype = "html"
                 
                 # Add attachments
-                for attachment in attachments:
-                    email.attach(attachment.name, attachment.read(), attachment.content_type)
+                for attachment, read_attachment in attachments:
+                    email.attach(attachment.name, read_attachment, attachment.content_type)
                 
                 email.send()
                 successful += 1
-                break
             except Exception as e:
                 failed += 1
                 # Log the error
