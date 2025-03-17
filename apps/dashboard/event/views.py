@@ -507,6 +507,7 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
                     plain_message,  # Plain text fallback
                     settings.DEFAULT_FROM_EMAIL,
                     [participant.email],  # Send to actual participant email
+                    bcc=[settings.REPLY_TO_EMAIL],  # BCC the reply-to email
                     html_message=html_message,  # HTML version
                     fail_silently=False,
                 )
