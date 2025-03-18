@@ -41,6 +41,9 @@ def whitelist(request):
     if whitelist_method_id_request:
         reasons.append("whitelist_method_id_request")
 
+    if "/api/" in request.path:
+        reasons.append("api")
+
     result = {
         "whitelist": len(reasons) > 0,
         "reasons": ", ".join(reasons),

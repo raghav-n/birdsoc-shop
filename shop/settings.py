@@ -74,6 +74,9 @@ with open(os.path.join(BASE_DIR, "secrets/secret_key.txt")) as f:
 with open(os.path.join(PROJECT_DIR, "config/whitelist.txt")) as f:
     WHITELIST_USERS = [e.strip() for e in f.read().strip().splitlines()]
 
+with open(os.path.join(BASE_DIR, "secrets/jwt_secret.txt")) as f:
+    JWT_SECRET = f.read().strip()
+
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
@@ -449,6 +452,7 @@ BASE_ORDER_NUMBER_ONSITE = 200000
 CONTACT_US_URL = "https://shop.birdsociety.sg/contact/"
 
 PAYMENT_CONFIRMED_STATUS = "Payment confirmed"
+PAYMENT_AUTO_CONFIRMED_STATUS = "Payment automatically confirmed"
 CANCELLED_STATUS = "Cancelled"
 COLLECTED_STATUS = "Collected"
 COLLECTION_INFO_SENT_STATUS = "Collection info sent"
@@ -459,9 +463,15 @@ OSCAR_INITIAL_LINE_STATUS = "Pending payment confirmation"
 OSCAR_ORDER_STATUS_PIPELINE = {
     OSCAR_INITIAL_ORDER_STATUS: (
         PAYMENT_CONFIRMED_STATUS,
+        PAYMENT_AUTO_CONFIRMED_STATUS,
         CANCELLED_STATUS,
     ),
     PAYMENT_CONFIRMED_STATUS: (
+        COLLECTION_INFO_SENT_STATUS,
+        COLLECTED_STATUS,
+        CANCELLED_STATUS,
+    ),
+    PAYMENT_AUTO_CONFIRMED_STATUS: (
         COLLECTION_INFO_SENT_STATUS,
         COLLECTED_STATUS,
         CANCELLED_STATUS,
