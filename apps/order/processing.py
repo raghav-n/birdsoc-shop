@@ -5,7 +5,13 @@ from oscar.core.loading import get_model, get_class
 
 class EventHandler(CoreEventHandler):
     def handle_order_status_change(self, order, new_status, note_msg=None, user=None):
-        if order.sources.exists() and new_status == settings.PAYMENT_CONFIRMED_STATUS:
+        if order.sources.exists() and (
+            new_status
+            in [
+                settings.PAYMENT_CONFIRMED_STATUS,
+                settings.PAYMENT_AUTO_CONFIRMED_STATUS,
+            ]
+        ):
             for payment in order.sources.filter(source_type__code="paynow"):
                 payment.verify(user)
 

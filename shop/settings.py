@@ -341,9 +341,9 @@ MANAGER_EMAILS = [i[1] for i in MANAGERS]
 ADMIN_EMAILS = [i[1] for i in ADMINS]
 TREASURER_EMAIL = "treasurer.birdsocsg@gmail.com"
 
-if not SESSION_ENVIRONMENT_PRODUCTION: # test config
+if not SESSION_ENVIRONMENT_PRODUCTION:  # test config
     MANAGER_EMAILS = ADMIN_EMAILS
-    TREASURER_EMAIL = "raghavnswamy@gmail.com" 
+    TREASURER_EMAIL = "raghavnswamy@gmail.com"
 
 HAYSTACK_CONNECTIONS = {
     "default": {

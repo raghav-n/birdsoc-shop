@@ -439,19 +439,19 @@ class BatchEmailForm(forms.Form):
     attachment3 = forms.FileField(required=False, label="Attachment 3")
     attachment4 = forms.FileField(required=False, label="Attachment 4")
     attachment5 = forms.FileField(required=False, label="Attachment 5")
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['message'].help_text = (
+        self.fields["message"].help_text = (
             "You can use the following variables: {{first_name}}, {{last_name}}, "
             "{{email}}, {{phone_number}}, {{event_title}}, {{event_date}}, {{event_location}}"
         )
-        
+
     def get_attachments(self):
         """Get all non-empty attachments from the form"""
         attachments = []
         for i in range(1, 6):
-            field_name = f'attachment{i}'
+            field_name = f"attachment{i}"
             if self.cleaned_data.get(field_name):
                 attachments.append(self.cleaned_data[field_name])
         return attachments
@@ -461,61 +461,65 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
     model = OrganizedEvent
     template_name = "dashboard/event/event_batch_email.html"
     form_class = BatchEmailForm
-    
+
     def get_context_data(self, **kwargs):
         self.object = self.get_object()
         context = super().get_context_data(**kwargs)
         context["event"] = self.object
         context["participant_count"] = self.object.eventparticipant_set.count()
         return context
-    
+
     def form_valid(self, form):
         event = self.get_object()
-        subject = form.cleaned_data['subject']
-        message_template = form.cleaned_data['message']
-        
+        subject = form.cleaned_data["subject"]
+        message_template = form.cleaned_data["message"]
+
         # Get all participants for this event
         event_participants = event.eventparticipant_set.all()
-        
+
         # Get attachments
         attachments = form.get_attachments()
         attachments = [(attachment, attachment.read()) for attachment in attachments]
-        
+
         # Keep track of successful and failed emails
         successful = 0
         failed = 0
-        
+
         for ep in event_participants:
             participant = ep.participant
-            
+
             # Create context for template variables
             context = {
-                'first_name': participant.first_name,
-                'last_name': participant.last_name,
-                'email': participant.email,
-                'phone_number': participant.phone_number or "",
-                'event_title': event.title,
-                'event_date': event.start_date.strftime('%B %d, %Y'),
-                'event_location': event.location or "TBD",
+                "first_name": participant.first_name,
+                "last_name": participant.last_name,
+                "email": participant.email,
+                "phone_number": participant.phone_number or "",
+                "event_title": event.title,
+                "event_date": event.start_date.strftime("%B %d, %Y"),
+                "event_location": event.location or "TBD",
             }
-            
+
             # Replace template variables in the message
             personalized_message = message_template
             for key, value in context.items():
-                personalized_message = personalized_message.replace(f"{{{{{key}}}}}", str(value))
-            
+                personalized_message = personalized_message.replace(
+                    f"{{{{{key}}}}}", str(value)
+                )
+
             # Create context for the email template
             email_context = {
-                'subject': subject,
-                'message': personalized_message,
-                'participant': participant,
-                'event': event,
+                "subject": subject,
+                "message": personalized_message,
+                "participant": participant,
+                "event": event,
             }
-            
+
             try:
                 # Render HTML email using the base template
-                html_message = render_to_string('dashboard/event/email/batch_email.html', email_context)
-                
+                html_message = render_to_string(
+                    "dashboard/event/email/batch_email.html", email_context
+                )
+
                 # Create email
                 email = EmailMultiAlternatives(
                     subject,
@@ -525,84 +529,100 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
                     bcc=[settings.REPLY_TO_EMAIL],  # BCC the reply-to email
                 )
                 email.content_subtype = "html"
-                
+
                 # Add attachments
                 for attachment, read_attachment in attachments:
-                    email.attach(attachment.name, read_attachment, attachment.content_type)
-                
+                    email.attach(
+                        attachment.name, read_attachment, attachment.content_type
+                    )
+
                 email.send()
                 successful += 1
             except Exception as e:
                 failed += 1
                 # Log the error
                 print(f"Failed to send email to {participant.email}: {str(e)}")
-        
+
         if failed > 0:
             messages.warning(
-                self.request, 
-                f"Sent {successful} emails successfully, but {failed} emails failed to send."
+                self.request,
+                f"Sent {successful} emails successfully, but {failed} emails failed to send.",
             )
         else:
             messages.success(
-                self.request, 
-                f"Successfully sent emails to all {successful} participants."
+                self.request,
+                f"Successfully sent emails to all {successful} participants.",
             )
-        
-        return redirect('event-dashboard:event-detail', pk=event.pk)
+
+        return redirect("event-dashboard:event-detail", pk=event.pk)
 
 
 class EventBatchEmailPreviewView(DashboardMixin, View):
     """View for previewing batch emails before sending"""
-    
+
     def post(self, request, *args, **kwargs):
-        event = get_object_or_404(OrganizedEvent, pk=kwargs.get('pk'))
-        subject = request.POST.get('subject', '')
-        message_template = request.POST.get('message', '')
-        
+        event = get_object_or_404(OrganizedEvent, pk=kwargs.get("pk"))
+        subject = request.POST.get("subject", "")
+        message_template = request.POST.get("message", "")
+
         # Use a sample participant for the preview
         sample_participant = event.eventparticipant_set.first()
-        
+
         if not sample_participant:
             # If there are no participants, create a dummy one for preview purposes
-            sample_participant = type('obj', (object,), {
-                'participant': type('obj', (object,), {
-                    'first_name': 'John',
-                    'last_name': 'Doe',
-                    'email': 'john.doe@example.com',
-                    'phone_number': '555-123-4567',
-                })
-            })
-        
+            sample_participant = type(
+                "obj",
+                (object,),
+                {
+                    "participant": type(
+                        "obj",
+                        (object,),
+                        {
+                            "first_name": "John",
+                            "last_name": "Doe",
+                            "email": "john.doe@example.com",
+                            "phone_number": "555-123-4567",
+                        },
+                    )
+                },
+            )
+
         participant = sample_participant.participant
-        
+
         # Create context for template variables
         context = {
-            'first_name': participant.first_name,
-            'last_name': participant.last_name,
-            'email': participant.email,
-            'phone_number': participant.phone_number or "",
-            'event_title': event.title,
-            'event_date': event.start_date.strftime('%B %d, %Y'),
-            'event_location': event.location or "TBD",
+            "first_name": participant.first_name,
+            "last_name": participant.last_name,
+            "email": participant.email,
+            "phone_number": participant.phone_number or "",
+            "event_title": event.title,
+            "event_date": event.start_date.strftime("%B %d, %Y"),
+            "event_location": event.location or "TBD",
         }
-        
+
         # Replace template variables in the message
         personalized_message = message_template
         for key, value in context.items():
-            personalized_message = personalized_message.replace(f"{{{{{key}}}}}", str(value))
-        
+            personalized_message = personalized_message.replace(
+                f"{{{{{key}}}}}", str(value)
+            )
+
         # Create context for the email template
         email_context = {
-            'subject': subject,
-            'message': personalized_message,
-            'participant': participant,
-            'event': event,
+            "subject": subject,
+            "message": personalized_message,
+            "participant": participant,
+            "event": event,
         }
-        
+
         # Render HTML email using the base template
-        html_message = render_to_string('dashboard/event/email/batch_email.html', email_context)
-        
-        return JsonResponse({
-            'html': html_message,
-            'subject': subject,
-        })
+        html_message = render_to_string(
+            "dashboard/event/email/batch_email.html", email_context
+        )
+
+        return JsonResponse(
+            {
+                "html": html_message,
+                "subject": subject,
+            }
+        )

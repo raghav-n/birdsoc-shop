@@ -23,6 +23,7 @@ PaymentEventQuantity = get_model("order", "PaymentEventQuantity")
 PaymentEventType = get_model("order", "PaymentEventType")
 InvalidOrderStatus = get_class("order.exceptions", "InvalidOrderStatus")
 
+
 def handler500(request: HttpRequest, *args, **argv) -> HttpResponse:
     """
     Custom 500 error handler.
@@ -50,6 +51,7 @@ def handler404(request: HttpRequest, *args, **argv) -> HttpResponse:
     """
     return render(request, "404.html", status=404)
 
+
 def verify_jwt(token):
     """Verify JWT using PyJWT"""
     try:
@@ -59,6 +61,7 @@ def verify_jwt(token):
         return None  # Token expired
     except jwt.InvalidTokenError:
         return None  # Invalid token
+
 
 @csrf_exempt
 def verify_payment(request):
@@ -77,7 +80,9 @@ def verify_payment(request):
     order_number = payload.get("order_number")
     amount = payload.get("amount")
 
-    print(f"Received payment verification for order {order_number} with amount {amount}")
+    print(
+        f"Received payment verification for order {order_number} with amount {amount}"
+    )
 
     if not order_number or not amount:
         return JsonResponse({"error": "Invalid payload"}, status=400)
@@ -86,10 +91,15 @@ def verify_payment(request):
         order = Order._default_manager.get(number=order_number)
     except Order.DoesNotExist:
         return JsonResponse({"error": f"Order {order_number} not found"}, status=404)
-    
+
     if order.total_incl_tax_with_donation != Decimal(amount):
-        return JsonResponse({"error": f"Amount mismatch. Expected: SGD {order.total_incl_tax_with_donation}. Received: SGD {amount}"}, status=400)
-    
+        return JsonResponse(
+            {
+                "error": f"Amount mismatch. Expected: SGD {order.total_incl_tax_with_donation}. Received: SGD {amount}"
+            },
+            status=400,
+        )
+
     # Store payment confirmation with the amount
     try:
         payment_verified_event_type = PaymentEventType._default_manager.get(
@@ -126,6 +136,10 @@ def verify_payment(request):
                 raise ValueError("PayNow payment event is unavailable.")
 
     except InvalidOrderStatus as e:
-        return JsonResponse({"error": f"Failed to confirm payment: {str(e)}"}, status=500)
+        return JsonResponse(
+            {"error": f"Failed to confirm payment: {str(e)}"}, status=500
+        )
 
-    return JsonResponse({"success": f"Order {order_number} marked as paid. Amount: SGD {amount}."})
+    return JsonResponse(
+        {"success": f"Order {order_number} marked as paid. Amount: SGD {amount}."}
+    )

@@ -12,7 +12,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             OrderSummaryView,
             OnsitePurchaseView,
             VoucherCheckView,
-            SiteOffersView
+            SiteOffersView,
         )
 
         new_urls = [
@@ -31,7 +31,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 "onsite-purchase/", OnsitePurchaseView.as_view(), name="onsite-purchase"
             ),
             path("voucher-check/", VoucherCheckView.as_view(), name="voucher-check"),
-            path('site-offers/', SiteOffersView.as_view(), name='site-offers'),
+            path("site-offers/", SiteOffersView.as_view(), name="site-offers"),
         ]
 
         return self.post_process_urls(new_urls) + super().get_urls()

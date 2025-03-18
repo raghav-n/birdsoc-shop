@@ -100,35 +100,38 @@ class Order(AbstractOrder):
         # Check for discounts in the related OrderDiscounts, if any
         try:
             from oscar.apps.offer.models import OrderDiscount
+
             discounts = OrderDiscount.objects.filter(order=self)
             return sum(d.amount for d in discounts)
         except ImportError:
             # If OrderDiscount doesn't exist, calculate from line discounts
-            return sum((line.line_price_before_discounts_incl_tax - line.line_price_incl_tax)
-                       for line in self.lines.all())
-    
+            return sum(
+                (line.line_price_before_discounts_incl_tax - line.line_price_incl_tax)
+                for line in self.lines.all()
+            )
+
     @property
     def discount_percentage(self):
         """
         Returns the discount as a percentage of the original price
         """
-        if self.total_discount == Decimal('0.00'):
-            return Decimal('0.00')
-            
+        if self.total_discount == Decimal("0.00"):
+            return Decimal("0.00")
+
         # Calculate the original total before discounts
         original_total = self.total_incl_tax + self.total_discount
-        
-        if original_total > Decimal('0.00'):
-            return (self.total_discount / original_total) * Decimal('100.0')
-        return Decimal('0.00')
-    
+
+        if original_total > Decimal("0.00"):
+            return (self.total_discount / original_total) * Decimal("100.0")
+        return Decimal("0.00")
+
     @property
     def has_discounts(self):
         """
         Returns True if this order has any discounts applied
         """
-        return self.total_discount > Decimal('0.00')
-    
+        return self.total_discount > Decimal("0.00")
+
     @property
     def display_discount_info(self):
         """
@@ -136,7 +139,8 @@ class Order(AbstractOrder):
         """
         if not self.has_discounts:
             return ""
-            
+
         return f"Discount: ${self.total_discount:.2f} ({self.discount_percentage:.1f}%)"
+
 
 from oscar.apps.order.models import *
