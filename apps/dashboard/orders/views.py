@@ -423,7 +423,7 @@ class OnsitePurchaseView(TemplateView):
                 )
 
                 # Create payment event with the DISCOUNTED total
-                event_type, _ = PaymentEventType.objects.get_or_create(name="Payment")
+                event_type = PaymentEventType.objects.get(name="paynow-processing")
                 event = PaymentEvent.objects.create(
                     event_type=event_type,
                     amount=order_total.incl_tax,  # Use the discounted total

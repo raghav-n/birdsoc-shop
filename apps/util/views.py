@@ -91,7 +91,7 @@ def verify_payment(request):
         order = Order._default_manager.get(number=order_number)
     except Order.DoesNotExist:
         return JsonResponse({"error": f"Order {order_number} not found"}, status=404)
-
+    
     if order.total_incl_tax_with_donation != Decimal(amount):
         return JsonResponse(
             {
@@ -108,6 +108,12 @@ def verify_payment(request):
 
         order.set_status("Payment automatically confirmed")
         order.save()
+
+        if order.payment_events.filter(event_type__code__in=["paynow-auto-verified", "paynow-verified"]).exists():
+            return JsonResponse(
+                {"error": f"Order {order_number} already marked as paid."}, status=400
+            )
+
         verified_event = order.payment_events.create(
             amount=0,
             reference=order.sources.first().reference,
