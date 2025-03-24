@@ -3,16 +3,11 @@ import uuid
 
 from django.conf import settings
 from oscar.core.loading import get_model
-from django.utils import timezone
 
 
 def get_valid_shipping_method_ids():
     DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
-    methods = DynamicShippingMethod._default_manager.filter(
-        active=True, end_date__gte=timezone.now().date()
-    ).values_list("code", flat=True)
-    # convert each method to a UUID
-    return [str(uuid.UUID(hashlib.md5(m.encode("UTF-8")).hexdigest())) for m in methods]
+    return DynamicShippingMethod.get_valid_shipping_method_ids()
 
 
 def whitelist(request):
@@ -48,5 +43,5 @@ def whitelist(request):
         "whitelist": len(reasons) > 0,
         "reasons": ", ".join(reasons),
     }
-
+    
     return result

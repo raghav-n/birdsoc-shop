@@ -24,6 +24,7 @@
     <form method="post">
         {% csrf_token %}
         {{ form|crispy }}
+        {% if object %}<div class="d-block mt-2 mb-4">Method ID is {{ object.method_id }}</div>{% endif %}
         <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
     </form>
 {% endblock %}

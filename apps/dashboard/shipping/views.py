@@ -12,7 +12,7 @@ class DynamicShippingMethodListView(ListView):
 
     def get_queryset(self):
         DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
-        return DynamicShippingMethod.objects.all()
+        return DynamicShippingMethod._default_manager.all()
 
 
 @method_decorator(staff_member_required, name="dispatch")
@@ -36,7 +36,7 @@ class DynamicShippingMethodCreateView(CreateView):
 
     def get_queryset(self):
         DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
-        return DynamicShippingMethod.objects.all()
+        return DynamicShippingMethod._default_manager.all()
 
 
 class DynamicShippingMethodUpdateView(UpdateView):
@@ -59,7 +59,7 @@ class DynamicShippingMethodUpdateView(UpdateView):
 
     def get_queryset(self):
         DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
-        return DynamicShippingMethod.objects.all()
+        return DynamicShippingMethod._default_manager.all()
 
 
 class DynamicShippingMethodDeleteView(DeleteView):
@@ -68,4 +68,4 @@ class DynamicShippingMethodDeleteView(DeleteView):
 
     def get_queryset(self):
         DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
-        return DynamicShippingMethod.objects.all()
+        return DynamicShippingMethod._default_manager.all()
