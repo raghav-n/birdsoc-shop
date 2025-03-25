@@ -25,11 +25,15 @@ from django.views.generic import TemplateView
 from django_contact_form.views import ContactFormView
 
 from apps.util.forms import ContactForm
+from . import views
 
 handler404 = "apps.util.views.handler404"
 handler500 = "apps.util.views.handler500"
 
 urlpatterns = [
+    path("dashboard/login/", views.login, name="dashboard_login"),
+    path("dashboard/logout/", views.logout, name="dashboard_logout"),
+    path("dashboard/callback/", views.callback, name="dashboard_callback"),
     path("i18n/", include("django.conf.urls.i18n")),
     # The Django admin is not officially supported; expect breakage.
     # Nonetheless, it's often useful for debugging.

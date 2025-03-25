@@ -23,11 +23,20 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from django.utils.translation import gettext_lazy as _
 
+# Import dotenv for .env file support
+from dotenv import load_dotenv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env file
+load_dotenv(os.path.join(PROJECT_DIR, ".env"))
+
 SHOP_OPEN = False
+TESTING = sys.argv[1:2] == ["test"]
+
+SHOP_OPEN = TESTING or SHOP_OPEN
 
 
 def traces_sampler(sampling_context):
@@ -53,29 +62,28 @@ def before_send(event, hint):
 
 en_formats.DATE_FORMAT = "d M Y"
 
-with open(os.path.join(BASE_DIR, "secrets/db_user.txt")) as f:
-    DB_USER = f.read().strip()
+# Get database credentials from environment variables with fallback to files
+DB_USER = os.environ.get("DB_USER", "")
+DB_PASS = os.environ.get("DB_PASS", "")
+MAILERSEND_KEY = os.environ.get("MAILERSEND_KEY", "")
+SESSION_ENVIRONMENT_PRODUCTION = os.environ.get("ENVIRONMENT", "False") == "True"
 
-with open(os.path.join(BASE_DIR, "secrets/db_pass.txt")) as f:
-    DB_PASS = f.read().strip()
+TESTING = sys.argv[1:2] == ["test"]
+MIGRATING = sys.argv[1:2] == ["makemigrations"] or sys.argv[1:2] == ["migrate"]
+SESSION_MOD_WSGI = sys.argv[0] == "mod_wsgi"
 
-with open(os.path.join(BASE_DIR, "secrets/mailersend_key.txt")) as f:
-    MAILERSEND_KEY = f.read().strip()
+# Get secret key
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
 
-with open(os.path.join(BASE_DIR, "secrets/environment.txt")) as f:
-    SESSION_ENVIRONMENT_PRODUCTION = False if f.read().strip() == "False" else True
-    TESTING = sys.argv[1:2] == ["test"]
-    MIGRATING = sys.argv[1:2] == ["makemigrations"] or sys.argv[1:2] == ["migrate"]
-    SESSION_MOD_WSGI = sys.argv[0] == "mod_wsgi"
+if os.path.exists(os.path.join(PROJECT_DIR, "config/whitelist.txt")):
+    with open(os.path.join(PROJECT_DIR, "config/whitelist.txt")) as f:
+        WHITELIST_USERS = [e.strip() for e in f.read().strip().splitlines()]
 
-with open(os.path.join(BASE_DIR, "secrets/secret_key.txt")) as f:
-    SECRET_KEY = f.read().strip()
+JWT_SECRET = os.environ.get("JWT_SECRET", "")
 
-with open(os.path.join(PROJECT_DIR, "config/whitelist.txt")) as f:
-    WHITELIST_USERS = [e.strip() for e in f.read().strip().splitlines()]
-
-with open(os.path.join(BASE_DIR, "secrets/jwt_secret.txt")) as f:
-    JWT_SECRET = f.read().strip()
+AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = os.environ.get("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = os.environ.get("AUTH0_CLIENT_SECRET")
 
 ALLOWED_HOSTS = [
     "127.0.0.1",

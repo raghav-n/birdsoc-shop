@@ -43,5 +43,5 @@ def whitelist(request):
         "whitelist": len(reasons) > 0,
         "reasons": ", ".join(reasons),
     }
-    
+
     return result

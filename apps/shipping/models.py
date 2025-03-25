@@ -40,11 +40,11 @@ class DynamicShippingMethod(models.Model):
     @property
     def charge_incl_tax(self):
         return D(self.price)
-    
+
     @property
     def method_id(self):
         return self._get_method_id_from_code(self.code)
-    
+
     def calculate(self, basket):
         return prices.Price(
             currency=basket.currency,
@@ -54,16 +54,18 @@ class DynamicShippingMethod(models.Model):
 
     def to_dict(self):
         return {"code": self.code, "name": self.name, "description": self.description}
-    
+
     @classmethod
     def get_valid_shipping_method_ids(cls):
         return [
             cls._get_method_id_from_code(code)
             for code in cls._default_manager.filter(
-                active=True, end_date__gte=timezone.now().date(), available_to_public=True
+                active=True,
+                end_date__gte=timezone.now().date(),
+                available_to_public=True,
             ).values_list("code", flat=True)
         ]
-    
+
     @classmethod
     def _get_method_id_from_code(cls, code):
         return str(uuid.UUID(hashlib.md5(code.encode("UTF-8")).hexdigest()))

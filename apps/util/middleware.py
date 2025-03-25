@@ -36,8 +36,20 @@ class LoginRequiredMiddleware:
             and request.path_info != "/"
             and "accounts/" not in request.path_info
         ):
+            if "/dashboard" in request.path_info:
+                if any(
+                    request.path_info.startswith(url)
+                    for url in [
+                        "/dashboard/login",
+                        "/dashboard/logout",
+                        "/dashboard/callback",
+                    ]
+                ):
+                    return self.get_response(request)
+
             if not settings.SHOP_OPEN and "/dashboard" not in request.path_info:
                 return redirect("/")
+
             return redirect(self.login_url + "?next=" + request.path)
 
         return self.get_response(request)

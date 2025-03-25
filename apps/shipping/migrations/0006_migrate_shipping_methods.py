@@ -30,7 +30,7 @@ def migrate_shipping_methods(apps, schema_editor):
             ),
             "website_home_description": (
                 "<div class='alert alert-info mt-0'>"
-                f"<strong>For this round of merchandise sales, we're accepting orders from now until {end_date.strftime('%d %b %Y')}</strong>. Collection will be at Henderson Waves, "
+                f"<strong>For this round of merchandise sales, we're accepting orders from now until date</strong>. Collection will be at Henderson Waves, "
                 "where we'll be hosting the third edition of our Raptor Watch booth on these dates, from <strong>9:00am to noon:</strong>"
                 "<ul class='mt-2 pl-4 mb-2'>"
                 "<li>20 October</li>"
