@@ -24,7 +24,6 @@ oauth.register(
 
 
 def login(request):
-    print("LOGGING IN")
     return oauth.auth0.authorize_redirect(
         request, request.build_absolute_uri(reverse("dashboard_callback"))
     )

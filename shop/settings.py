@@ -653,6 +653,7 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 OSCAR_GOOGLE_ANALYTICS_ID = "G-8Z3R0WMMV7"
 
 LOGIN_ONLY_URL = "/accounts/login-only/"
+LOGIN_REDIRECT_URL = "/"
 
 if SESSION_ENVIRONMENT_PRODUCTION:
     OSCAR_THUMBNAILER = "core.thumbnailer.LargeSorlThumbnail"
