@@ -280,6 +280,7 @@ class OnsitePurchaseView(TemplateView):
         product_quantities = {}
         order_number = data.get("order_number")  # Get the order number from the form
         voucher_code = data.get("voucher_code", "")
+        is_cash_purchase = data.get("cash_purchase", "false").lower() == "true"
 
         # Get selected product quantities
         for key, value in data.items():
@@ -329,9 +330,9 @@ class OnsitePurchaseView(TemplateView):
 
                 basket.add_product(product, quantity=quantity)
 
-            # Apply voucher if one was used
+            # Apply voucher if one was used and not cash purchase
             voucher = None
-            if voucher_code:
+            if voucher_code and not is_cash_purchase:
                 try:
                     voucher = Voucher.objects.get(code=voucher_code)
                     # Add voucher to basket to apply the discount
@@ -343,17 +344,19 @@ class OnsitePurchaseView(TemplateView):
                 except Voucher.DoesNotExist:
                     voucher = None
 
-            # Get the basket total AFTER applying vouchers/offers
+            # Get the basket total AFTER applying vouchers/offers (or without for cash)
             total_incl_tax = basket.total_incl_tax
 
             # If payment was confirmed (from the form)
             if "confirm_order" in data:
                 shipping_method = DynamicShippingMethod.objects.get(code="ONSITE")
 
-                # First, apply all available offers to the basket
-                # This includes both site offers and any voucher
-                applicator = Applicator()
-                applicator.apply(basket, request.user, request)
+                # For non-cash purchases, apply offers and discounts
+                if not is_cash_purchase:
+                    # First, apply all available offers to the basket
+                    # This includes both site offers and any voucher
+                    applicator = Applicator()
+                    applicator.apply(basket, request.user, request)
 
                 # Get the discount amount for reference
                 original_total = basket.total_excl_tax_excl_discounts
@@ -381,7 +384,7 @@ class OnsitePurchaseView(TemplateView):
                 )
 
                 # Record voucher usage against the order if used
-                if voucher:
+                if voucher and not is_cash_purchase:
                     voucher.record_usage(order, request.user)
 
                     # Add a note about the voucher discount
@@ -396,24 +399,31 @@ class OnsitePurchaseView(TemplateView):
                             note_type="System",
                         )
 
-                # Record any site offer discounts
-                site_offer_discount = Decimal("0.00")
-                site_offer_names = []
-                for discount in offer_applications.offer_discounts:
-                    site_offer_discount += discount["discount"]
-                    site_offer_names.append(discount["name"])
+                # Record any site offer discounts (only for non-cash purchases)
+                if not is_cash_purchase:
+                    site_offer_discount = Decimal("0.00")
+                    site_offer_names = []
+                    for discount in offer_applications.offer_discounts:
+                        site_offer_discount += discount["discount"]
+                        site_offer_names.append(discount["name"])
 
-                if site_offer_discount > 0:
-                    offer_names = ", ".join(site_offer_names)
-                    order.notes.create(
-                        user=request.user,
-                        message=f"Site offers applied: {offer_names} for a discount of ${site_offer_discount:.2f}",
-                        note_type="System",
-                    )
+                    if site_offer_discount > 0:
+                        offer_names = ", ".join(site_offer_names)
+                        order.notes.create(
+                            user=request.user,
+                            message=f"Site offers applied: {offer_names} for a discount of ${site_offer_discount:.2f}",
+                            note_type="System",
+                        )
 
                 # Create payment source and event with the TOTAL discounted amount
                 paynow_reference = f"{settings.ORDER_PREFIX}{order_number}"
-                source_type, _ = SourceType.objects.get_or_create(name="PayNow")
+                
+                # Set source type based on purchase type
+                if is_cash_purchase:
+                    source_type, _ = SourceType.objects.get_or_create(name="cash")
+                else:
+                    source_type, _ = SourceType.objects.get_or_create(name="PayNow")
+                
                 source = Source.objects.create(
                     source_type=source_type,
                     amount_allocated=order_total.incl_tax,
@@ -423,7 +433,11 @@ class OnsitePurchaseView(TemplateView):
                 )
 
                 # Create payment event with the DISCOUNTED total
-                event_type = PaymentEventType.objects.get(name="paynow-processing")
+                if is_cash_purchase:
+                    event_type, _ = PaymentEventType.objects.get_or_create(name="cash-payment")
+                else:
+                    event_type = PaymentEventType.objects.get(name="paynow-processing")
+                
                 event = PaymentEvent.objects.create(
                     event_type=event_type,
                     amount=order_total.incl_tax,  # Use the discounted total
@@ -444,15 +458,16 @@ class OnsitePurchaseView(TemplateView):
                         stockrecord.num_in_stock -= quantity
                         stockrecord.save()
 
-                # Add a success message that mentions any discounts
-                success_message = f"Order {paynow_reference} created successfully. Stock levels updated."
-                if total_discount > 0:
+                # Add a success message that mentions any discounts and payment type
+                payment_type = "cash" if is_cash_purchase else "PayNow"
+                success_message = f"Order {paynow_reference} created successfully ({payment_type} payment). Stock levels updated."
+                if total_discount > 0 and not is_cash_purchase:
                     success_message += f" Discount of ${total_discount:.2f} applied."
 
                 messages.success(request, success_message)
                 return redirect("dashboard:order-detail", number=order.number)
 
-            # If just generating QR code
+            # If just generating QR code (not applicable for cash purchases)
             return self.render_to_response(
                 {
                     "products": Product.objects.filter(is_public=True)

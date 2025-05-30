@@ -8,6 +8,7 @@ let currentDiscount = 0;
 let currentVoucherCode = '';
 let siteOffersApplied = false;
 let isCalculating = false;
+let isCashPurchase = false;
 
 $(document).ready(function() {
     // Update totals when quantities change
@@ -95,12 +96,24 @@ $(document).ready(function() {
         });
     });
 
+    // Handle cash purchase toggle
+    $('#cash-purchase-toggle').on('change', function() {
+        isCashPurchase = $(this).is(':checked');
+        $('#cash_purchase').val(isCashPurchase ? 'true' : 'false');
+        
+        if (isCashPurchase) {
+            enableCashPurchaseMode();
+        } else {
+            disableCashPurchaseMode();
+        }
+    });
+
     // Update the form submission handler
     $('#onsite-purchase-form').on('submit', function(e) {
         // Only proceed if it's the confirm order button
         if ($(document.activeElement).attr('name') === 'confirm_order') {
-            // Don't allow submission during calculation
-            if (isCalculating) {
+            // Don't allow submission during calculation (unless cash purchase)
+            if (isCalculating && !isCashPurchase) {
                 e.preventDefault();
                 return false;
             }
@@ -109,6 +122,11 @@ $(document).ready(function() {
             if (!selectedProducts) {
                 e.preventDefault();
                 return false;
+            }
+            
+            // For cash purchases, skip discount calculations
+            if (isCashPurchase) {
+                return true; // Allow direct submission
             }
             
             // Store current discounts in hidden fields so they can be applied during order creation
@@ -155,6 +173,85 @@ $(document).ready(function() {
         }
     });
 });
+
+/**
+ * Enable cash purchase mode - disable discounts and QR code generation
+ */
+function enableCashPurchaseMode() {
+    // Hide and disable discount-related elements
+    $('#site-offers-row').hide();
+    $('#discount-row').hide();
+    
+    // Disable voucher input and clear any applied voucher
+    $('#id_voucher').prop('disabled', true).val('').removeClass('is-valid is-invalid');
+    $('#apply-voucher').prop('disabled', true);
+    $('.quick-voucher-btn').prop('disabled', true);
+    $('#voucher-feedback').empty();
+    
+    // Clear voucher state
+    currentVoucherCode = '';
+    $('#voucher_code').val('');
+    
+    // Hide QR code generation button
+    $('#generate-qr-btn').hide();
+    
+    // Enable confirm order button directly
+    $('#confirm-order-btn').prop('disabled', false).removeClass('btn-processing');
+    
+    // Hide payment section if visible
+    $('#payment-section').hide();
+    
+    // Update totals without discounts
+    updateTotalsForCash();
+    
+    // Add visual indication
+    $('tfoot.totals-section').addClass('cash-purchase-mode');
+}
+
+/**
+ * Disable cash purchase mode - re-enable normal functionality
+ */
+function disableCashPurchaseMode() {
+    // Re-enable voucher functionality
+    $('#id_voucher').prop('disabled', false);
+    $('#apply-voucher').prop('disabled', false);
+    $('.quick-voucher-btn').prop('disabled', false);
+    
+    // Show QR code generation button
+    $('#generate-qr-btn').show();
+    
+    // Disable confirm order button until QR is generated
+    if (!qrCodeGenerated) {
+        $('#confirm-order-btn').prop('disabled', true);
+    }
+    
+    // Remove cash purchase visual indication
+    $('tfoot.totals-section').removeClass('cash-purchase-mode');
+    
+    // Recalculate totals with potential discounts
+    updateTotals();
+}
+
+/**
+ * Update totals for cash purchase (no discounts applied)
+ */
+function updateTotalsForCash() {
+    let subtotal = 0;
+    
+    // Calculate subtotal from all products
+    $('.product-row').each(function() {
+        let price = parseFloat($(this).data('price'));
+        let quantity = parseInt($(this).find('.quantity-input').val()) || 0;
+        subtotal += price * quantity;
+    });
+    
+    // Update displays - total equals subtotal for cash purchases
+    $('#subtotal-amount').text('$' + subtotal.toFixed(2));
+    $('#total-amount').text('$' + subtotal.toFixed(2));
+    
+    // Track the current total
+    currentTotal = subtotal;
+}
 
 /**
  * Shows the loading overlay for the totals section and disables action buttons
@@ -231,6 +328,14 @@ $(window).on('resize scroll', function() {
  * @param {Function} callback - Function to call after offers are applied
  */
 function applySiteOffers(callback) {
+    // Skip site offers for cash purchases
+    if (isCashPurchase) {
+        if (typeof callback === 'function') {
+            callback();
+        }
+        return;
+    }
+    
     let selectedProducts = [];
     
     // Collect all products with quantities > 0
@@ -371,6 +476,12 @@ function updateFinalTotal(subtotal, siteOffersDiscount, voucherDiscount) {
  * This function is called when quantities are changed by the user
  */
 function updateTotals() {
+    // For cash purchases, use simplified calculation
+    if (isCashPurchase) {
+        updateTotalsForCash();
+        return;
+    }
+    
     let subtotal = 0;
     
     // Calculate subtotal from all products
@@ -492,6 +603,15 @@ function updateQRCode() {
  * @param {Function} callback - Function to call after voucher is applied
  */
 function applyVoucher(callback) {
+    // Prevent voucher application in cash purchase mode
+    if (isCashPurchase) {
+        $('#voucher-feedback').html('<span class="text-warning">Vouchers are not available for cash purchases</span>');
+        if (typeof callback === 'function') {
+            callback();
+        }
+        return;
+    }
+    
     let voucherCode = $('#id_voucher').val().trim();
     if (!voucherCode) {
         $('#voucher-feedback').html('<span class="text-danger">Please enter a voucher code</span>');

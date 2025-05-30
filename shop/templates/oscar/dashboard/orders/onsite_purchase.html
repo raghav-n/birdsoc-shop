@@ -159,8 +159,8 @@
                                     </div>
                                     <div id="voucher-feedback" class="mb-2 small text-right w-100"></div>
                                     <div class="mb-1">
-                                        <button type="button" class="btn btn-sm btn-outline-primary quick-voucher-btn" data-code="NTU">
-                                            NTU Student
+                                        <button type="button" class="btn btn-sm btn-outline-primary quick-voucher-btn" data-code="STUDENT">
+                                            Student
                                         </button>
                                     </div>
                                 </div>
@@ -184,8 +184,20 @@
 
             <!-- Add hidden field to store the applied voucher code -->
             <input type="hidden" name="voucher_code" id="voucher_code" value="">
+            
+            <!-- Add hidden field for cash purchase mode -->
+            <input type="hidden" name="cash_purchase" id="cash_purchase" value="false">
 
             <div class="row mt-4 g-0">
+                <div class="col-12 mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="cash-purchase-toggle">
+                        <label class="form-check-label font-weight-bold text-primary" for="cash-purchase-toggle">
+                            <i class="fas fa-money-bill-wave"></i> Cash Purchase
+                        </label>
+                        <small class="form-text text-muted">Check this for cash payments (disables discounts and QR code)</small>
+                    </div>
+                </div>
                 <div class="col">
                     <button type="button" class="btn btn-primary" id="generate-qr-btn">
                         <i class="fas fa-qrcode"></i> Generate QR Code
@@ -347,6 +359,35 @@
                         updateQRCode();
                     }
                 });
+            });
+            
+            // Toggle cash purchase mode
+            $('#cash-purchase-toggle').on('change', function() {
+                let isChecked = $(this).is(':checked');
+                
+                // Update cash_purchase hidden field
+                $('#cash_purchase').val(isChecked ? 'true' : 'false');
+                
+                if (isChecked) {
+                    // Disable discounts and QR code generation
+                    $('#apply-voucher').prop('disabled', true);
+                    $('#generate-qr-btn').prop('disabled', true);
+                    
+                    // Clear and hide voucher feedback
+                    $('#voucher-feedback').empty();
+                    $('#discount-row').hide();
+                    
+                    // Update total to subtotal (remove any discounts)
+                    let subtotal = parseFloat($('#subtotal-amount').text().replace('$', ''));
+                    $('#total-amount').text('$' + subtotal.toFixed(2));
+                    
+                    // Show cash purchase notice
+                    // alert('Cash purchase mode enabled. Discounts and QR code generation are disabled.');
+                } else {
+                    // Re-enable discounts and QR code generation
+                    $('#apply-voucher').prop('disabled', false);
+                    $('#generate-qr-btn').prop('disabled', false);
+                }
             });
         });
 
