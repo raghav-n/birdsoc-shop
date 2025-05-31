@@ -106,7 +106,7 @@ def verify_payment(request):
             code="paynow-auto-verified"
         )
 
-        order.set_status("Payment automatically confirmed")
+        order.set_status(settings.PAYMENT_AUTO_CONFIRMED_STATUS)
         order.save()
 
         if order.payment_events.filter(
