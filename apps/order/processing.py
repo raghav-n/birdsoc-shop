@@ -37,5 +37,7 @@ class EventHandler(CoreEventHandler):
                 order.lines.all(),
                 order.lines.values_list("quantity", flat=True),
             )
+            for line in order.lines.all():
+                line.stockrecord.consume_allocation(line.quantity)
 
         super().handle_order_status_change(order, new_status, note_msg=note_msg)
