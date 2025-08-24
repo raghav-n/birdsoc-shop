@@ -64,6 +64,7 @@ urlpatterns = [
     path("promo/", TemplateView.as_view(template_name="promo.html"), name="promo"),
     path("refund/", include("apps.refund.urls", namespace="refund")),
     path("api/verify-payment/", verify_payment, name="verify-payment"),
+    path("api/v1/", include("shop.api_urls")),
     # Include the event dashboard URLs with the namespace already defined in the urls.py
     path("dashboard/events/", include("apps.dashboard.event.urls")),
 ]
