@@ -1,0 +1,43 @@
+{% extends "oscar/communication/emails/base.html" %}
+
+{% block header %}
+    <div class="bg" style="padding-top: 40px; padding-bottom: 40px; margin-bottom: 20px; text-align: center; background-color: #a1a1a1;">
+        <img style="text-align: center; width: 200px;" src="https://birdsociety.sg/wp-content/themes/bootscore-child-main/img/logo/logo-resized.png" alt="Bird Society of Singapore"/>
+    </div>
+{% endblock %}
+
+{% block body %}
+    <p>Hi {{ name|title }},</p>
+    <p>
+        Thank you for your support of the Singapore Bird Database over the years! You've submitted {{ count }} record{{ count|pluralize }}
+        to our database, each of which now forms a valuable part of our repository of Singapore's rare bird records.
+    </p>
+    <p>
+        We are happy to share that today, we launched our <a href="https://shop.birdsociety.sg/">brand-new online shop</a>, featuring merchandise from the Bird Society of Singapore!
+        BirdSoc SG is a fully volunteer-run organization, and all proceeds from these merchandise sales will go towards our signature projects, funding our events and
+        web server expenses for our websites.
+    </p>
+    <p>
+        As a token of our appreciation for your valuable contributions to the Singapore Bird Database, we're offering you an <strong>exclusive 10% discount</strong> on your entire purchase,
+        with a minimum spend of $30. Your submissions have been instrumental in our efforts to more thoroughly document and understand Singapore's avifauna, and we're grateful for your dedication.
+    </p>
+    <p>
+        To redeem your discount, simply enter the following code at checkout. <strong>The last day to place orders is 29 Sep, so be sure to place your orders before then!</strong>
+    </p>
+    <p style="text-align: center; font-size: 18px; font-weight: bold;">
+        {{ code }}
+    </p>
+    <p>
+        The code can only be redeemed once.
+    </p>
+    <p>
+        Collection details and more great promotional offers can be found on <a href="https://shop.birdsociety.sg/">our web shop</a>; thank you again for your continued support, and see you soon!
+    </p>
+    <p>
+        Best regards,<br>
+        Bird Society of Singapore
+    </p>
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
