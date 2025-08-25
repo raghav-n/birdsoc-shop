@@ -140,6 +140,21 @@ Payments: Auto-Verification Webhook (Already Present)
   - Behavior: Validates token and amount, sets status to `Payment automatically confirmed`, records `paynow-auto-verified` event, mirrors line quantities from `paynow-processing`. Idempotent if already verified.
   - Errors: 401 invalid token, 404 order missing, 400 amount mismatch or already verified.
 
+Payments: Gmail Poll Check (New)
+
+- GET `/api/v1/checkout/payment/paynow-email-check` → query params: `order` (or `order_number`)
+  - Purpose: For a pending order, poll Gmail for a recent “PayNow Alert - You have received a payment via PayNow” email that includes the order reference (e.g., `OTHR-MER-<order_number>`). If found and the amount matches the order total (incl donation), mark the order as paid (same logic as the webhook) and return `{ confirmed: true }`.
+  - Returns:
+    - `{ confirmed: true, found: true, amount: "123.45", email_timestamp: "2025-08-25T02:34:56Z" }` on success.
+    - `{ confirmed: false, found: false }` if no matching email yet.
+    - `{ confirmed: false, found: true, amount: "...", message: "Amount mismatch..." }` if email found but amount differs.
+    - `{ confirmed: true, already_confirmed: true }` if the order is already marked as paid.
+  - Config via env (settings.py reads these):
+    - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` (OAuth2 installed app with offline access).
+    - `GMAIL_POLL_QUERY` (default: `subject:"PayNow Alert - You have received a payment via PayNow" newer_than:1d`).
+    - `GMAIL_MAX_AGE_MINUTES` (default: 60) to ignore older emails.
+  - Dependencies: `google-api-python-client`, `google-auth`, `google-auth-oauthlib`.
+
 Detailed Implementation Notes
 
 - Serializers
@@ -229,4 +244,3 @@ Migration Path
 Notes on django-oscar-api (optional)
 
 - You can adopt `django-oscar-api` to accelerate CRUD for products/basket/orders. If chosen, mount it under `/api/oscar/` and layer custom endpoints (donation, PayNow proof, dynamic shipping, refunds) on top. Ensure serializers match your donation/shipping/source extensions.
-
