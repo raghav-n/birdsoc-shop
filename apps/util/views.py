@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from oscar.core.loading import get_model, get_class
+from apps.util.payments import confirm_paynow_payment, PaymentConfirmationError
 
 JWT_SECRET = settings.JWT_SECRET
 
@@ -92,23 +93,9 @@ def verify_payment(request):
     except Order.DoesNotExist:
         return JsonResponse({"error": f"Order {order_number} not found"}, status=404)
 
-    if order.total_incl_tax_with_donation != Decimal(amount):
-        return JsonResponse(
-            {
-                "error": f"Amount mismatch. Expected: SGD {order.total_incl_tax_with_donation}. Received: SGD {amount}"
-            },
-            status=400,
-        )
-
     # Store payment confirmation with the amount
     try:
-        payment_verified_event_type = PaymentEventType._default_manager.get(
-            code="paynow-auto-verified"
-        )
-
-        order.set_status(settings.PAYMENT_AUTO_CONFIRMED_STATUS)
-        order.save()
-
+        # If already confirmed, report as error for webhook duplication
         if order.payment_events.filter(
             event_type__code__in=["paynow-auto-verified", "paynow-verified"]
         ).exists():
@@ -116,33 +103,10 @@ def verify_payment(request):
                 {"error": f"Order {order_number} already marked as paid."}, status=400
             )
 
-        verified_event = order.payment_events.create(
-            amount=0,
-            reference=order.sources.first().reference,
-            event_type=payment_verified_event_type,
-            date_created=datetime.datetime.now(),
-        )
+        confirm_paynow_payment(order, Decimal(amount))
 
-        try:
-            processing_event = order.payment_events.get(
-                event_type__name="paynow-processing"
-            )
-
-            PaymentEventQuantity._default_manager.bulk_create(
-                [
-                    PaymentEventQuantity(
-                        event=verified_event, line=peq.line, quantity=peq.quantity
-                    )
-                    for peq in PaymentEventQuantity._default_manager.filter(
-                        event=processing_event
-                    )
-                ]
-            )
-
-        except PaymentEvent.DoesNotExist:
-            if settings.GLOBAL_PAYNOW_REQUIRED:
-                raise ValueError("PayNow payment event is unavailable.")
-
+    except PaymentConfirmationError as e:
+        return JsonResponse({"error": str(e)}, status=400)
     except InvalidOrderStatus as e:
         return JsonResponse(
             {"error": f"Failed to confirm payment: {str(e)}"}, status=500
