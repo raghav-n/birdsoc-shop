@@ -28,6 +28,7 @@ from apps.api.views.checkout import (
     CheckoutEmailView,
     CheckoutAddressView,
 )
+from apps.api.views.payments import PayNowGmailCheckView
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -52,6 +53,7 @@ urlpatterns = [
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
     path("checkout/shipping-methods", ShippingMethodsView.as_view(), name="checkout-shipping-methods"),
     path("checkout/payment/paynow-proof", PayNowProofUploadView.as_view(), name="checkout-paynow-proof"),
+    path("checkout/payment/paynow-email-check", PayNowGmailCheckView.as_view(), name="checkout-paynow-email-check"),
     path("checkout/place-order", PlaceOrderView.as_view(), name="checkout-place-order"),
     path("checkout/email", CheckoutEmailView.as_view(), name="checkout-email"),
     path("checkout/address", CheckoutAddressView.as_view(), name="checkout-address"),

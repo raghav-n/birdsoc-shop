@@ -81,6 +81,18 @@ if os.path.exists(os.path.join(PROJECT_DIR, "config/whitelist.txt")):
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
 
+# Gmail API credentials for PayNow polling (optional feature)
+GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
+GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+# Gmail search query used to find PayNow notifications
+GMAIL_POLL_QUERY = os.environ.get(
+    "GMAIL_POLL_QUERY",
+    'subject:"PayNow Alert - You have received a payment via PayNow" newer_than:1d',
+)
+# Maximum age for messages to consider (minutes)
+GMAIL_MAX_AGE_MINUTES = int(os.environ.get("GMAIL_MAX_AGE_MINUTES", "60"))
+
 AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN")
 AUTH0_CLIENT_ID = os.environ.get("AUTH0_CLIENT_ID")
 AUTH0_CLIENT_SECRET = os.environ.get("AUTH0_CLIENT_SECRET")
