@@ -115,3 +115,55 @@ def verify_payment(request):
     return JsonResponse(
         {"success": f"Order {order_number} marked as paid. Amount: SGD {amount}."}
     )
+
+
+@csrf_exempt
+def verify_event_payment(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    token = auth_header.split(" ")[1]
+    payload = verify_jwt(token)
+    if not payload:
+        return JsonResponse({"error": "Invalid or expired token"}, status=401)
+
+    registration_id = payload.get("registration_id")
+    reference = payload.get("reference")
+    amount = payload.get("amount")
+
+    if not amount or (not registration_id and not reference):
+        return JsonResponse({"error": "Invalid payload"}, status=400)
+
+    from oscar.core.loading import get_model
+    EventRegistration = get_model("event", "EventRegistration")
+
+    try:
+        if registration_id:
+            reg = EventRegistration._default_manager.get(id=registration_id)
+        else:
+            reg = EventRegistration._default_manager.get(reference=reference)
+    except EventRegistration.DoesNotExist:
+        return JsonResponse({"error": "Registration not found"}, status=404)
+
+    # Idempotency
+    if reg.payment_verified:
+        return JsonResponse({"error": "Registration already marked as paid."}, status=400)
+
+    from decimal import Decimal
+
+    try:
+        amt = Decimal(str(amount))
+    except Exception:
+        return JsonResponse({"error": "Invalid amount format"}, status=400)
+
+    if reg.amount != amt:
+        return JsonResponse({"error": f"Amount mismatch. Expected SGD {reg.amount}"}, status=400)
+
+    # Mark as verified and confirm event participation
+    reg.verify(user=None)
+
+    return JsonResponse({"success": f"Event registration {reg.id} marked as paid."})

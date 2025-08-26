@@ -23,6 +23,8 @@ from django.conf import settings
 from django import forms
 
 from apps.event.models import OrganizedEvent, Participant, EventParticipant
+from oscar.core.loading import get_model
+EventRegistration = get_model("event", "EventRegistration")
 from apps.event.forms import (
     EventForm,
     ParticipantForm,
@@ -53,6 +55,22 @@ class EventDetailView(DashboardMixin, DetailView):
     model = OrganizedEvent
     context_object_name = "event"
     template_name = "dashboard/event/event_detail.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        event = self.object
+        regs = EventRegistration._default_manager.select_related("participant").filter(event=event).order_by("-created_at")
+        ctx["registrations"] = regs
+        ctx["pending_count"] = event.pending_count
+        return ctx
+
+class EventRegistrationVerifyView(DashboardMixin, View):
+    def post(self, request, *args, **kwargs):
+        reg_id = kwargs.get("reg_id")
+        reg = get_object_or_404(EventRegistration, id=reg_id)
+        reg.verify(user=request.user)
+        messages.success(request, f"Registration {reg.reference} marked as paid and confirmed.")
+        return redirect("event-dashboard:event-detail", pk=reg.event_id)
 
 
 class EventCreateView(DashboardMixin, CreateView):

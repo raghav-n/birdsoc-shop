@@ -57,11 +57,24 @@
                             <td>{{ event.max_participants|default:"Unlimited" }}</td>
                         </tr>
                         <tr>
+                            <th>{% trans "Price" %}</th>
+                            <td>
+                                {% if event.price_incl_tax and event.price_incl_tax|floatformat != '0' %}
+                                    {{ event.currency }} {{ event.price_incl_tax }}
+                                {% else %}
+                                    {% trans "Free" %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
                             <th>{% trans "Participants" %}</th>
                             <td>
                                 {{ event.participant_count }} {% trans "people" %} 
                                 <small class="text-muted">({{ event.unique_participant_count }} {% trans "unique registrations" %})</small>
                                 {% if event.max_participants %} / {{ event.max_participants }}{% endif %}
+                                {% if pending_count %}
+                                    <div><small class="text-warning">{% trans "Pending (awaiting payment):" %} {{ pending_count }}</small></div>
+                                {% endif %}
                             </td>
                         </tr>
                         <tr>
@@ -121,6 +134,7 @@
                             <th>{% trans "Phone Number" %}</th>
                             <th>{% trans "Party Size" %}</th>
                             <th>{% trans "Registered" %}</th>
+                            <th>{% trans "Confirmed" %}</th>
                             <th>{% trans "Attended" %}</th>
                             <th>{% trans "Actions" %}</th>
                         </tr>
@@ -133,6 +147,13 @@
                                 <td>{{ ep.participant.phone_number|default:"-" }}</td>
                                 <td>{{ ep.participant.quantity }}</td>
                                 <td>{{ ep.registered_at }}</td>
+                                <td>
+                                    {% if ep.is_confirmed %}
+                                        <span class="badge badge-success">{% trans "Yes" %}</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">{% trans "Pending" %}</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if ep.attended %}
                                         <span class="badge badge-success">{% trans "Yes" %}</span>
@@ -164,6 +185,75 @@
                 </table>
             {% else %}
                 <p>{% trans "No participants have been added to this event yet." %}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3>{% trans "Registrations & Payments" %}</h3>
+        </div>
+        <div class="card-body">
+            {% if registrations %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Reference" %}</th>
+                            <th>{% trans "Participant" %}</th>
+                            <th>{% trans "Quantity" %}</th>
+                            <th>{% trans "Amount" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Proof" %}</th>
+                            <th>{% trans "Verified" %}</th>
+                            <th>{% trans "Actions" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in registrations %}
+                            <tr>
+                                <td>{{ reg.reference }}</td>
+                                <td>{{ reg.participant.full_name }} ({{ reg.participant.email }})</td>
+                                <td>{{ reg.participant.quantity }}</td>
+                                <td>{{ reg.currency }} {{ reg.amount }}</td>
+                                <td>
+                                    {% if reg.status == 'paid' %}
+                                        <span class="badge badge-success">{% trans "Paid" %}</span>
+                                    {% elif reg.status == 'pending' %}
+                                        <span class="badge badge-warning">{% trans "Pending" %}</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ reg.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reg.payment_proof %}
+                                        <a href="{{ reg.payment_proof.url }}" target="_blank">{% trans "View" %}</a>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "None" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reg.payment_verified %}
+                                        {{ reg.payment_verified_on|date:"Y-m-d H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">{% trans "No" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not reg.payment_verified %}
+                                        <form method="post" action="{% url 'event-dashboard:event-registration-verify' reg_id=reg.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-success">{% trans "Mark as Paid" %}</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">{% trans "No registrations for this event yet." %}</p>
             {% endif %}
         </div>
     </div>

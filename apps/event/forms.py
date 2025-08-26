@@ -12,6 +12,8 @@ class EventForm(forms.ModelForm):
             "end_date",
             "location",
             "max_participants",
+            "price_incl_tax",
+            "currency",
             "is_active",
         ]
         widgets = {

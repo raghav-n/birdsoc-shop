@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 
@@ -18,6 +19,10 @@ class OrganizedEvent(models.Model):
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
     is_active = models.BooleanField(_("Active"), default=True)
+    price_incl_tax = models.DecimalField(
+        _("Price (incl tax)"), max_digits=12, decimal_places=2, default=0
+    )
+    currency = models.CharField(_("Currency"), max_length=8, default="SGD")
 
     class Meta:
         ordering = ["-start_date"]
@@ -29,11 +34,12 @@ class OrganizedEvent(models.Model):
 
     @property
     def participant_count(self):
-        """Returns the number of participants, accounting for quantity field"""
-        # Sum all quantities from event participants
+        """Returns number of confirmed participants (sum of quantities)."""
         return sum(
             ep.participant.quantity
-            for ep in self.eventparticipant_set.select_related("participant").all()
+            for ep in self.eventparticipant_set.select_related("participant")
+            .filter(is_confirmed=True)
+            .all()
         )
 
     @property
@@ -42,11 +48,19 @@ class OrganizedEvent(models.Model):
         return self.eventparticipant_set.count()
 
     @property
+    def pending_count(self):
+        """Count of reserved (pending payment) participants."""
+        return sum(
+            r.participant.quantity
+            for r in self.eventregistration_set.select_related("participant").filter(status="pending")
+        )
+
+    @property
     def is_full(self):
-        """Check if event has reached maximum participants"""
+        """True if event reached max participants including pending."""
         if self.max_participants is None:
             return False
-        return self.participant_count >= self.max_participants
+        return (self.participant_count + self.pending_count) >= self.max_participants
 
     def add_participant(self, participant, **kwargs):
         """Add a participant to the event"""
@@ -122,6 +136,7 @@ class EventParticipant(models.Model):
     event = models.ForeignKey(OrganizedEvent, on_delete=models.CASCADE)
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     registered_at = models.DateTimeField(_("Registered At"), auto_now_add=True)
+    is_confirmed = models.BooleanField(_("Confirmed"), default=False)
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
 
@@ -133,3 +148,54 @@ class EventParticipant(models.Model):
 
     def __str__(self):
         return f"{self.participant.full_name} - {self.event.title}"
+
+
+class EventRegistration(models.Model):
+    """
+    Paid registration record for events, separate from Oscar orders/basket.
+    """
+
+    STATUS_CHOICES = (
+        ("pending", "Pending payment"),
+        ("paid", "Paid"),
+        ("cancelled", "Cancelled"),
+    )
+
+    event = models.ForeignKey(OrganizedEvent, on_delete=models.CASCADE)
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="pending")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=8, default="SGD")
+    reference = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    payment_verified = models.BooleanField(default=False)
+    payment_verified_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    payment_verified_on = models.DateTimeField(null=True, blank=True)
+    from apps.payment.models import get_payment_proof_path
+    payment_proof = models.ImageField(null=True, upload_to=get_payment_proof_path)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"EVREG-{self.id} {self.event.title} ({self.status})"
+
+    def verify(self, user=None):
+        """Mark payment as verified and confirm the participant's slot."""
+        from django.utils import timezone
+
+        if self.payment_verified:
+            return True
+        self.payment_verified = True
+        self.status = "paid"
+        self.payment_verified_by = user
+        self.payment_verified_on = timezone.now()
+        self.save()
+
+        # Confirm the EventParticipant
+        EventParticipant.objects.filter(
+            event=self.event, participant=self.participant
+        ).update(is_confirmed=True)
+        return True

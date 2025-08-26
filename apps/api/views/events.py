@@ -28,6 +28,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "participant_count": e.participant_count,
                 "max_participants": e.max_participants,
                 "is_full": e.is_full,
+                "price_incl_tax": str(e.price_incl_tax),
+                "currency": e.currency,
             }
             for e in qs
         ]
@@ -48,6 +50,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "participant_count": e.participant_count,
             "max_participants": e.max_participants,
             "is_full": e.is_full,
+            "price_incl_tax": str(e.price_incl_tax),
+            "currency": e.currency,
         }
         return Response(data)
 
@@ -90,13 +94,75 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             phone_number=phone_number,
             quantity=quantity,
         )
+        # Paid or free?
+        is_paid = (event.price_incl_tax or 0) > 0
 
-        # Respect capacity and duplication checks
+        # Capacity check: include pending registrations if paid
+        if event.max_participants is not None:
+            confirmed = event.participant_count
+            pending = event.pending_count if is_paid else 0
+            if confirmed + pending + quantity > event.max_participants:
+                remaining = max(event.max_participants - confirmed - pending, 0)
+                return Response(
+                    {"detail": f"Cannot add participant. Only {remaining} spots remaining."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Create EventParticipant; confirmed if free, else pending confirmation
         try:
-            event_participant = event.add_participant(participant)
+            event_participant = event.add_participant(
+                participant, is_confirmed=not is_paid
+            )
         except ValueError as e:
-            # e.g., capacity exceeded or duplicate
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If free, we're done
+        if not is_paid:
+            return Response(
+                {
+                    "event": event.id,
+                    "participant": {
+                        "id": participant.id,
+                        "first_name": participant.first_name,
+                        "last_name": participant.last_name,
+                        "email": participant.email,
+                        "phone_number": participant.phone_number,
+                        "quantity": participant.quantity,
+                    },
+                    "registered_at": event_participant.registered_at,
+                    "confirmed": True,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        # Paid flow: create EventRegistration and optionally attach payment proof
+        from decimal import Decimal
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+        from os.path import basename
+
+        amount = (event.price_incl_tax or Decimal("0")) * Decimal(str(quantity))
+
+        # Create with temporary reference to get ID
+        from oscar.core.loading import get_model as _get_model
+
+        EventRegistration = _get_model("event", "EventRegistration")
+        reg = EventRegistration.objects.create(
+            event=event,
+            participant=participant,
+            amount=amount,
+            currency=event.currency,
+            reference="",  # set after we have an ID
+        )
+        # Set deterministic reference now that we have an ID
+        reg.reference = f"EV{event.id}-{reg.id}"
+        reg.save(update_fields=["reference"])
+
+        upload = request.FILES.get("payment_proof")
+        if upload:
+            # Save with the proper upload_to using reference
+            content = upload.read()
+            reg.payment_proof.save(basename(upload.name), ContentFile(content), save=True)
 
         return Response(
             {
@@ -110,6 +176,14 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "quantity": participant.quantity,
                 },
                 "registered_at": event_participant.registered_at,
+                "confirmed": False,
+                "registration": {
+                    "id": reg.id,
+                    "reference": reg.reference,
+                    "amount": str(reg.amount),
+                    "currency": reg.currency,
+                    "status": reg.status,
+                },
             },
             status=status.HTTP_201_CREATED,
         )

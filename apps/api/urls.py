@@ -15,6 +15,10 @@ from apps.api.views.basket import (
 from apps.api.views.orders import OrdersViewSet
 from apps.api.views.refunds import RefundRequestCreateView, RefundRequestDetailView
 from apps.api.views.events import EventsViewSet
+from apps.api.views.event_registrations import (
+    EventRegistrationDetailView,
+    EventRegistrationProofUploadView,
+)
 from apps.api.views.auth import (
     RegisterView,
     MeView,
@@ -73,6 +77,18 @@ urlpatterns = [
     # Refunds
     path("refunds", RefundRequestCreateView.as_view(), name="refunds-create"),
     path("refunds/<int:pk>", RefundRequestDetailView.as_view(), name="refunds-detail"),
+
+    # Event registrations (paid events)
+    path(
+        "event-registrations/<int:reg_id>",
+        EventRegistrationDetailView.as_view(),
+        name="event-registration-detail",
+    ),
+    path(
+        "event-registrations/<int:reg_id>/payment/paynow-proof",
+        EventRegistrationProofUploadView.as_view(),
+        name="event-registration-paynow-proof",
+    ),
 
     # Routers
     path("", include(router.urls)),

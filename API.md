@@ -126,11 +126,22 @@ Refunds
 - POST `/api/v1/refunds` → create refund request. Body: `{ name, email, paynow_phone, order_number, amount, reason }`. Sends emails as per existing MVC.
 - GET `/api/v1/refunds/{id}` (JWT, owner via email match or staff) → details.
 
-Events (Optional public read)
+Events (Free + Paid)
 
-- GET `/api/v1/events` → active upcoming events.
-- GET `/api/v1/events/{id}` → details.
-- POST `/api/v1/events/{id}/register` → `{ first_name, last_name, email, phone_number?, quantity }` creates `Participant` and links via `EventParticipant` (with capacity validation).
+- GET `/api/v1/events` → active upcoming events. Includes `price_incl_tax` and `currency`.
+- GET `/api/v1/events/{id}` → details including price.
+- POST `/api/v1/events/{id}/register` → `{ first_name, last_name, email, phone_number?, quantity, payment_proof? }`.
+  - Free events (`price_incl_tax = 0`): confirms immediately and returns basic registration data.
+  - Paid events: creates a `Participant`, a pending `EventParticipant` (not confirmed), and an `EventRegistration` with `{ id, reference, amount, currency, status='pending' }`. Optional `payment_proof` can be included in the same request.
+- GET `/api/v1/event-registrations/{id}` → view registration status and amount.
+- POST `/api/v1/event-registrations/{id}/payment/paynow-proof` (multipart) → attach/replace PayNow proof image for a pending registration.
+
+Payments: Event Auto-Verification Webhook (New)
+
+- POST `/api/verify-event-payment/`
+  - Headers: `Authorization: Bearer <JWT>` signed with `settings.JWT_SECRET` using HS256.
+  - Payload: `{ registration_id?: number, reference?: string, amount: string }`.
+  - Behavior: Validates token and amount against the `EventRegistration.amount`, marks registration as paid and confirms the participant (`EventParticipant.is_confirmed = True`). Idempotent-safe: if already paid, returns 400.
 
 Payments: Auto-Verification Webhook (Already Present)
 
