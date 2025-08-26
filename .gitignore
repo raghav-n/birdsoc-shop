@@ -1,6 +1,7 @@
 cache/
 media/
 venv/
+docs/
 .idea/
 receipts/
 config/
@@ -9,5 +10,4 @@ config/
 .DS_Store
 .env
 
-frontend/node_modules/
 .*-mcp/
