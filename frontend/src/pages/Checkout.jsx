@@ -10,6 +10,8 @@ import { Button, Card, FormGroup, Label, Input, Select } from '../styles/GlobalS
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import PayNowQR from '../components/PayNowQR';
+import SafeHtml from '../components/SafeHtml';
+import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -297,6 +299,54 @@ const SummaryRow = styled.div`
   `}
 `;
 
+const CartItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ItemDetails = styled.div`
+  flex: 1;
+`;
+
+const ItemName = styled.h4`
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--dark);
+  line-height: 1.3;
+`;
+
+const ItemVariant = styled.p`
+  margin: 0 0 0.25rem 0;
+  font-size: 0.8rem;
+  color: #666;
+`;
+
+const ItemQuantity = styled.span`
+  font-size: 0.8rem;
+  color: #666;
+`;
+
+const ItemPrice = styled.div`
+  font-weight: 500;
+  color: var(--dark);
+  font-size: 0.9rem;
+  margin-left: 1rem;
+`;
+
+const SummarySection = styled.div`
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+`;
+
 const PaymentLayout = styled.div`
   display: grid;
   grid-template-columns: 1fr auto;
@@ -429,6 +479,13 @@ const Checkout = () => {
   const [pollingTimeoutId, setPollingTimeoutId] = useState(null);
   const [oneMinuteTimeoutId, setOneMinuteTimeoutId] = useState(null);
   const [showManualConfirmation, setShowManualConfirmation] = useState(false);
+  
+  // Check environment variable for auto payment confirmation feature
+  const autoPaymentConfirmationEnabled = import.meta.env.VITE_AUTO_PAYMENT_CONFIRMATION !== 'false';
+  
+  // Debug log for environment variable
+  console.log('VITE_AUTO_PAYMENT_CONFIRMATION:', import.meta.env.VITE_AUTO_PAYMENT_CONFIRMATION);
+  console.log('autoPaymentConfirmationEnabled:', autoPaymentConfirmationEnabled);
 
   const {
     register,
@@ -471,6 +528,16 @@ const Checkout = () => {
       setCustomDonation('');
     }
   }, [watchDonationType]);
+
+  // Generate order reference when reaching payment step
+  useEffect(() => {
+    if (currentStep === 4 && !orderReference && cart?.id) {
+      // Generate proper MER- reference format like the backend
+      // Format: MER-{100000 + basket_id}
+      const properRef = `MER-${100000 + parseInt(cart.id)}`;
+      setOrderReference(properRef);
+    }
+  }, [currentStep, cart?.id, orderReference]);
 
   const loadShippingMethods = async () => {
     try {
@@ -559,8 +626,11 @@ const Checkout = () => {
       }
     } else if (step === 4) {
       // Payment step - upload proof or use "I've paid" confirmation
-      if (!paymentFile && !hasPaid) {
-        toast.error('Please upload payment proof or check "I\'ve made the payment"');
+      if (!paymentFile && (!hasPaid || !autoPaymentConfirmationEnabled)) {
+        toast.error(autoPaymentConfirmationEnabled 
+          ? 'Please upload payment proof or check "I\'ve made the payment"'
+          : 'Please upload payment proof'
+        );
         return;
       }
 
@@ -577,13 +647,10 @@ const Checkout = () => {
           setPaymentProofUploaded(true);
           setTempKey(response.temp_key);
           setOrderReference(response.reference);
-        } else if (hasPaid) {
-          // "I've paid" checkbox flow - create a temporary reference for polling
-          // We'll need to create a reference without uploading proof
-          const tempRef = `PAID-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          setOrderReference(tempRef);
-          // We'll set tempKey to a placeholder since we don't have file upload response
-          setTempKey(`temp-${tempRef}`);
+        } else if (hasPaid && autoPaymentConfirmationEnabled) {
+          // "I've paid" checkbox flow - use existing order reference
+          // We'll set tempKey to indicate this is a payment confirmation without proof upload
+          setTempKey(`confirmed-${orderReference}`);
         }
         
         setCurrentStep(5);
@@ -734,12 +801,13 @@ const Checkout = () => {
 
   const handleHasPaidChange = (checked) => {
     setHasPaid(checked);
-    if (checked) {
+    if (checked && autoPaymentConfirmationEnabled) {
       // Generate order reference if we don't have one
       if (!orderReference) {
-        const tempRef = `PAID-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        setOrderReference(tempRef);
-        setTempKey(`temp-${tempRef}`);
+        // Generate proper MER- reference format like the backend
+        // Format: MER-{100000 + basket_id}
+        const properRef = `MER-${100000 + parseInt(cart.id)}`;
+        setOrderReference(properRef);
       }
       startPaymentPolling();
     } else {
@@ -787,6 +855,18 @@ const Checkout = () => {
   const shippingCost = selectedMethod ? (selectedMethod.is_self_collect ? 0 : parseFloat(selectedMethod.price) || 0) : 0;
   const totalWithDonation = subtotal + shippingCost + donation;
 
+  // Calculate visible step numbers based on whether shipping info is shown
+  const getStepNumber = (stepIndex) => {
+    if (isSelectedMethodSelfCollect && stepIndex >= 3) {
+      return stepIndex - 1; // Skip step 3 for self-collect
+    }
+    return stepIndex;
+  };
+
+  const getMaxSteps = () => {
+    return isSelectedMethodSelfCollect ? 4 : 5;
+  };
+
   return (
     <CheckoutContainer>
       <CheckoutHeader>
@@ -803,7 +883,7 @@ const Checkout = () => {
           <Step completed={currentStep > 1} disabled={currentStep < 1}>
             <StepHeader>
               <StepNumber completed={currentStep > 1}>
-                {currentStep > 1 ? <CheckCircle size={16} /> : '1'}
+                {currentStep > 1 ? <CheckCircle size={16} /> : getStepNumber(1)}
               </StepNumber>
               <StepTitle>Contact Information</StepTitle>
             </StepHeader>
@@ -850,7 +930,7 @@ const Checkout = () => {
           <Step completed={currentStep > 2} disabled={currentStep < 2}>
             <StepHeader>
               <StepNumber completed={currentStep > 2}>
-                {currentStep > 2 ? <CheckCircle size={16} /> : '2'}
+                {currentStep > 2 ? <CheckCircle size={16} /> : getStepNumber(2)}
               </StepNumber>
               <StepTitle>Shipping/Collection Method</StepTitle>
             </StepHeader>
@@ -877,13 +957,18 @@ const Checkout = () => {
                           onChange={() => handleShippingMethodChange(method.code)}
                         />
                         <ShippingMethodName>
-                          {method.name}
+                          {sanitizeText(method.name)}
                         </ShippingMethodName>
                       </ShippingMethodHeader>
                       
                       {method.description && (
                         <ShippingMethodDescription>
-                          {method.description}
+                          <SafeHtml 
+                            html={method.description}
+                            tag="div"
+                            allowedTags={['strong', 'b', 'em', 'i', 'u', 'span', 'p', 'br']}
+                            allowedAttributes={{}}
+                          />
                         </ShippingMethodDescription>
                       )}
                       
@@ -913,7 +998,7 @@ const Checkout = () => {
           >
             <StepHeader>
               <StepNumber completed={currentStep > 3}>
-                {currentStep > 3 ? <CheckCircle size={16} /> : '3'}
+                {currentStep > 3 ? <CheckCircle size={16} /> : getStepNumber(3)}
               </StepNumber>
               <StepTitle>Shipping Information</StepTitle>
             </StepHeader>
@@ -1016,7 +1101,7 @@ const Checkout = () => {
           <Step completed={currentStep > 4} disabled={currentStep < 4}>
             <StepHeader>
               <StepNumber completed={currentStep > 4}>
-                {currentStep > 4 ? <CheckCircle size={16} /> : '4'}
+                {currentStep > 4 ? <CheckCircle size={16} /> : getStepNumber(4)}
               </StepNumber>
               <StepTitle>Payment</StepTitle>
             </StepHeader>
@@ -1024,7 +1109,6 @@ const Checkout = () => {
             {currentStep >= 4 && (
               <StepContent>
                 <Alert variant="info" style={{ marginBottom: '1rem' }}>
-                  <CreditCard size={16} />
                   For now, we only accept payment via PayNow – either via QR code or UEN number.
                 </Alert>
 
@@ -1050,75 +1134,24 @@ const Checkout = () => {
                   />
                 </PaymentLayout>
 
-                <PaymentConfirmSection>
-                  <CheckboxContainer>
-                    <Checkbox
-                      type="checkbox"
-                      id="hasPaid"
-                      checked={hasPaid}
-                      onChange={(e) => handleHasPaidChange(e.target.checked)}
-                    />
-                    <CheckboxLabel htmlFor="hasPaid">
-                      I've made the payment
-                    </CheckboxLabel>
-                  </CheckboxContainer>
-                  
-                  {isPollingPayment && (
-                    <PollingStatus>
-                      <LoadingSpinner />
-                      Checking for payment confirmation... This may take up to 1 minute.
-                    </PollingStatus>
-                  )}
-                  
-                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: '#666' }}>
-                    Check this after making your PayNow payment to automatically verify it via email
-                  </p>
-                </PaymentConfirmSection>
-
-                <FileUploadArea
-                  dragOver={dragOver}
-                  hasFile={!!paymentFile}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(true);
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleFileDrop}
-                  onClick={() => document.getElementById('payment-file-input').click()}
-                  style={{ opacity: hasPaid ? 0.6 : 1 }}
-                >
-                  <FileUploadIcon>
-                    {paymentFile ? <CheckCircle color="var(--success)" /> : <Upload />}
-                  </FileUploadIcon>
-                  <FileUploadText>
-                    {paymentFile ? 'Payment proof uploaded' : 'Click to upload or drag and drop payment proof'}
-                    {hasPaid && !paymentFile && (
-                      <span style={{ display: 'block', marginTop: '0.5rem', fontStyle: 'italic', color: '#666' }}>
-                        (Optional when using "I've paid" confirmation)
-                      </span>
-                    )}
-                  </FileUploadText>
-                  <FileUploadSubtext>
-                    PNG, JPG up to 10MB
-                  </FileUploadSubtext>
-                </FileUploadArea>
-
-                <HiddenFileInput
-                  id="payment-file-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileInputChange}
-                />
-
-                {paymentFile && (
-                  <SelectedFile>
-                    <CheckCircle size={16} color="var(--success)" />
-                    <span>{paymentFile.name}</span>
-                  </SelectedFile>
-                )}
-
                 <DonationSection>
-                  <DonationTitle>Add a donation (optional)</DonationTitle>
+                  <SafeHtml 
+                    html="<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
+                    tag="h4"
+                    style={{ 
+                      margin: '0 0 1rem 0',
+                      fontSize: '1.125rem',
+                      color: 'var(--dark)'
+                    }}
+                  />
+                  <SafeHtml 
+                    html="<span style='color: #17a2b8; font-weight: 600;'>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
+                    tag="p"
+                    style={{ 
+                      margin: '0 0 1rem 0',
+                      fontSize: '0.9rem'
+                    }}
+                  />
                   <DonationOptions>
                     <DonationOption
                       type="button"
@@ -1179,13 +1212,84 @@ const Checkout = () => {
                   </FormGroup>
                 </DonationSection>
 
+                {autoPaymentConfirmationEnabled && (
+                  <PaymentConfirmSection>
+                    <CheckboxContainer>
+                      <Checkbox
+                        type="checkbox"
+                        id="hasPaid"
+                        checked={hasPaid}
+                        onChange={(e) => handleHasPaidChange(e.target.checked)}
+                      />
+                      <CheckboxLabel htmlFor="hasPaid">
+                        I've made the payment
+                      </CheckboxLabel>
+                    </CheckboxContainer>
+                    
+                    {isPollingPayment && (
+                      <PollingStatus>
+                        <LoadingSpinner />
+                        Checking for payment confirmation... This may take up to 1 minute.
+                      </PollingStatus>
+                    )}
+                    
+                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: '#666' }}>
+                      Check this after making your PayNow payment to automatically verify it via email
+                    </p>
+                  </PaymentConfirmSection>
+                )}
+
+                <FileUploadArea
+                  dragOver={dragOver}
+                  hasFile={!!paymentFile}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleFileDrop}
+                  onClick={() => document.getElementById('payment-file-input').click()}
+                  style={{ opacity: (hasPaid && autoPaymentConfirmationEnabled) ? 0.6 : 1 }}
+                >
+                  <FileUploadIcon>
+                    {paymentFile ? <CheckCircle color="var(--success)" /> : <Upload />}
+                  </FileUploadIcon>
+                  <FileUploadText>
+                    {paymentFile ? 'Payment proof uploaded' : 'Click to upload or drag and drop payment proof'}
+                    {hasPaid && !paymentFile && autoPaymentConfirmationEnabled && (
+                      <span style={{ display: 'block', marginTop: '0.5rem', fontStyle: 'italic', color: '#666' }}>
+                        (Optional when using "I've paid" confirmation)
+                      </span>
+                    )}
+                  </FileUploadText>
+                  <FileUploadSubtext>
+                    PNG, JPG up to 10MB
+                  </FileUploadSubtext>
+                </FileUploadArea>
+
+                <HiddenFileInput
+                  id="payment-file-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileInputChange}
+                />
+
+                {paymentFile && (
+                  <SelectedFile>
+                    <CheckCircle size={16} color="var(--success)" />
+                    <span>{sanitizeText(paymentFile.name)}</span>
+                  </SelectedFile>
+                )}
+
                 {currentStep === 4 && (
                   <div style={{ marginTop: '1rem' }}>
                     <Button 
                       onClick={() => handleStepComplete(4)}
-                      disabled={(!paymentFile && !hasPaid) || loading}
+                      disabled={(!paymentFile && (!hasPaid || !autoPaymentConfirmationEnabled)) || loading}
                     >
-                      {loading ? 'Uploading...' : hasPaid ? 'Continue to Review' : 'Upload Payment Proof'}
+                      {loading ? 'Uploading...' : 
+                       (hasPaid && autoPaymentConfirmationEnabled) ? 'Continue to Review' : 
+                       'Upload Payment Proof'}
                     </Button>
                   </div>
                 )}
@@ -1196,7 +1300,7 @@ const Checkout = () => {
           {/* Step 5: Review & Place Order */}
           <Step completed={false} disabled={currentStep < 5}>
             <StepHeader>
-              <StepNumber>5</StepNumber>
+              <StepNumber>{getStepNumber(5)}</StepNumber>
               <StepTitle>Review & Place Order</StepTitle>
             </StepHeader>
             
@@ -1230,27 +1334,67 @@ const Checkout = () => {
         <OrderSummary>
           <SummaryTitle>Order Summary</SummaryTitle>
           
-          <SummaryRow>
-            <span>Items ({cartCount})</span>
-            <span>{formatCurrency(subtotal)}</span>
-          </SummaryRow>
+          {/* Cart Items */}
+          <div>
+            {cart.lines?.map((line, index) => {
+              // Use the correct property names based on the actual data structure
+              const productTitle = line.product_title || 
+                                   line.product?.title || 
+                                   line.title || 
+                                   'Product';
+              
+              // Use the correct price property name
+              const linePrice = line.line_price_incl_tax || 
+                               line.line_price_excl_tax ||
+                               line.unit_price_incl_tax ||
+                               0;
+              
+              return (
+                <CartItem key={line.id || index}>
+                  <ItemDetails>
+                    <ItemName>{sanitizeText(productTitle)}</ItemName>
+                    {line.product?.attributes && Object.entries(line.product.attributes).map(([key, value]) => (
+                      <ItemVariant key={key}>
+                        {sanitizeText(key)}: {sanitizeText(value)}
+                      </ItemVariant>
+                    ))}
+                    {/* Also check for top-level attributes */}
+                    {line.attributes && Object.entries(line.attributes).map(([key, value]) => (
+                      <ItemVariant key={key}>
+                        {sanitizeText(key)}: {sanitizeText(value)}
+                      </ItemVariant>
+                    ))}
+                    <ItemQuantity>Qty: {line.quantity || 1}</ItemQuantity>
+                  </ItemDetails>
+                  <ItemPrice>{formatCurrency(linePrice)}</ItemPrice>
+                </CartItem>
+              );
+            })}
+          </div>
 
-          <SummaryRow>
-            <span>Shipping</span>
-            <span>{selectedMethod?.is_self_collect ? 'Free' : formatCurrency(shippingCost)}</span>
-          </SummaryRow>
-
-          {donation > 0 && (
+          <SummarySection>
             <SummaryRow>
-              <span>Donation</span>
-              <span>{formatCurrency(donation)}</span>
+              <span>Subtotal ({cartCount} items)</span>
+              <span>{formatCurrency(subtotal)}</span>
             </SummaryRow>
-          )}
 
-          <SummaryRow total>
-            <span>Total</span>
-            <span>{formatCurrency(totalWithDonation)}</span>
-          </SummaryRow>
+            <SummaryRow>
+              <span>Shipping</span>
+              <span>{selectedMethod?.is_self_collect ? 'Free' : formatCurrency(shippingCost)}</span>
+            </SummaryRow>
+
+            {donation > 0 && (
+              <SummaryRow>
+                <span>Donation</span>
+                <span>{formatCurrency(donation)}</span>
+              </SummaryRow>
+            )}
+
+            <SummaryRow total>
+              <span>Total</span>
+              <span>{formatCurrency(totalWithDonation)}</span>
+            </SummaryRow>
+          </SummarySection>
 
           {orderReference && (
             <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
