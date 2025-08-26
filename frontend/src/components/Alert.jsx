@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
+import SafeHtml from './SafeHtml';
 
 const AlertContainer = styled.div`
   padding: 1rem;
@@ -44,7 +45,6 @@ const AlertContainer = styled.div`
 
 const AlertIcon = styled.div`
   flex-shrink: 0;
-  margin-top: 0.125rem;
 `;
 
 const AlertContent = styled.div`
@@ -61,7 +61,14 @@ const AlertMessage = styled.div`
   line-height: 1.4;
 `;
 
-const Alert = ({ variant = 'info', title, children, className }) => {
+const Alert = ({ 
+  variant = 'info', 
+  title, 
+  children, 
+  className, 
+  html = null, 
+  safeHtml = false 
+}) => {
   const getIcon = () => {
     switch (variant) {
       case 'success':
@@ -81,7 +88,13 @@ const Alert = ({ variant = 'info', title, children, className }) => {
       <AlertIcon>{getIcon()}</AlertIcon>
       <AlertContent>
         {title && <AlertTitle>{title}</AlertTitle>}
-        <AlertMessage>{children}</AlertMessage>
+        <AlertMessage>
+          {safeHtml && html ? (
+            <SafeHtml html={html} tag="span" />
+          ) : (
+            children
+          )}
+        </AlertMessage>
       </AlertContent>
     </AlertContainer>
   );

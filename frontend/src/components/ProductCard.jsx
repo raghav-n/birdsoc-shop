@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingCart, Eye } from 'lucide-react';
 import { Card, Button, Badge } from '../styles/GlobalStyles';
 import { formatCurrency, getImageUrl, isProductInStock, getStockStatus } from '../utils/helpers';
+import { sanitizeText } from '../utils/safeContent';
 import { useCart } from '../context/CartContext';
 
 const ProductCardContainer = styled(Card)`
@@ -117,7 +118,7 @@ const ProductCard = ({ product }) => {
           {primaryImage ? (
             <img 
               src={getImageUrl(primaryImage.original)} 
-              alt={primaryImage.caption || product.title}
+              alt={sanitizeText(primaryImage.caption || product.title)}
             />
           ) : (
             <ImagePlaceholder>
@@ -127,10 +128,10 @@ const ProductCard = ({ product }) => {
         </ProductImage>
 
         <ProductInfo>
-          <ProductTitle>{product.title}</ProductTitle>
+          <ProductTitle>{sanitizeText(product.title)}</ProductTitle>
           
           {product.description && (
-            <ProductDescription>{product.description}</ProductDescription>
+            <ProductDescription>{sanitizeText(product.description)}</ProductDescription>
           )}
 
           <PriceSection>

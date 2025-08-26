@@ -6,6 +6,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Input, FormGroup, Label, ErrorMessage } from '../styles/GlobalStyles';
 import Alert from '../components/Alert';
+import SafeCheckbox from '../components/SafeCheckbox';
+import { showToast } from '../utils/toast.jsx';
 
 const RegisterContainer = styled.div`
   min-height: calc(100vh - 200px);
@@ -264,6 +266,17 @@ const Register = () => {
               <ErrorMessage>{errors.confirmPassword.message}</ErrorMessage>
             )}
           </FormGroup>
+
+          <SafeCheckbox
+            id="pdpa_agreement"
+            htmlLabel="I have read and agree to the <a href='https://birdsociety.sg/data-protection-notice/' target='_blank'>data protection notice</a>."
+            checked={watch('pdpa_agreement')}
+            hasError={errors.pdpa_agreement}
+            errorMessage={errors.pdpa_agreement?.message}
+            register={register('pdpa_agreement', {
+              required: 'You must agree to the data protection notice to continue'
+            })}
+          />
 
           <Button
             type="submit"

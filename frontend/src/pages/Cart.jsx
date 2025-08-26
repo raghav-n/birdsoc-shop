@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button, Card, FormGroup, Label, Input } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
+import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency } from '../utils/helpers';
 
 const CartContainer = styled.div`
@@ -306,7 +307,7 @@ const Cart = () => {
               </ItemImage>
 
               <ItemInfo>
-                <ItemTitle>{item.product_title}</ItemTitle>
+                <ItemTitle>{sanitizeText(item.product_title)}</ItemTitle>
                 <ItemPrice>
                   {formatCurrency(item.unit_price_incl_tax)} each
                 </ItemPrice>

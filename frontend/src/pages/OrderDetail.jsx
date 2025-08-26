@@ -6,7 +6,9 @@ import { orderService } from '../services/orders';
 import { Button, Card } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
+import SafeHtml from '../components/SafeHtml';
 import { formatCurrency, formatDate } from '../utils/helpers';
+import { renderShippingMethodDescription, containsHTML, sanitizeText } from '../utils/safeContent';
 import toast from 'react-hot-toast';
 
 const OrderContainer = styled.div`
@@ -358,7 +360,7 @@ const OrderDetail = () => {
                 </ItemImage>
 
                 <ItemInfo>
-                  <ItemTitle>{line.title}</ItemTitle>
+                  <ItemTitle>{sanitizeText(line.title)}</ItemTitle>
                   <ItemDetails>
                     Quantity: {line.quantity} × {formatCurrency(line.unit_price_incl_tax)}
                   </ItemDetails>
@@ -382,7 +384,21 @@ const OrderDetail = () => {
             
             <InfoRow>
               <InfoLabel>Shipping Method</InfoLabel>
-              <InfoValue>{order.shipping_method || 'Standard Shipping'}</InfoValue>
+              <InfoValue>
+                {order.shipping_method || 'Standard Shipping'}
+                {order.shipping_method_description && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
+                    {containsHTML(order.shipping_method_description) ? (
+                      <SafeHtml 
+                        html={renderShippingMethodDescription(order.shipping_method_description)}
+                        tag="span"
+                      />
+                    ) : (
+                      order.shipping_method_description
+                    )}
+                  </div>
+                )}
+              </InfoValue>
             </InfoRow>
             
             {order.shipping_address && (

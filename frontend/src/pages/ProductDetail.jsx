@@ -7,6 +7,8 @@ import { useCart } from '../context/CartContext';
 import { Button, Card, Badge } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
+import SafeHtml from '../components/SafeHtml';
+import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency, getImageUrl, isProductInStock, getStockStatus } from '../utils/helpers';
 
 const ProductContainer = styled.div`
@@ -315,7 +317,7 @@ const ProductDetail = () => {
             {selectedImage ? (
               <img 
                 src={getImageUrl(selectedImage.original)} 
-                alt={selectedImage.caption || product.title}
+                alt={sanitizeText(selectedImage.caption || product.title)}
               />
             ) : (
               <ImagePlaceholder>
@@ -334,7 +336,7 @@ const ProductDetail = () => {
                 >
                   <img 
                     src={getImageUrl(image.original)} 
-                    alt={image.caption || `${product.title} ${index + 1}`}
+                    alt={sanitizeText(image.caption || `${product.title} ${index + 1}`)}
                   />
                 </Thumbnail>
               ))}
@@ -343,12 +345,20 @@ const ProductDetail = () => {
         </ImageSection>
 
         <ProductInfo>
-          <ProductTitle>{product.title}</ProductTitle>
+          <ProductTitle>{sanitizeText(product.title)}</ProductTitle>
 
           {product.description && (
-            <ProductDescription>
-              {product.description}
-            </ProductDescription>
+            <SafeHtml 
+              html={product.description}
+              tag="div"
+              className="product-description"
+              style={{
+                fontSize: '1rem',
+                lineHeight: '1.6',
+                color: '#666',
+                marginBottom: '1.5rem'
+              }}
+            />
           )}
 
           <PriceSection>
@@ -417,8 +427,8 @@ const ProductDetail = () => {
                 <AttributesList>
                   {product.attributes.map((attribute, index) => (
                     <AttributeItem key={index}>
-                      <AttributeName>{attribute.name}</AttributeName>
-                      <AttributeValue>{attribute.value}</AttributeValue>
+                      <AttributeName>{sanitizeText(attribute.name)}</AttributeName>
+                      <AttributeValue>{sanitizeText(attribute.value)}</AttributeValue>
                     </AttributeItem>
                   ))}
                 </AttributesList>

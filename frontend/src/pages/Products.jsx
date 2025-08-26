@@ -7,6 +7,7 @@ import { Input, Button, Grid, FormGroup, Label } from '../styles/GlobalStyles';
 import ProductCard from '../components/ProductCard';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
+import { sanitizeText } from '../utils/safeContent';
 import { debounce } from '../utils/helpers';
 
 const ProductsContainer = styled.div`
@@ -299,7 +300,7 @@ const Products = () => {
               <option value="">All Categories</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.slug}>
-                  {category.name}
+                  {sanitizeText(category.name)}
                 </option>
               ))}
             </Select>

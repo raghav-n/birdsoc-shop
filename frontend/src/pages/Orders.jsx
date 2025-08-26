@@ -6,6 +6,7 @@ import { orderService } from '../services/orders';
 import { Button, Card } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
+import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -337,7 +338,7 @@ const Orders = () => {
               <ItemsList>
                 {order.lines?.slice(0, 3).map((line) => (
                   <OrderItem key={line.id}>
-                    <ItemName>{line.title}</ItemName>
+                    <ItemName>{sanitizeText(line.title)}</ItemName>
                     <ItemQuantity>Qty: {line.quantity}</ItemQuantity>
                   </OrderItem>
                 ))}
