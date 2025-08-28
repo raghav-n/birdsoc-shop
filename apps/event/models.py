@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
+import jsonschema
+
 
 class OrganizedEvent(models.Model):
     """
@@ -23,6 +25,18 @@ class OrganizedEvent(models.Model):
         _("Price (incl tax)"), max_digits=12, decimal_places=2, default=0
     )
     currency = models.CharField(_("Currency"), max_length=8, default="SGD")
+    json_schema = models.CharField(
+        _("JSON schema"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_("Optional JSON schema for additional participant data"),
+    )
+    validate_participant_data = models.BooleanField(
+        _("Validate participant data"),
+        default=False,
+        help_text=_("If true, participant data will be validated against the JSON schema"),
+    )
 
     class Meta:
         ordering = ["-start_date"]
@@ -65,6 +79,15 @@ class OrganizedEvent(models.Model):
     def add_participant(self, participant, **kwargs):
         """Add a participant to the event"""
         # Check if adding this participant would exceed the limit
+        if self.json_schema and self.validate_participant_data:
+            if not kwargs.get("extra_json"):
+                raise ValueError("Missing extra_json for participant data validation.")
+
+            try:
+                jsonschema.validate(instance=kwargs.get("extra_json", {}), schema=self.json_schema)
+            except jsonschema.ValidationError as e:
+                raise ValueError(f"Participant data validation error: {e.message}")
+
         if self.max_participants is not None:
             current_count = self.participant_count
             if current_count + participant.quantity > self.max_participants:
@@ -139,6 +162,7 @@ class EventParticipant(models.Model):
     is_confirmed = models.BooleanField(_("Confirmed"), default=False)
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
+    extra_json = models.JSONField(_("Extra data"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Event Participant")
