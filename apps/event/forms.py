@@ -12,12 +12,46 @@ class EventForm(forms.ModelForm):
             "end_date",
             "location",
             "max_participants",
+            "json_schema",
+            "price_tiers",
+            "validate_participant_data",
+            "price_incl_tax",
+            "currency",
             "is_active",
         ]
         widgets = {
             "start_date": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "end_date": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            # Allow editing JSON comfortably
+            "json_schema": forms.Textarea(attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}),
+            "price_tiers": forms.Textarea(attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        schema_val = cleaned.get("json_schema")
+        should_validate = cleaned.get("validate_participant_data")
+
+        # Normalize schema: accept dict/list or JSON string
+        if schema_val in (None, ""):
+            if should_validate:
+                self.add_error(
+                    "json_schema",
+                    "JSON schema is required when validation is enabled.",
+                )
+        elif isinstance(schema_val, str):
+            import json
+            try:
+                cleaned["json_schema"] = json.loads(schema_val)
+            except Exception as e:
+                self.add_error("json_schema", f"Invalid JSON: {e}")
+        elif isinstance(schema_val, (dict, list)):
+            # OK
+            pass
+        else:
+            self.add_error("json_schema", "Invalid type for JSON schema.")
+
+        return cleaned
 
 
 class ParticipantForm(forms.ModelForm):

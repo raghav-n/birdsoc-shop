@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from oscar.core.loading import get_model, get_class
+from apps.util.payments import confirm_paynow_payment, PaymentConfirmationError
 
 JWT_SECRET = settings.JWT_SECRET
 
@@ -92,23 +93,9 @@ def verify_payment(request):
     except Order.DoesNotExist:
         return JsonResponse({"error": f"Order {order_number} not found"}, status=404)
 
-    if order.total_incl_tax_with_donation != Decimal(amount):
-        return JsonResponse(
-            {
-                "error": f"Amount mismatch. Expected: SGD {order.total_incl_tax_with_donation}. Received: SGD {amount}"
-            },
-            status=400,
-        )
-
     # Store payment confirmation with the amount
     try:
-        payment_verified_event_type = PaymentEventType._default_manager.get(
-            code="paynow-auto-verified"
-        )
-
-        order.set_status(settings.PAYMENT_AUTO_CONFIRMED_STATUS)
-        order.save()
-
+        # If already confirmed, report as error for webhook duplication
         if order.payment_events.filter(
             event_type__code__in=["paynow-auto-verified", "paynow-verified"]
         ).exists():
@@ -116,33 +103,10 @@ def verify_payment(request):
                 {"error": f"Order {order_number} already marked as paid."}, status=400
             )
 
-        verified_event = order.payment_events.create(
-            amount=0,
-            reference=order.sources.first().reference,
-            event_type=payment_verified_event_type,
-            date_created=datetime.datetime.now(),
-        )
+        confirm_paynow_payment(order, Decimal(amount))
 
-        try:
-            processing_event = order.payment_events.get(
-                event_type__name="paynow-processing"
-            )
-
-            PaymentEventQuantity._default_manager.bulk_create(
-                [
-                    PaymentEventQuantity(
-                        event=verified_event, line=peq.line, quantity=peq.quantity
-                    )
-                    for peq in PaymentEventQuantity._default_manager.filter(
-                        event=processing_event
-                    )
-                ]
-            )
-
-        except PaymentEvent.DoesNotExist:
-            if settings.GLOBAL_PAYNOW_REQUIRED:
-                raise ValueError("PayNow payment event is unavailable.")
-
+    except PaymentConfirmationError as e:
+        return JsonResponse({"error": str(e)}, status=400)
     except InvalidOrderStatus as e:
         return JsonResponse(
             {"error": f"Failed to confirm payment: {str(e)}"}, status=500
@@ -151,3 +115,82 @@ def verify_payment(request):
     return JsonResponse(
         {"success": f"Order {order_number} marked as paid. Amount: SGD {amount}."}
     )
+
+
+@csrf_exempt
+def verify_event_payment(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    token = auth_header.split(" ")[1]
+    payload = verify_jwt(token)
+    if not payload:
+        return JsonResponse({"error": "Invalid or expired token"}, status=401)
+
+    registration_id = payload.get("registration_id")
+    reference = payload.get("reference")
+    group_id = payload.get("group_id")
+    group_reference = payload.get("group_reference")
+    amount = payload.get("amount")
+
+    if not amount:
+        return JsonResponse({"error": "Invalid payload"}, status=400)
+
+    # Disallow ambiguous requests: either a single registration or a group, not both
+    reg_keys = bool(registration_id or reference)
+    grp_keys = bool(group_id or group_reference)
+    if not reg_keys and not grp_keys:
+        return JsonResponse({"error": "Must provide registration_id/reference or group_id/group_reference"}, status=400)
+    if reg_keys and grp_keys:
+        return JsonResponse({"error": "Provide either registration fields or group fields, not both"}, status=400)
+
+    from oscar.core.loading import get_model
+    EventRegistration = get_model("event", "EventRegistration")
+    EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
+
+    from decimal import Decimal
+    try:
+        amt = Decimal(str(amount))
+    except Exception:
+        return JsonResponse({"error": "Invalid amount format"}, status=400)
+
+    # Group verification path
+    if grp_keys:
+        try:
+            if group_id:
+                grp = EventRegistrationGroup._default_manager.get(id=group_id)
+            else:
+                grp = EventRegistrationGroup._default_manager.get(reference=group_reference)
+        except EventRegistrationGroup.DoesNotExist:
+            return JsonResponse({"error": "Group not found"}, status=404)
+
+        if grp.payment_verified:
+            return JsonResponse({"error": "Group already marked as paid."}, status=400)
+
+        if (grp.amount_total + (grp.donation_amount or Decimal("0"))) != amt:
+            return JsonResponse({"error": f"Amount mismatch. Expected SGD {grp.amount_total + (grp.donation_amount or Decimal('0'))}"}, status=400)
+
+        grp.verify(user=None)
+        return JsonResponse({"success": f"Event registration group {grp.id} marked as paid."})
+
+    # Single registration verification path
+    try:
+        if registration_id:
+            reg = EventRegistration._default_manager.get(id=registration_id)
+        else:
+            reg = EventRegistration._default_manager.get(reference=reference)
+    except EventRegistration.DoesNotExist:
+        return JsonResponse({"error": "Registration not found"}, status=404)
+
+    if reg.payment_verified:
+        return JsonResponse({"error": "Registration already marked as paid."}, status=400)
+
+    if (reg.amount + (reg.donation_amount or Decimal("0"))) != amt:
+        return JsonResponse({"error": f"Amount mismatch. Expected SGD {reg.amount + (reg.donation_amount or Decimal('0'))}"}, status=400)
+
+    reg.verify(user=None)
+    return JsonResponse({"success": f"Event registration {reg.id} marked as paid."})

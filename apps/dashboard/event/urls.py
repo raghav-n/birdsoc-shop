@@ -58,4 +58,16 @@ urlpatterns = [
         views.EventBatchEmailPreviewView.as_view(),
         name="event-batch-email-preview",
     ),
+    # Registrations
+    path(
+        "registrations/<int:reg_id>/verify/",
+        views.EventRegistrationVerifyView.as_view(),
+        name="event-registration-verify",
+    ),
+    # Group Registrations (bulk payments)
+    path(
+        "groups/<int:group_id>/verify/",
+        views.EventRegistrationGroupVerifyView.as_view(),
+        name="event-registration-group-verify",
+    ),
 ]

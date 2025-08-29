@@ -81,6 +81,18 @@ if os.path.exists(os.path.join(PROJECT_DIR, "config/whitelist.txt")):
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
 
+# Gmail API credentials for PayNow polling (optional feature)
+GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
+GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+# Gmail search query used to find PayNow notifications
+GMAIL_POLL_QUERY = os.environ.get(
+    "GMAIL_POLL_QUERY",
+    'subject:"PayNow Alert - You have received a payment via PayNow" newer_than:1d',
+)
+# Maximum age for messages to consider (minutes)
+GMAIL_MAX_AGE_MINUTES = int(os.environ.get("GMAIL_MAX_AGE_MINUTES", "60"))
+
 AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN")
 AUTH0_CLIENT_ID = os.environ.get("AUTH0_CLIENT_ID")
 AUTH0_CLIENT_SECRET = os.environ.get("AUTH0_CLIENT_SECRET")
@@ -115,6 +127,7 @@ if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
 
 INSTALLED_APPS = [
     "maintenance_mode",
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -125,6 +138,7 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "django.contrib.flatpages",
     "anymail",
+    "rest_framework",
     "oscar.config.Shop",
     "apps.order.apps.OrderConfig",
     "apps.shipping.apps.ShippingConfig",
@@ -135,6 +149,7 @@ INSTALLED_APPS = [
     "apps.payment.apps.PaymentConfig",
     "apps.offer.apps.OfferConfig",
     "apps.util.apps.UtilConfig",  # added
+    "apps.api.apps.ApiConfig",
     "apps.home.apps.MyShop",
     "apps.communication.apps.CommunicationConfig",
     "apps.refund.apps.RefundConfig",  # Add the new refund app
@@ -204,6 +219,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -314,6 +330,17 @@ else:
         },
     }
 
+# Ensure tests never depend on Redis
+if TESTING:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        },
+        "actions": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        },
+    }
+
 
 db_defaults = {
     "ENGINE": "django.db.backends.postgresql",
@@ -327,9 +354,21 @@ db_defaults = {
 if SESSION_ENVIRONMENT_PRODUCTION:
     db_defaults["CONN_MAX_AGE"] = 90
 
-DATABASES = {
-    "default": db_defaults,
-}
+# Use SQLite for tests to simplify local execution without Postgres
+if TESTING:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(PROJECT_DIR, "dev_db.sqlite3"),
+            "TEST": {
+                "NAME": os.path.join(PROJECT_DIR, "test_db.sqlite3"),
+            },
+        }
+    }
+else:
+    DATABASES = {
+        "default": db_defaults,
+    }
 
 OSCAR_HIDDEN_FEATURES = ["reviews", "wishlists", "offers"]
 OSCAR_SEND_REGISTRATION_EMAIL = False
@@ -392,6 +431,28 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "shop.wsgi.application"
+
+# REST framework configuration
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.AllowAny",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "apps.api.pagination.DefaultPagination",
+    "PAGE_SIZE": 20,
+}
+
+# CORS configuration
+CORS_ALLOW_CREDENTIALS = False
+# Adjust this in production
+CORS_ALLOW_ALL_ORIGINS = not SESSION_ENVIRONMENT_PRODUCTION
+
+# Allow API URLs to bypass login-required middleware
+OPEN_URLS = [
+    "/api/",
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {

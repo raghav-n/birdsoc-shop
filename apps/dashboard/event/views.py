@@ -23,6 +23,9 @@ from django.conf import settings
 from django import forms
 
 from apps.event.models import OrganizedEvent, Participant, EventParticipant
+from oscar.core.loading import get_model
+EventRegistration = get_model("event", "EventRegistration")
+EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 from apps.event.forms import (
     EventForm,
     ParticipantForm,
@@ -53,6 +56,40 @@ class EventDetailView(DashboardMixin, DetailView):
     model = OrganizedEvent
     context_object_name = "event"
     template_name = "dashboard/event/event_detail.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        event = self.object
+        # Include group registrations/payments for bulk flows
+        groups = (
+            EventRegistrationGroup._default_manager
+            .filter(event=event)
+            .order_by("-created_at")
+        )
+        ctx["groups"] = groups
+        ctx["pending_count"] = event.pending_count
+        return ctx
+
+class EventRegistrationVerifyView(DashboardMixin, View):
+    def post(self, request, *args, **kwargs):
+        reg_id = kwargs.get("reg_id")
+        reg = get_object_or_404(EventRegistration, id=reg_id)
+        reg.verify(user=request.user)
+        messages.success(request, f"Registration {reg.reference} marked as paid and confirmed.")
+        return redirect("event-dashboard:event-detail", pk=reg.event_id)
+
+
+class EventRegistrationGroupVerifyView(DashboardMixin, View):
+    def post(self, request, *args, **kwargs):
+        group_id = kwargs.get("group_id")
+        grp = get_object_or_404(EventRegistrationGroup, id=group_id)
+        count = grp.registrations.count()
+        grp.verify(user=request.user)
+        messages.success(
+            request,
+            f"Group {grp.reference} marked as paid and confirmed for {count} registration(s).",
+        )
+        return redirect("event-dashboard:event-detail", pk=grp.event_id)
 
 
 class EventCreateView(DashboardMixin, CreateView):
