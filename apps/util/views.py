@@ -133,14 +133,51 @@ def verify_event_payment(request):
 
     registration_id = payload.get("registration_id")
     reference = payload.get("reference")
+    group_id = payload.get("group_id")
+    group_reference = payload.get("group_reference")
     amount = payload.get("amount")
 
-    if not amount or (not registration_id and not reference):
+    if not amount:
         return JsonResponse({"error": "Invalid payload"}, status=400)
+
+    # Disallow ambiguous requests: either a single registration or a group, not both
+    reg_keys = bool(registration_id or reference)
+    grp_keys = bool(group_id or group_reference)
+    if not reg_keys and not grp_keys:
+        return JsonResponse({"error": "Must provide registration_id/reference or group_id/group_reference"}, status=400)
+    if reg_keys and grp_keys:
+        return JsonResponse({"error": "Provide either registration fields or group fields, not both"}, status=400)
 
     from oscar.core.loading import get_model
     EventRegistration = get_model("event", "EventRegistration")
+    EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
+    from decimal import Decimal
+    try:
+        amt = Decimal(str(amount))
+    except Exception:
+        return JsonResponse({"error": "Invalid amount format"}, status=400)
+
+    # Group verification path
+    if grp_keys:
+        try:
+            if group_id:
+                grp = EventRegistrationGroup._default_manager.get(id=group_id)
+            else:
+                grp = EventRegistrationGroup._default_manager.get(reference=group_reference)
+        except EventRegistrationGroup.DoesNotExist:
+            return JsonResponse({"error": "Group not found"}, status=404)
+
+        if grp.payment_verified:
+            return JsonResponse({"error": "Group already marked as paid."}, status=400)
+
+        if (grp.amount_total + (grp.donation_amount or Decimal("0"))) != amt:
+            return JsonResponse({"error": f"Amount mismatch. Expected SGD {grp.amount_total + (grp.donation_amount or Decimal('0'))}"}, status=400)
+
+        grp.verify(user=None)
+        return JsonResponse({"success": f"Event registration group {grp.id} marked as paid."})
+
+    # Single registration verification path
     try:
         if registration_id:
             reg = EventRegistration._default_manager.get(id=registration_id)
@@ -149,21 +186,11 @@ def verify_event_payment(request):
     except EventRegistration.DoesNotExist:
         return JsonResponse({"error": "Registration not found"}, status=404)
 
-    # Idempotency
     if reg.payment_verified:
         return JsonResponse({"error": "Registration already marked as paid."}, status=400)
 
-    from decimal import Decimal
+    if (reg.amount + (reg.donation_amount or Decimal("0"))) != amt:
+        return JsonResponse({"error": f"Amount mismatch. Expected SGD {reg.amount + (reg.donation_amount or Decimal('0'))}"}, status=400)
 
-    try:
-        amt = Decimal(str(amount))
-    except Exception:
-        return JsonResponse({"error": "Invalid amount format"}, status=400)
-
-    if reg.amount != amt:
-        return JsonResponse({"error": f"Amount mismatch. Expected SGD {reg.amount}"}, status=400)
-
-    # Mark as verified and confirm event participation
     reg.verify(user=None)
-
     return JsonResponse({"success": f"Event registration {reg.id} marked as paid."})

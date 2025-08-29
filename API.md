@@ -130,18 +130,95 @@ Events (Free + Paid)
 
 - GET `/api/v1/events` → active upcoming events. Includes `price_incl_tax` and `currency`.
 - GET `/api/v1/events/{id}` → details including price.
-- POST `/api/v1/events/{id}/register` → `{ first_name, last_name, email, phone_number?, quantity, payment_proof? }`.
+- POST `/api/v1/events/{id}/price-breakdown` → compute a cart-style price breakdown for a list of participants before confirming registration.
+  - Body: `{ participants: [{ quantity, extra_json?, email? }, ...], donation? }` (accepts multipart with JSON string for `participants`).
+  - Response:
+    {
+      "event": 12,
+      "currency": "SGD",
+      "items": [
+        { "index": 0, "quantity": 1, "unit_price": "10.00", "line_total": "10.00", "tier": {"code":"student","name":"Under 19","rule":"age:<19","price_incl_tax":"10.00"} },
+        { "index": 1, "quantity": 2, "unit_price": "15.00", "line_total": "30.00", "tier": {"code":"adult","name":"Adult","rule":"*","price_incl_tax":"15.00"} }
+      ],
+      "totals": { "quantity": 3, "amount": "40.00", "donation": "5.00", "amount_with_donation": "45.00" },
+      "requires_payment": true,
+      "capacity": { "available": true, "remaining": 18, "considered_pending": true },
+      "warnings": { "duplicate_emails": ["a@example.com"], "already_registered_emails": ["b@example.com"] }
+    }
+  - Notes:
+    - Uses `OrganizedEvent.price_tiers` to resolve `unit_price` per item via rules like `age:<19` based on each item’s `extra_json`.
+    - Does not create any records; intended for UI previews before submitting registration.
+    - Capacity check considers current pending when `requires_payment=true`.
+- POST `/api/v1/events/{id}/register` → `{ first_name, last_name, email, phone_number?, quantity, donation?, payment_proof? }`.
   - Free events (`price_incl_tax = 0`): confirms immediately and returns basic registration data.
-  - Paid events: creates a `Participant`, a pending `EventParticipant` (not confirmed), and an `EventRegistration` with `{ id, reference, amount, currency, status='pending' }`. Optional `payment_proof` can be included in the same request.
+  - Paid events: creates a `Participant`, a pending `EventParticipant` (not confirmed), and an `EventRegistration` with `{ id, reference, amount, donation_amount, amount_with_donation, currency, status='pending' }`. Optional `payment_proof` can be included in the same request.
 - GET `/api/v1/event-registrations/{id}` → view registration status and amount.
+  - Response includes: `{ amount, donation_amount, amount_with_donation, ... }`.
 - POST `/api/v1/event-registrations/{id}/payment/paynow-proof` (multipart) → attach/replace PayNow proof image for a pending registration.
+
+Bulk Group Registration (New)
+
+- POST `/api/v1/events/{id}/register/bulk` → register multiple participants with optional single payment proof covering all.
+  - Body (JSON or `multipart/form-data`):
+    - `participants`: array of objects `{ first_name, last_name, email, phone_number?, quantity?, extra_json? }` (if multipart, can be JSON string)
+    - `payer_name?`, `payer_email?`, `payer_phone?`
+    - `reference?` (string): optional custom group reference. If provided for a paid registration, the server uses this value instead of auto-generating one. Format: uppercase A–Z, digits 0–9, and hyphen only; max 25 characters.
+    - `donation?` (int): optional donation top-up (in SGD dollars) applied to the whole group.
+    - `payment_proof?` (multipart file)
+  - Behavior:
+    - Validates event capacity (includes pending for paid events), duplicate emails in request, and existing registrations for same event.
+    - When `reference` is provided for a paid registration group:
+      - Validates format as described above; on invalid, returns `400` with `{"detail":"Invalid reference format..."}`.
+      - Validates uniqueness across all registration groups; on conflict, returns `409` with `{"detail":"Reference already in use"}`.
+    - Free events: creates confirmed participants; returns `{ all_confirmed: true, items: [...] }`.
+    - Paid events: creates an `EventRegistrationGroup` and one `EventRegistration` per participant with a shared group reference.
+  - Response (paid):
+    ```json
+    {
+      "event": 12,
+      "totals": { "quantity": 3, "amount": "45.00", "currency": "SGD" },
+      "group": { "id": 7, "reference": "EVG12-7", "amount_total": "45.00", "donation_amount": "5.00", "amount_total_with_donation": "50.00", "currency": "SGD", "status": "pending", "payment_proof_uploaded": true },
+      "items": [
+        { "participant": {"id": 101, "first_name": "A", ...}, "registered_at": "...", "confirmed": false, "registration": { "id": 15, "reference": "EV12-15", "amount": "15.00", "currency": "SGD", "status": "pending" } },
+        { ... }
+      ]
+    }
+    ```
+- GET `/api/v1/event-registration-groups/{id}` → group summary with items and statuses.
+  - Response includes: `{ amount_total, donation_amount, amount_total_with_donation, ... }` and for each item, registration includes `{ amount, donation_amount, amount_with_donation, ... }`.
+- POST `/api/v1/event-registration-groups/{id}/payment/paynow-proof` (multipart) → upload/replace a single PayNow proof for the whole group.
+
+Price Tiers (Lightweight JSON)
+
+- `OrganizedEvent.price_tiers` (JSONField): optional list of rule-based tiers used to compute unit price per participant.
+  - Example:
+    [
+      {"code":"student","name":"Under 19","rule":"age:<19","price_incl_tax":10.0},
+      {"code":"adult","name":"Adult","rule":"*","price_incl_tax":15.0}
+    ]
+  - Rules: very simple matcher supporting `*` (always), or `<, <=, >, >=, ==` against a scalar in participant `extra_json`.
+    - `age:<19` means pick this tier if `extra_json.age` is numerically less than 19.
+  - First matching tier wins; fallback is `OrganizedEvent.price_incl_tax` if no match or tiers missing.
+
+- API usage:
+  - Include relevant fields in `extra_json` when registering participants, e.g. `{ "age": 17 }`.
+  - Responses for paid registrations include `unit_price` and `amount` per participant; bulk responses include a total `amount` across all items.
+  - Free if computed `amount` is 0; mixed groups are supported by summing per-participant prices.
+
+- Event payloads:
+  - GET `/api/v1/events` and `/api/v1/events/{id}` now include `price_tiers` for the frontend to render choices or hints.
 
 Payments: Event Auto-Verification Webhook (New)
 
 - POST `/api/verify-event-payment/`
   - Headers: `Authorization: Bearer <JWT>` signed with `settings.JWT_SECRET` using HS256.
-  - Payload: `{ registration_id?: number, reference?: string, amount: string }`.
-  - Behavior: Validates token and amount against the `EventRegistration.amount`, marks registration as paid and confirms the participant (`EventParticipant.is_confirmed = True`). Idempotent-safe: if already paid, returns 400.
+  - Payload options:
+    - Single registration: `{ registration_id?: number, reference?: string, amount: string }`
+    - Group payment: `{ group_id?: number, group_reference?: string, amount: string }`
+    - Provide either registration fields or group fields, not both.
+  - Behavior:
+    - Registration path: Validates amount equals `EventRegistration.amount + EventRegistration.donation_amount`, marks it paid via `reg.verify()` which also confirms the participant. If already paid, returns 400.
+    - Group path: Validates amount equals `EventRegistrationGroup.amount_total + EventRegistrationGroup.donation_amount`, marks the group paid via `group.verify()`, which verifies all child registrations and confirms their participants. If already paid, returns 400.
 
 Payments: Auto-Verification Webhook (Already Present)
 

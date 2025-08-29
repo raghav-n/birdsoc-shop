@@ -14,6 +14,7 @@ from apps.api.tests.utils import create_event
 OrganizedEvent = get_model("event", "OrganizedEvent")
 EventParticipant = get_model("event", "EventParticipant")
 EventRegistration = get_model("event", "EventRegistration")
+EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
 
 class EventsAndRegistrationsExtraTests(APITestCase):
@@ -282,4 +283,44 @@ class EventsAndRegistrationsExtraTests(APITestCase):
             {},
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
+        self.assertEqual(r.status_code, 400)
+
+    def test_verify_event_group_payment_success_and_idempotency(self):
+        e = create_event()
+        e.price_incl_tax = Decimal("5.00")
+        e.save()
+
+        # Create a paid bulk registration (2 participants)
+        payload = {
+            "participants": [
+                {"first_name": "G1", "last_name": "A", "email": "g1@example.com", "quantity": 1},
+                {"first_name": "G2", "last_name": "B", "email": "g2@example.com", "quantity": 2},
+            ]
+        }
+        r = self.client.post(f"/api/v1/events/{e.id}/register/bulk", payload, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertIn("group", r.data)
+        group = r.data["group"]
+        group_id = group["id"]
+        amount_total = group["amount_total"]
+
+        # Verify via webhook using group_id + amount
+        token = jwt.encode(
+            {"group_id": group_id, "amount": amount_total}, settings.JWT_SECRET, algorithm="HS256"
+        )
+        r = self.client.post("/api/verify-event-payment/", {}, HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.assertEqual(r.status_code, 200, r.json())
+
+        # Check DB states
+        grp = EventRegistrationGroup._default_manager.get(id=group_id)
+        self.assertTrue(grp.payment_verified)
+        # All child registrations paid and participants confirmed
+        regs = grp.registrations.all()
+        self.assertTrue(all(rg.payment_verified and rg.status == "paid" for rg in regs))
+        for rg in regs:
+            ep = EventParticipant._default_manager.get(event=e, participant=rg.participant)
+            self.assertTrue(ep.is_confirmed)
+
+        # Second call should be idempotent-safe (400 already paid)
+        r = self.client.post("/api/verify-event-payment/", {}, HTTP_AUTHORIZATION=f"Bearer {token}")
         self.assertEqual(r.status_code, 400)

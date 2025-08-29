@@ -18,6 +18,8 @@ from apps.api.views.events import EventsViewSet
 from apps.api.views.event_registrations import (
     EventRegistrationDetailView,
     EventRegistrationProofUploadView,
+    EventRegistrationGroupDetailView,
+    EventRegistrationGroupProofUploadView,
 )
 from apps.api.views.auth import (
     RegisterView,
@@ -88,6 +90,16 @@ urlpatterns = [
         "event-registrations/<int:reg_id>/payment/paynow-proof",
         EventRegistrationProofUploadView.as_view(),
         name="event-registration-paynow-proof",
+    ),
+    path(
+        "event-registration-groups/<int:group_id>",
+        EventRegistrationGroupDetailView.as_view(),
+        name="event-registration-group-detail",
+    ),
+    path(
+        "event-registration-groups/<int:group_id>/payment/paynow-proof",
+        EventRegistrationGroupProofUploadView.as_view(),
+        name="event-registration-group-paynow-proof",
     ),
 
     # Routers

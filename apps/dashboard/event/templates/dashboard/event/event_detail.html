@@ -191,17 +191,18 @@
 
     <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h3>{% trans "Registrations & Payments" %}</h3>
+            <h3>{% trans "Payments" %}</h3>
         </div>
         <div class="card-body">
-            {% if registrations %}
+            {% if groups %}
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>{% trans "Reference" %}</th>
-                            <th>{% trans "Participant" %}</th>
-                            <th>{% trans "Quantity" %}</th>
-                            <th>{% trans "Amount" %}</th>
+                            <th>{% trans "Group Reference" %}</th>
+                            <th>{% trans "Payer" %}</th>
+                            <th>{% trans "Contact" %}</th>
+                            <th>{% trans "Registrations" %}</th>
+                            <th>{% trans "Amount Total" %}</th>
                             <th>{% trans "Status" %}</th>
                             <th>{% trans "Proof" %}</th>
                             <th>{% trans "Verified" %}</th>
@@ -209,40 +210,49 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for reg in registrations %}
+                        {% for grp in groups %}
                             <tr>
-                                <td>{{ reg.reference }}</td>
-                                <td>{{ reg.participant.full_name }} ({{ reg.participant.email }})</td>
-                                <td>{{ reg.participant.quantity }}</td>
-                                <td>{{ reg.currency }} {{ reg.amount }}</td>
+                                <td>{{ grp.reference }}</td>
+                                <td>{{ grp.payer_name|default:"-" }}</td>
                                 <td>
-                                    {% if reg.status == 'paid' %}
+                                    {% if grp.payer_email %}{{ grp.payer_email }}<br/>{% endif %}
+                                    {% if grp.payer_phone %}<small class="text-muted">{{ grp.payer_phone }}</small>{% endif %}
+                                </td>
+                                <td>
+                                    {{ grp.registrations.count }}<br>
+                                    {% for first_name, last_name in grp.paid_for %}
+                                        <small class="text-muted">{{ first_name }} {{ last_name }}</small>{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>{{ grp.currency }} {{ grp.amount_total }}</td>
+                                <td>
+                                    {% if grp.status == 'paid' %}
                                         <span class="badge badge-success">{% trans "Paid" %}</span>
-                                    {% elif reg.status == 'pending' %}
+                                    {% elif grp.status == 'pending' %}
                                         <span class="badge badge-warning">{% trans "Pending" %}</span>
                                     {% else %}
-                                        <span class="badge badge-secondary">{{ reg.status }}</span>
+                                        <span class="badge badge-secondary">{{ grp.status }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if reg.payment_proof %}
-                                        <a href="{{ reg.payment_proof.url }}" target="_blank">{% trans "View" %}</a>
+                                    {% if grp.payment_proof %}
+                                        <a href="{{ grp.payment_proof.url }}" target="_blank">{% trans "View" %}</a>
                                     {% else %}
                                         <span class="text-muted">{% trans "None" %}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if reg.payment_verified %}
-                                        {{ reg.payment_verified_on|date:"Y-m-d H:i" }}
+                                    {% if grp.payment_verified %}
+                                        {{ grp.payment_verified_on|date:"Y-m-d H:i" }}
                                     {% else %}
                                         <span class="text-muted">{% trans "No" %}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if not reg.payment_verified %}
-                                        <form method="post" action="{% url 'event-dashboard:event-registration-verify' reg_id=reg.id %}">
+                                    {% if not grp.payment_verified %}
+                                        <form method="post" action="{% url 'event-dashboard:event-registration-group-verify' group_id=grp.id %}">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-success">{% trans "Mark as Paid" %}</button>
+                                            <button type="submit" class="btn btn-sm btn-success">{% trans "Mark Group as Paid" %}</button>
                                         </form>
                                     {% else %}
                                         <span class="text-muted">—</span>
@@ -253,10 +263,11 @@
                     </tbody>
                 </table>
             {% else %}
-                <p class="text-muted">{% trans "No registrations for this event yet." %}</p>
+                <p class="text-muted">{% trans "No group payments for this event yet." %}</p>
             {% endif %}
         </div>
     </div>
+
 {% endblock dashboard_content %}
 
 {% block extrascripts %}

@@ -1,7 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from decimal import Decimal, InvalidOperation
 
+import json
 import jsonschema
 
 
@@ -25,12 +27,20 @@ class OrganizedEvent(models.Model):
         _("Price (incl tax)"), max_digits=12, decimal_places=2, default=0
     )
     currency = models.CharField(_("Currency"), max_length=8, default="SGD")
-    json_schema = models.CharField(
+    json_schema = models.JSONField(
         _("JSON schema"),
-        max_length=255,
         blank=True,
         null=True,
         help_text=_("Optional JSON schema for additional participant data"),
+    )
+    price_tiers = models.JSONField(
+        _("Price Tiers"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "Optional list of price tier rules. Example: "
+            "[{\"code\":\"student\",\"name\":\"Under 19\",\"rule\":\"age:<19\",\"price_incl_tax\":10.0}, {\"code\":\"adult\",\"name\":\"Adult\",\"rule\":\"*\",\"price_incl_tax\":15.0}]"
+        ),
     )
     validate_participant_data = models.BooleanField(
         _("Validate participant data"),
@@ -83,8 +93,18 @@ class OrganizedEvent(models.Model):
             if not kwargs.get("extra_json"):
                 raise ValueError("Missing extra_json for participant data validation.")
 
+            # Parse schema if stored as text
             try:
-                jsonschema.validate(instance=kwargs.get("extra_json", {}), schema=self.json_schema)
+                schema = (
+                    json.loads(self.json_schema)
+                    if isinstance(self.json_schema, str)
+                    else self.json_schema
+                )
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON schema configured: {e.msg}")
+
+            try:
+                jsonschema.validate(instance=kwargs.get("extra_json", {}), schema=schema)
             except jsonschema.ValidationError as e:
                 raise ValueError(f"Participant data validation error: {e.message}")
 
@@ -95,13 +115,7 @@ class OrganizedEvent(models.Model):
                     f"Cannot add participant. Only {self.max_participants - current_count} spots remaining, but participant requires {participant.quantity}."
                 )
 
-        # Check if the participant is already registered
-        existing = EventParticipant.objects.filter(
-            event=self, participant=participant
-        ).exists()
-
-        if existing:
-            raise ValueError("Participant is already registered for this event.")
+        # Allow duplicate emails
 
         return EventParticipant.objects.create(
             event=self, participant=participant, **kwargs
@@ -112,6 +126,86 @@ class OrganizedEvent(models.Model):
         return EventParticipant.objects.filter(
             event=self, participant=participant
         ).delete()
+
+    # ----- Pricing helpers: lightweight JSON-configured tiers -----
+    def _coerce_decimal(self, value, default: Decimal) -> Decimal:
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return default
+
+    def _match_rule(self, rule: str, extra: dict) -> bool:
+        """
+        Very simple matcher supporting patterns like:
+        - "*" → always matches
+        - "age:<19"  (operators: <, <=, >, >=, ==)
+        Values are compared numerically if possible, else string compare for ==.
+        """
+        if not rule or rule == "*":
+            return True
+        if ":" not in rule:
+            return False
+        field, cond = rule.split(":", 1)
+        field = field.strip()
+        cond = cond.strip()
+        if not isinstance(extra, dict):
+            return False
+        if field not in extra:
+            return False
+        val = extra.get(field)
+
+        # Determine operator and threshold
+        ops = ["<=", ">=", "<", ">", "=="]
+        op = None
+        threshold = cond
+        for candidate in ops:
+            if cond.startswith(candidate):
+                op = candidate
+                threshold = cond[len(candidate):].strip()
+                break
+        # Support legacy style like "<19" (missing == prefix for equality not used)
+        if op is None and cond and cond[0] in ("<", ">"):
+            op = cond[0]
+            threshold = cond[1:].strip()
+
+        # Try numeric comparison when op involves ordering
+        if op in ("<", ">", "<=", ">="):
+            try:
+                val_num = float(val)
+                thr_num = float(threshold)
+            except Exception:
+                return False
+            if op == "<":
+                return val_num < thr_num
+            if op == ">":
+                return val_num > thr_num
+            if op == "<=":
+                return val_num <= thr_num
+            if op == ">=":
+                return val_num >= thr_num
+        elif op == "==":
+            return str(val) == threshold
+        else:
+            # No operator recognized; exact match on string
+            return str(val) == threshold
+
+    def get_unit_price_from_tiers(self, extra_json: dict) -> Decimal:
+        """
+        Resolve unit price using price_tiers rules. Falls back to event.price_incl_tax.
+        Tiers are checked in list order; the first matching rule wins.
+        """
+        fallback = self.price_incl_tax or Decimal("0")
+        tiers = self.price_tiers or []
+        if not tiers:
+            return fallback
+        if isinstance(tiers, dict):
+            # Allow a map, but prefer list; treat dict as {code: {rule, price_incl_tax}}
+            tiers = [dict({"code": code}, **cfg) for code, cfg in tiers.items() if isinstance(cfg, dict)]
+        for tier in tiers:
+            rule = tier.get("rule")
+            if self._match_rule(str(rule or "*"), extra_json or {}):
+                return self._coerce_decimal(tier.get("price_incl_tax"), fallback)
+        return fallback
 
 
 class Participant(models.Model):
@@ -189,8 +283,18 @@ class EventRegistration(models.Model):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="pending")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # Optional donation top-up for this single registration
+    donation_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     currency = models.CharField(max_length=8, default="SGD")
     reference = models.CharField(max_length=64, unique=True)
+    # Optional link to a group registration
+    group = models.ForeignKey(
+        "event.EventRegistrationGroup",
+        on_delete=models.CASCADE,
+        related_name="registrations",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     payment_verified = models.BooleanField(default=False)
     payment_verified_by = models.ForeignKey(
@@ -223,3 +327,63 @@ class EventRegistration(models.Model):
             event=self.event, participant=self.participant
         ).update(is_confirmed=True)
         return True
+
+
+class EventRegistrationGroup(models.Model):
+    """
+    A group registration/payment that covers multiple EventRegistration rows.
+    Allows one payer to register and pay for multiple participants in one shot.
+    """
+
+    STATUS_CHOICES = (
+        ("pending", "Pending payment"),
+        ("paid", "Paid"),
+        ("cancelled", "Cancelled"),
+    )
+
+    event = models.ForeignKey(OrganizedEvent, on_delete=models.CASCADE)
+    payer_name = models.CharField(_("Payer Name"), max_length=255, blank=True)
+    payer_email = models.EmailField(_("Payer Email"), blank=True)
+    payer_phone = models.CharField(_("Payer Phone"), max_length=32, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="pending")
+    amount_total = models.DecimalField(max_digits=12, decimal_places=2)
+    # Optional donation top-up that applies to the whole group
+    donation_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="SGD")
+    reference = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    payment_verified = models.BooleanField(default=False)
+    payment_verified_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    payment_verified_on = models.DateTimeField(null=True, blank=True)
+    from apps.payment.models import get_payment_proof_path as _grp_payment_path
+    payment_proof = models.ImageField(null=True, upload_to=_grp_payment_path)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"EVG-{self.id} {self.event.title} ({self.status})"
+
+    def verify(self, user=None):
+        """Mark group payment as verified and confirm all linked registrations/participants."""
+        from django.utils import timezone
+
+        if self.payment_verified:
+            return True
+        # Verify all child registrations
+        for reg in self.registrations.select_related("event", "participant").all():
+            reg.verify(user)
+
+        self.payment_verified = True
+        self.status = "paid"
+        self.payment_verified_by = user
+        self.payment_verified_on = timezone.now()
+        self.save()
+        return True
+    
+    @property
+    def paid_for(self):
+        """Return all Participants linked to this payment group."""
+        return self.registrations.select_related("participant").values_list("participant__first_name", "participant__last_name")
