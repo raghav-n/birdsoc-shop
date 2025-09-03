@@ -449,7 +449,7 @@ CORS_ALLOW_CREDENTIALS = False
 # Adjust this in production
 CORS_ALLOW_ALL_ORIGINS = not SESSION_ENVIRONMENT_PRODUCTION
 
-CORS_ALLOWED_ORIGINS = [
+CORS_ALLOWED_ORIGIN_REGEXES = [
     "https:\/\/([a-z0-9-]+\.)*birdsociety\.sg$"
 ]
 
