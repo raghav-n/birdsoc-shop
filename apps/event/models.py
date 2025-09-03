@@ -47,6 +47,12 @@ class OrganizedEvent(models.Model):
         default=False,
         help_text=_("If true, participant data will be validated against the JSON schema"),
     )
+    confirmed_email_template = models.TextField(
+        _("Payment Confirmation Email Template"),
+        blank=True,
+        null=True,
+        help_text=_("HTML email template sent when payment is confirmed. Available variables: {{first_name}}, {{last_name}}, {{email}}, {{phone_number}}, {{quantity}}, {{event_title}}, {{event_date}}, {{event_location}}, {{amount}}, {{currency}}, {{participant_details}}"),
+    )
 
     class Meta:
         ordering = ["-start_date"]
@@ -254,6 +260,7 @@ class EventParticipant(models.Model):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     registered_at = models.DateTimeField(_("Registered At"), auto_now_add=True)
     is_confirmed = models.BooleanField(_("Confirmed"), default=False)
+    is_main_contact = models.BooleanField(_("Main Contact"), default=True, help_text=_("Only main contacts receive payment confirmation emails"))
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
     extra_json = models.JSONField(_("Extra data"), blank=True, null=True)
@@ -326,6 +333,11 @@ class EventRegistration(models.Model):
         EventParticipant.objects.filter(
             event=self.event, participant=self.participant
         ).update(is_confirmed=True)
+        
+        # Send payment confirmation email
+        from .utils import send_payment_confirmation_email
+        send_payment_confirmation_email(self)
+        
         return True
 
 
@@ -372,15 +384,31 @@ class EventRegistrationGroup(models.Model):
 
         if self.payment_verified:
             return True
-        # Verify all child registrations
+        
+        # Verify all child registrations (without sending individual emails)
         for reg in self.registrations.select_related("event", "participant").all():
-            reg.verify(user)
+            if not reg.payment_verified:
+                reg.payment_verified = True
+                reg.status = "paid"
+                reg.payment_verified_by = user
+                reg.payment_verified_on = timezone.now()
+                reg.save()
+
+                # Confirm the EventParticipant
+                EventParticipant.objects.filter(
+                    event=reg.event, participant=reg.participant
+                ).update(is_confirmed=True)
 
         self.payment_verified = True
         self.status = "paid"
         self.payment_verified_by = user
         self.payment_verified_on = timezone.now()
         self.save()
+        
+        # Send confirmation emails for all registrations in the group
+        from .utils import send_group_payment_confirmation_emails
+        send_group_payment_confirmation_emails(self)
+        
         return True
     
     @property

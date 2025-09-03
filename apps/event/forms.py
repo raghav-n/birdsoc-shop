@@ -17,6 +17,7 @@ class EventForm(forms.ModelForm):
             "validate_participant_data",
             "price_incl_tax",
             "currency",
+            "confirmed_email_template",
             "is_active",
         ]
         widgets = {
@@ -25,6 +26,11 @@ class EventForm(forms.ModelForm):
             # Allow editing JSON comfortably
             "json_schema": forms.Textarea(attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}),
             "price_tiers": forms.Textarea(attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}),
+            "confirmed_email_template": forms.Textarea(attrs={
+                "rows": 15, 
+                "class": "form-control", 
+                "placeholder": "Enter your HTML email template here. Use the Variables menu in the editor to insert template variables."
+            }),
         }
 
     def clean(self):

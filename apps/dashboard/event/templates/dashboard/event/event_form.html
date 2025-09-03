@@ -30,7 +30,58 @@
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
-                {% include 'oscar/dashboard/partials/form_fields.html' with form=form %}
+                {% for field in form %}
+                    {% if field.name == 'confirmed_email_template' %}
+                        <div class="form-group">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% if field.help_text %}
+                                <div class="alert alert-info mb-2">
+                                    <small>{{ field.help_text }}</small>
+                                </div>
+                                <div class="alert alert-warning mb-2">
+                                    <strong>Available Template Variables:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li><code>{% verbatim %}{{first_name}}{% endverbatim %}</code> - Participant's first name</li>
+                                        <li><code>{% verbatim %}{{last_name}}{% endverbatim %}</code> - Participant's last name</li>
+                                        <li><code>{% verbatim %}{{email}}{% endverbatim %}</code> - Participant's email address</li>
+                                        <li><code>{% verbatim %}{{phone_number}}{% endverbatim %}</code> - Participant's phone number</li>
+                                        <li><code>{% verbatim %}{{quantity}}{% endverbatim %}</code> - Number of people for this registration</li>
+                                        <li><code>{% verbatim %}{{event_title}}{% endverbatim %}</code> - Event title</li>
+                                        <li><code>{% verbatim %}{{event_date}}{% endverbatim %}</code> - Event date (formatted)</li>
+                                        <li><code>{% verbatim %}{{event_location}}{% endverbatim %}</code> - Event location</li>
+                                        <li><code>{% verbatim %}{{amount}}{% endverbatim %}</code> - Total amount paid (including donation)</li>
+                                        <li><code>{% verbatim %}{{currency}}{% endverbatim %}</code> - Currency (e.g., SGD)</li>
+                                        <li><code>{% verbatim %}{{registration_reference}}{% endverbatim %}</code> - Registration reference number</li>
+                                        <li><code>{% verbatim %}{{participant_details}}{% endverbatim %}</code> - Participant details (name, phone number, etc.)</li>
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ field.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% elif field.name == 'json_schema' or field.name == 'price_tiers' %}
+                        <div class="form-group">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% if field.help_text %}
+                                <div class="alert alert-info mb-2">
+                                    <small>{{ field.help_text }}</small>
+                                </div>
+                            {% endif %}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ field.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        {% include 'oscar/dashboard/partials/form_field.html' %}
+                    {% endif %}
+                {% endfor %}
                 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
@@ -73,3 +124,157 @@
     </div>
     {% endif %}
 {% endblock dashboard_content %}
+
+{% block extrascripts %}
+    {{ block.super }}
+    <!-- Include TinyMCE from CDN -->
+    <script src="https://cdn.tiny.cloud/1/kifouz8br5h4jxd86qad37cshlsdzkq4jkytzkcfwis0e8fh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Initialize TinyMCE for the email template textarea
+            if ($('#id_confirmed_email_template').length) {
+                tinymce.init({
+                    selector: '#id_confirmed_email_template',
+                    height: 400,
+                    menubar: true,
+                    plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                    ],
+                    toolbar: 'undo redo | formatselect | ' +
+                    'bold italic backcolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | code | help',
+                    content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                    setup: function(editor) {
+                        // Update original textarea when editor content changes
+                        editor.on('change', function() {
+                            editor.save(); // Sync content to the original textarea
+                        });
+                        
+                        // Add template variables as quick insert buttons
+                        editor.ui.registry.addMenuButton('templatevars', {
+                            text: 'Variables',
+                            fetch: function (callback) {
+                                var items = [
+                                    {
+                                        type: 'menuitem',
+                                        text: 'First Name',
+                                        onAction: function () {
+                                            editor.insertContent('{{first_name}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Last Name',
+                                        onAction: function () {
+                                            editor.insertContent('{{last_name}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Email',
+                                        onAction: function () {
+                                            editor.insertContent('{{email}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Phone Number',
+                                        onAction: function () {
+                                            editor.insertContent('{{phone_number}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Quantity',
+                                        onAction: function () {
+                                            editor.insertContent('{{quantity}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Event Title',
+                                        onAction: function () {
+                                            editor.insertContent('{{event_title}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Event Date',
+                                        onAction: function () {
+                                            editor.insertContent('{{event_date}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Event Location',
+                                        onAction: function () {
+                                            editor.insertContent('{{event_location}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Amount',
+                                        onAction: function () {
+                                            editor.insertContent('{{amount}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Currency',
+                                        onAction: function () {
+                                            editor.insertContent('{{currency}}');
+                                        }
+                                    },
+                                    {
+                                        type: 'menuitem',
+                                        text: 'Registration Reference',
+                                        onAction: function () {
+                                            editor.insertContent('{{registration_reference}}');
+                                        }
+                                    }
+                                ];
+                                callback(items);
+                            }
+                        });
+                        
+                        // Add template starter button
+                        editor.ui.registry.addButton('startertemplate', {
+                            text: 'Starter Template',
+                            onAction: function () {
+                                var starterTemplate = `<h2 style="color: #2c5234;">Payment Confirmed - {{event_title}}</h2>
+
+<p>Dear {{first_name}},</p>
+
+<p>Thank you! Your payment has been confirmed for <strong>{{event_title}}</strong>.</p>
+
+<h3>Event Details:</h3>
+<ul>
+    <li><strong>Event:</strong> {{event_title}}</li>
+    <li><strong>Date:</strong> {{event_date}}</li>
+    <li><strong>Location:</strong> {{event_location}}</li>
+    <li><strong>Participants:</strong> {{quantity}}</li>
+    <li><strong>Amount Paid:</strong> {{currency}} {{amount}}</li>
+    <li><strong>Reference:</strong> {{registration_reference}}</li>
+</ul>
+
+<p>We look forward to seeing you at the event!</p>
+
+<p>Best regards,<br>
+Bird Society of Singapore</p>`;
+                                editor.setContent(starterTemplate);
+                            }
+                        });
+                    },
+                    // Add the template variables button to the toolbar
+                    toolbar: 'undo redo | formatselect | ' +
+                    'bold italic backcolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | code | startertemplate | templatevars | help'
+                });
+            }
+        });
+    </script>
+{% endblock extrascripts %}
