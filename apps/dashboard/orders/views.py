@@ -21,9 +21,13 @@ from django.utils import timezone
 from django.urls import reverse
 from oscar.apps.voucher.models import Voucher
 from decimal import Decimal
+from django.db.models import Count, Sum
+
+from oscar.apps.dashboard.orders.views import OrderStatsView as BaseOrderStatsView, queryset_orders_for_user
 
 Product = get_model("catalogue", "Product")
 Line = get_model("basket", "Line")
+OrderLine = get_model("order", "Line")
 Order = get_model("order", "Order")
 Basket = get_model("basket", "Basket")
 Selector = get_class("partner.strategy", "Selector")
@@ -800,3 +804,46 @@ class SiteOffersView(View):
                 "original_total": float(original_total),
             }
         )
+
+class OrderStatsView(BaseOrderStatsView):
+    template_name = "oscar/dashboard/orders/statistics.html"
+    
+    def get_stats(self, filters):
+        orders = queryset_orders_for_user(self.request.user).filter(**filters)
+        
+        # Collect number of units sold of each product
+        product_sales = (
+            OrderLine.objects.filter(order__in=orders)
+            .values('product__title', 'product__id')
+            .annotate(
+                total_quantity=Sum('quantity'),
+                total_revenue=Sum('line_price_incl_tax')
+            )
+            .order_by('-total_quantity')
+        )
+        
+        # Format product sales data for easier consumption
+        product_sales_list = []
+        for item in product_sales:
+            product_sales_list.append({
+                'product_id': item['product__id'],
+                'product_title': item['product__title'],
+                'units_sold': item['total_quantity'],
+                'revenue': item['total_revenue'] or Decimal('0.00')
+            })
+
+        print(f"Product sales data: {product_sales_list}")
+        
+        stats = {
+            "total_orders": orders.count(),
+            "total_lines": OrderLine.objects.filter(order__in=orders).count(),
+            "total_revenue": orders.aggregate(Sum("total_incl_tax"))[
+                "total_incl_tax__sum"
+            ]
+            or Decimal("0.00"),
+            "order_status_breakdown": orders.order_by("status")
+            .values("status")
+            .annotate(freq=Count("id")),
+            "product_sales": product_sales_list,
+        }
+        return stats

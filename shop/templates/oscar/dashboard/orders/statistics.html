@@ -1,0 +1,29 @@
+{% extends "oscar/dashboard/orders/statistics.html" %}
+{% load i18n %}
+{% load currency_filters %}
+
+{% block dashboard_content %}
+{{ block.super }}
+
+<table class="table table-bordered table-hover">
+    <caption><i class="fas fa-shopping-cart"></i> {% trans "Products" %}</caption>
+    <thead>
+        <tr>
+            <th>{% trans "Product" %}</th>
+            <th>{% trans "Quantity" %}</th>
+            <th>{% trans "Revenue" %}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in product_sales %}
+        <tr>
+            <td>{{ product.product_title }}</td>
+            <td>{{ product.units_sold }}</td>
+            <td>{{ product.revenue|currency }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+        {% endfor %}
+</table>
+
+{% endblock %}
