@@ -68,6 +68,16 @@ class EventDetailView(DashboardMixin, DetailView):
         )
         ctx["groups"] = groups
         ctx["pending_count"] = event.pending_count
+        
+        # Annotate event participants with their registration references
+        event_participants = []
+        for ep in event.eventparticipant_set.select_related('participant').all():
+            # Find the registration for this participant for this event
+            registration = event.eventregistration_set.filter(participant=ep.participant).first()
+            ep.registration_reference = registration.reference if registration else None
+            event_participants.append(ep)
+        ctx["event_participants"] = event_participants
+        
         return ctx
 
 class EventRegistrationVerifyView(DashboardMixin, View):
