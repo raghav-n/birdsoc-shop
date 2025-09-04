@@ -28,6 +28,7 @@ from apps.api.views.auth import (
     PasswordResetView,
     PasswordResetConfirmView,
 )
+from apps.api.views.contact import ContactFormAPIView
 from apps.api.views.checkout import (
     PayNowProofUploadView,
     PlaceOrderView,
@@ -56,6 +57,7 @@ urlpatterns = [
     # Misc
     path("health", HealthView.as_view(), name="health"),
     path("config", ConfigView.as_view(), name="config"),
+    path("contact", ContactFormAPIView.as_view(), name="contact"),
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
     path("checkout/shipping-methods", ShippingMethodsView.as_view(), name="checkout-shipping-methods"),
     path("checkout/payment/paynow-proof", PayNowProofUploadView.as_view(), name="checkout-paynow-proof"),
