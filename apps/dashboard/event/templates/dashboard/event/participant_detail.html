@@ -47,6 +47,14 @@
                             <td>{{ participant.phone_number|default:"-" }}</td>
                         </tr>
                         <tr>
+                            <th>{% trans "Emergency Contact Name" %}</th>
+                            <td>{{ participant.emergency_contact_name|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Emergency Contact Phone" %}</th>
+                            <td>{{ participant.emergency_contact_phone|default:"-" }}</td>
+                        </tr>
+                        <tr>
                             <th>{% trans "Party Size" %}</th>
                             <td>{{ participant.quantity }} {% if participant.quantity > 1 %}{% trans "people" %}{% else %}{% trans "person" %}{% endif %}</td>
                         </tr>

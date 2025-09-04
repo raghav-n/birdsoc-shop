@@ -79,6 +79,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         last_name = (request.data.get("last_name") or "").strip()
         email = (request.data.get("email") or "").strip()
         phone_number = (request.data.get("phone_number") or "").strip()
+        emergency_contact_name = (request.data.get("emergency_contact_name") or "").strip()
+        emergency_contact_phone = (request.data.get("emergency_contact_phone") or "").strip()
         try:
             quantity = int(request.data.get("quantity", 1))
         except Exception:
@@ -101,6 +103,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             last_name=last_name,
             email=email,
             phone_number=phone_number,
+            emergency_contact_name=emergency_contact_name,
+            emergency_contact_phone=emergency_contact_phone,
             quantity=quantity,
         )
         # Parse optional extra JSON fields for the participant
@@ -161,6 +165,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                         "last_name": participant.last_name,
                         "email": participant.email,
                         "phone_number": participant.phone_number,
+                        "emergency_contact_name": participant.emergency_contact_name,
+                        "emergency_contact_phone": participant.emergency_contact_phone,
                         "quantity": participant.quantity,
                     },
                     "registered_at": event_participant.registered_at,
@@ -188,6 +194,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             amount=amount,
             currency=event.currency,
             reference="",  # set after we have an ID
+            emergency_contact_name=emergency_contact_name,
+            emergency_contact_phone=emergency_contact_phone,
             donation_amount=Decimal(donation_int or 0),
         )
         # Set deterministic reference now that we have an ID
@@ -209,6 +217,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "last_name": participant.last_name,
                     "email": participant.email,
                     "phone_number": participant.phone_number,
+                    "emergency_contact_name": participant.emergency_contact_name,
+                    "emergency_contact_phone": participant.emergency_contact_phone,
                     "quantity": participant.quantity,
                 },
                 "registered_at": event_participant.registered_at,
@@ -220,6 +230,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "donation_amount": str(reg.donation_amount),
                     "amount_with_donation": str(reg.amount + reg.donation_amount),
                     "currency": reg.currency,
+                    "emergency_contact_name": reg.emergency_contact_name,
+                    "emergency_contact_phone": reg.emergency_contact_phone,
                     "status": reg.status,
                     "unit_price": str(unit_price),
                 },
@@ -299,6 +311,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             last_name = (item.get("last_name") or "").strip()
             email = (item.get("email") or "").strip()
             phone_number = (item.get("phone_number") or "").strip()
+            emergency_contact_name = (item.get("emergency_contact_name") or "").strip()
+            emergency_contact_phone = (item.get("emergency_contact_phone") or "").strip()
             try:
                 quantity = int(item.get("quantity", 1))
             except Exception:
@@ -330,6 +344,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "last_name": last_name,
                 "email": email,
                 "phone_number": phone_number,
+                "emergency_contact_name": emergency_contact_name,
+                "emergency_contact_phone": emergency_contact_phone,
                 "quantity": quantity,
                 "extra_json": extra_json,
             })
@@ -412,6 +428,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 last_name=item["last_name"],
                 email=item["email"],
                 phone_number=item["phone_number"],
+                emergency_contact_name=item["emergency_contact_name"],
+                emergency_contact_phone=item["emergency_contact_phone"],
                 quantity=item["quantity"],
             )
 
@@ -427,6 +445,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "last_name": p.last_name,
                     "email": p.email,
                     "phone_number": p.phone_number,
+                    "emergency_contact_name": p.emergency_contact_name,
+                    "emergency_contact_phone": p.emergency_contact_phone,
                     "quantity": p.quantity,
                 },
                 "registered_at": ep.registered_at,
@@ -442,6 +462,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     amount=amount,
                     currency=event.currency,
                     reference="",
+                    emergency_contact_name=item.get("emergency_contact_name", ""),
+                    emergency_contact_phone=item.get("emergency_contact_phone", ""),
                     group=group,
                 )
                 reg.reference = f"EV{event.id}-{reg.id}"
@@ -452,6 +474,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "amount": str(reg.amount),
                     "unit_price": str(unit_price),
                     "currency": reg.currency,
+                    "emergency_contact_name": reg.emergency_contact_name,
+                    "emergency_contact_phone": reg.emergency_contact_phone,
                     "status": reg.status,
                 }
             items.append(entry)

@@ -160,7 +160,12 @@
                             <tr id="participant-{{ ep.participant.id }}">
                                 <td>{{ ep.participant.first_name }} {{ ep.participant.last_name }}</td>
                                 <td>{{ ep.participant.email }}</td>
-                                <td>{{ ep.participant.phone_number|default:"-" }}</td>
+                                <td>
+                                    {{ ep.participant.phone_number|default:"-" }}
+                                    {% if ep.participant.emergency_contact_phone %}
+                                        <br><small class="text-muted">Emergency: {{ ep.participant.emergency_contact_phone }}</small>
+                                    {% endif %}
+                                </td>
                                 <td>{{ ep.participant.quantity }}</td>
                                 <td>
                                     {% if ep.registration_reference %}
@@ -328,6 +333,9 @@
                                 <td>
                                     {{ reg.participant.email }}<br/>
                                     {% if reg.participant.phone_number %}<small class="text-muted">{{ reg.participant.phone_number }}</small>{% endif %}
+                                    {% if reg.participant.emergency_contact_phone %}
+                                        <br/><small class="text-muted">Emergency: {{ reg.participant.emergency_contact_phone }}</small>
+                                    {% endif %}
                                 </td>
                                 <td>{{ reg.participant.quantity }}</td>
                                 <td>{{ reg.currency }} {{ reg.amount }}</td>

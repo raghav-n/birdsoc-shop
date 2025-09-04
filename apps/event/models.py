@@ -224,6 +224,8 @@ class Participant(models.Model):
     last_name = models.CharField(_("Last Name"), max_length=100)
     email = models.EmailField(_("Email"))
     phone_number = models.CharField(_("Phone Number"), max_length=20, blank=True)
+    emergency_contact_name = models.CharField(_("Emergency Contact Name"), max_length=200, blank=True)
+    emergency_contact_phone = models.CharField(_("Emergency Contact Phone"), max_length=20, blank=True)
     quantity = models.PositiveIntegerField(
         _("Party Size"),
         default=1,
@@ -294,6 +296,8 @@ class EventRegistration(models.Model):
     donation_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     currency = models.CharField(max_length=8, default="SGD")
     reference = models.CharField(max_length=64, unique=True)
+    emergency_contact_name = models.CharField(_("Emergency Contact Name"), max_length=200, blank=True)
+    emergency_contact_phone = models.CharField(_("Emergency Contact Phone"), max_length=20, blank=True)
     # Optional link to a group registration
     group = models.ForeignKey(
         "event.EventRegistrationGroup",
