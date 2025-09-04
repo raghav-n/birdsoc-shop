@@ -67,6 +67,21 @@
                             </td>
                         </tr>
                         <tr>
+                            <th>{% trans "Total Donations Received" %}</th>
+                            <td>
+                                {% if total_donations and total_donations|floatformat != '0' %}
+                                    <strong>{{ event.currency }} {{ total_donations }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {% trans "Individual:" %} {{ event.currency }} {{ individual_donations }}<br>
+                                        {% trans "Group:" %} {{ event.currency }} {{ group_donations }}
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">{{ event.currency }} 0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
                             <th>{% trans "Participants" %}</th>
                             <td>
                                 {{ event.participant_count }} {% trans "people" %} 
@@ -199,7 +214,7 @@
 
     <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h3>{% trans "Payments" %}</h3>
+            <h3>{% trans "Group Payments" %}</h3>
         </div>
         <div class="card-body">
             {% if groups %}
@@ -211,6 +226,7 @@
                             <th>{% trans "Contact" %}</th>
                             <th>{% trans "Registrations" %}</th>
                             <th>{% trans "Amount Total" %}</th>
+                            <th>{% trans "Donation" %}</th>
                             <th>{% trans "Status" %}</th>
                             <th>{% trans "Proof" %}</th>
                             <th>{% trans "Verified" %}</th>
@@ -233,6 +249,13 @@
                                     {% endfor %}
                                 </td>
                                 <td>{{ grp.currency }} {{ grp.amount_total }}</td>
+                                <td>
+                                    {% if grp.donation_amount and grp.donation_amount|floatformat != '0' %}
+                                        {{ grp.currency }} {{ grp.donation_amount }}
+                                    {% else %}
+                                        <span class="text-muted">{{ grp.currency }} 0</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if grp.status == 'paid' %}
                                         <span class="badge badge-success">{% trans "Paid" %}</span>
@@ -272,6 +295,88 @@
                 </table>
             {% else %}
                 <p class="text-muted">{% trans "No group payments for this event yet." %}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3>{% trans "Individual Payments" %}</h3>
+        </div>
+        <div class="card-body">
+            {% if individual_registrations %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Reference" %}</th>
+                            <th>{% trans "Participant" %}</th>
+                            <th>{% trans "Contact" %}</th>
+                            <th>{% trans "Party Size" %}</th>
+                            <th>{% trans "Amount" %}</th>
+                            <th>{% trans "Donation" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Proof" %}</th>
+                            <th>{% trans "Verified" %}</th>
+                            <th>{% trans "Actions" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in individual_registrations %}
+                            <tr>
+                                <td>{{ reg.reference }}</td>
+                                <td>{{ reg.participant.first_name }} {{ reg.participant.last_name }}</td>
+                                <td>
+                                    {{ reg.participant.email }}<br/>
+                                    {% if reg.participant.phone_number %}<small class="text-muted">{{ reg.participant.phone_number }}</small>{% endif %}
+                                </td>
+                                <td>{{ reg.participant.quantity }}</td>
+                                <td>{{ reg.currency }} {{ reg.amount }}</td>
+                                <td>
+                                    {% if reg.donation_amount and reg.donation_amount|floatformat != '0' %}
+                                        {{ reg.currency }} {{ reg.donation_amount }}
+                                    {% else %}
+                                        <span class="text-muted">{{ reg.currency }} 0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reg.status == 'paid' %}
+                                        <span class="badge badge-success">{% trans "Paid" %}</span>
+                                    {% elif reg.status == 'pending' %}
+                                        <span class="badge badge-warning">{% trans "Pending" %}</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ reg.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reg.payment_proof %}
+                                        <a href="{{ reg.payment_proof.url }}" target="_blank">{% trans "View" %}</a>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "None" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reg.payment_verified %}
+                                        {{ reg.payment_verified_on|date:"Y-m-d H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">{% trans "No" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not reg.payment_verified %}
+                                        <form method="post" action="{% url 'event-dashboard:event-registration-verify' reg_id=reg.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-success">{% trans "Mark as Paid" %}</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">{% trans "No individual payments for this event yet." %}</p>
             {% endif %}
         </div>
     </div>

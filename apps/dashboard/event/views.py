@@ -13,6 +13,7 @@ from django.views.generic import (
 )
 from django.views.generic.detail import SingleObjectMixin
 from django.views import View
+from django.db import models
 import csv
 import io
 from django.http import HttpResponseRedirect
@@ -67,7 +68,30 @@ class EventDetailView(DashboardMixin, DetailView):
             .order_by("-created_at")
         )
         ctx["groups"] = groups
+        
+        # Include individual registrations/payments (not part of a group)
+        individual_registrations = (
+            event.eventregistration_set
+            .filter(group__isnull=True)
+            .select_related('participant')
+            .order_by("-created_at")
+        )
+        ctx["individual_registrations"] = individual_registrations
+        
         ctx["pending_count"] = event.pending_count
+        
+        # Calculate total donation amounts
+        individual_donations = event.eventregistration_set.aggregate(
+            total=models.Sum('donation_amount')
+        )['total'] or 0
+        
+        group_donations = groups.aggregate(
+            total=models.Sum('donation_amount')
+        )['total'] or 0
+        
+        ctx["total_donations"] = individual_donations + group_donations
+        ctx["individual_donations"] = individual_donations
+        ctx["group_donations"] = group_donations
         
         # Annotate event participants with their registration references
         event_participants = []
