@@ -380,7 +380,6 @@ AUTHENTICATION_BACKENDS = (
 
 ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
 MANAGERS = [
-    ("Raghav Narayanswamy", "raghavnswamy@gmail.com"),
     ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com"),
     ("BirdSoc SG Sales", "birdsocsgsales@gmail.com"),
 ]
