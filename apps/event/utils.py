@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template import Template, Context
 from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,15 +37,15 @@ def send_payment_confirmation_email(event_registration):
         # This is a group registration
         group = event_registration.group
         total_participants = sum(reg.participant.quantity for reg in group.registrations.all())
-        participant_details = f"""*Participant details*
-Name of the main contact: {group.payer_name}
-Phone number of the main contact: {group.payer_phone}
-Number of participants in this order: {total_participants}"""
+        participant_details = mark_safe(f"""<strong>Participant details</strong><br>
+Name of the main contact: {group.payer_name}<br>
+Phone number of the main contact: {group.payer_phone}<br>
+Number of participants in this order: {total_participants}<br>""")
     else:
         # This is an individual registration
-        participant_details = f"""*Participant details*
-Name: {participant.first_name} {participant.last_name}
-Phone number: {participant.phone_number}"""
+        participant_details = mark_safe(f"""<strong>Participant details</strong><br>
+Name: {participant.first_name} {participant.last_name}<br>
+Phone number: {participant.phone_number}<br>""")
 
     # Prepare template context
     context_data = {
@@ -100,8 +101,86 @@ Phone number: {participant.phone_number}"""
 
 def send_group_payment_confirmation_emails(event_registration_group):
     """
-    Send payment confirmation emails for all registrations in a group.
-    Only sends emails to participants marked as main contact.
+    Send a single payment confirmation email to the group payer for all registrations in the group.
     """
-    for registration in event_registration_group.registrations.all():
-        send_payment_confirmation_email(registration)
+    group = event_registration_group
+    event = group.event
+    
+    # Skip if no email template is configured
+    if not event.confirmed_email_template or not event.confirmed_email_template.strip():
+        logger.info(f"No email template configured for event {event.id}, skipping group confirmation email")
+        return
+    
+    # Skip if no payer email
+    if not group.payer_email or not group.payer_email.strip():
+        logger.warning(f"No payer email configured for group {group.id}, skipping group confirmation email")
+        return
+    
+    # Prepare participant details for all participants in the group
+    participant_details = "<strong>Participant details</strong><br>"
+    participant_details += f"Name of the main contact: {group.payer_name}<br>"
+    participant_details += f"Phone number of the main contact: {group.payer_phone}<br>"
+    
+    # Add details for each participant
+    total_quantity = group.registrations.select_related('participant').count()
+    # participant_details += "<br><strong>Participants registered:</strong><br>"
+    # for i, registration in enumerate(group.registrations.select_related('participant').all(), 1):
+    #     participant = registration.participant
+    #     total_quantity += participant.quantity
+    #     quantity_text = f" (party of {participant.quantity})" if participant.quantity > 1 else ""
+    #     participant_details += f"{i}. {participant.first_name} {participant.last_name}{quantity_text} - {participant.email}<br>"
+    
+    participant_details += f"Total participants: {total_quantity}"
+    
+    # Mark the participant_details as safe HTML
+    participant_details = mark_safe(participant_details)
+    
+    # Prepare template context using the group payer's information
+    context_data = {
+        'first_name': group.payer_name.split()[0] if group.payer_name else '',
+        'last_name': ' '.join(group.payer_name.split()[1:]) if group.payer_name and len(group.payer_name.split()) > 1 else '',
+        'email': group.payer_email,
+        'phone_number': group.payer_phone,
+        'quantity': total_quantity,
+        'event_title': event.title,
+        'event_date': event.start_date.strftime('%B %d, %Y at %I:%M %p') if event.start_date else '',
+        'event_location': event.location,
+        'amount': str(group.amount_total + (group.donation_amount or 0)),
+        'currency': group.currency,
+        'registration_reference': group.reference,
+        'participant_details': participant_details,
+        'event': event,
+        'group': group,
+    }
+    
+    try:
+        # Render the email template
+        template = Template(event.confirmed_email_template)
+        context = Context(context_data)
+        html_content = template.render(context)
+        
+        # Create email subject
+        subject = f"Order Confirmed - {event.title}"
+        
+        # Prepare email
+        from_email = getattr(settings, 'OSCAR_FROM_EMAIL', settings.DEFAULT_FROM_EMAIL)
+        reply_to_email = getattr(settings, 'REPLY_TO_EMAIL', None)
+        
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body='',  # We'll use HTML content only
+            from_email=from_email,
+            to=[group.payer_email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        
+        # Attach HTML content
+        email.attach_alternative(html_content, "text/html")
+        
+        # Send email
+        email.send()
+        logger.info(f"Group payment confirmation email sent to {group.payer_email} for group registration {group.id}")
+        
+    except Exception as e:
+        logger.error(f"Failed to send group payment confirmation email for group {group.id}: {str(e)}")
+        # Don't raise the exception to avoid blocking the payment verification process

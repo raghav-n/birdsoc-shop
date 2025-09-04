@@ -334,9 +334,11 @@ class EventRegistration(models.Model):
             event=self.event, participant=self.participant
         ).update(is_confirmed=True)
         
-        # Send payment confirmation email
-        from .utils import send_payment_confirmation_email
-        send_payment_confirmation_email(self)
+        # Only send individual payment confirmation email if this is NOT part of a group
+        # Group payments are handled separately by the group's verify() method
+        if not self.group:
+            from .utils import send_payment_confirmation_email
+            send_payment_confirmation_email(self)
         
         return True
 
@@ -405,7 +407,7 @@ class EventRegistrationGroup(models.Model):
         self.payment_verified_on = timezone.now()
         self.save()
         
-        # Send confirmation emails for all registrations in the group
+        # Send single group confirmation email to the payer
         from .utils import send_group_payment_confirmation_emails
         send_group_payment_confirmation_emails(self)
         
