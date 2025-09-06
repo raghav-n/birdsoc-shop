@@ -22,6 +22,12 @@ urlpatterns = [
         views.ParticipantDetailView.as_view(),
         name="participant-detail",
     ),
+    # EventParticipant detail
+    path(
+        "event-participants/<int:pk>/",
+        views.EventParticipantDetailView.as_view(),
+        name="event-participant-detail",
+    ),
     path(
         "participants/<int:pk>/update/",
         views.ParticipantUpdateView.as_view(),

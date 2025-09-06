@@ -717,3 +717,33 @@ class EventBatchEmailPreviewView(DashboardMixin, View):
                 "subject": subject,
             }
         )
+
+
+# EventParticipant detail view
+class EventParticipantDetailView(DashboardMixin, DetailView):
+    model = EventParticipant
+    context_object_name = "event_participant"
+    template_name = "dashboard/event/event_participant_detail.html"
+
+    def get_queryset(self):
+        # Pull related objects for efficient template rendering
+        return (
+            super()
+            .get_queryset()
+            .select_related("event", "participant")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ep = self.object
+        ctx["event"] = ep.event
+        ctx["participant"] = ep.participant
+        ctx["title"] = f"{ep.participant.full_name} @ {ep.event.title}"
+        # Prepare extra_json for table display in template
+        extra = ep.extra_json or {}
+        ctx["extra_items"] = (
+            extra.items() if isinstance(extra, dict) else []
+        )
+        ctx["extra_is_dict"] = isinstance(extra, dict)
+        ctx["extra_raw"] = extra
+        return ctx

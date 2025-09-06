@@ -1,0 +1,209 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {{ participant.full_name }} @ {{ event.title }} | {% trans "Event Participant" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event-dashboard:event-list' %}">{% trans "Events" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event-dashboard:event-detail' pk=event.id %}">{{ event.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ participant.full_name }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header d-flex align-items-center justify-content-between">
+        <h1>{{ participant.full_name }} <small class="text-muted">@ {{ event.title }}</small></h1>
+        <div>
+            <a href="{% url 'event-dashboard:event-detail' pk=event.id %}" class="btn btn-light">
+                ← {% trans "Back to Event" %}
+            </a>
+        </div>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="mb-0">{% trans "Participant" %}</h3>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <tr>
+                            <th style="width: 40%">{% trans "Full Name" %}</th>
+                            <td>{{ participant.full_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Email" %}</th>
+                            <td><a href="mailto:{{ participant.email }}">{{ participant.email }}</a></td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Phone" %}</th>
+                            <td>{{ participant.phone_number|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Emergency Contact" %}</th>
+                            <td>
+                                {{ participant.emergency_contact_name|default:"-" }}
+                                {% if participant.emergency_contact_phone %}
+                                    <br><small class="text-muted">{{ participant.emergency_contact_phone }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Party Size" %}</th>
+                            <td>{{ participant.quantity }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Created" %}</th>
+                            <td>{{ participant.created_at }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'event-dashboard:participant-update' pk=participant.id %}" class="btn btn-primary btn-sm">{% trans "Edit Participant" %}</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="mb-0">{% trans "Event" %}</h3>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <tr>
+                            <th style="width: 40%">{% trans "Title" %}</th>
+                            <td>{{ event.title }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Start" %}</th>
+                            <td>{{ event.start_date }}</td>
+                        </tr>
+                        {% if event.end_date %}
+                        <tr>
+                            <th>{% trans "End" %}</th>
+                            <td>{{ event.end_date }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>{% trans "Location" %}</th>
+                            <td>{{ event.location|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Price" %}</th>
+                            <td>
+                                {% if event.price_incl_tax and event.price_incl_tax|floatformat != '0' %}
+                                    {{ event.currency }} {{ event.price_incl_tax }}
+                                {% else %}
+                                    {% trans "Free" %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "Active" %}</th>
+                            <td>
+                                {% if event.is_active %}
+                                    <span class="badge badge-success">{% trans "Yes" %}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{% trans "No" %}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'event-dashboard:event-update' pk=event.id %}" class="btn btn-primary btn-sm">{% trans "Edit Event" %}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="mb-0">{% trans "Registration Details" %}</h3>
+        </div>
+        <div class="card-body p-0">
+            <table class="table mb-0">
+                <tr>
+                    <th style="width: 30%">{% trans "Registered At" %}</th>
+                    <td>{{ event_participant.registered_at }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Confirmed" %}</th>
+                    <td>
+                        {% if event_participant.is_confirmed %}
+                            <span class="badge badge-success">{% trans "Yes" %}</span>
+                        {% else %}
+                            <span class="badge badge-warning">{% trans "Pending" %}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans "Main Contact" %}</th>
+                    <td>
+                        {% if event_participant.is_main_contact %}
+                            <span class="badge badge-info">{% trans "Yes" %}</span>
+                        {% else %}
+                            <span class="badge badge-secondary">{% trans "No" %}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans "Attended" %}</th>
+                    <td>
+                        {% if event_participant.attended %}
+                            <span class="badge badge-success">{% trans "Yes" %}</span>
+                        {% else %}
+                            <span class="badge badge-warning">{% trans "No" %}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans "Notes" %}</th>
+                    <td>{{ event_participant.notes|linebreaks|default:"-" }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    {% if event_participant.extra_json %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3 class="mb-0">{% trans "Additional Details" %}</h3>
+        </div>
+        <div class="card-body p-0">
+            {% if extra_is_dict %}
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%">{% trans "Field" %}</th>
+                            <th>{% trans "Value" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, value in extra_items %}
+                        <tr>
+                            <td><strong>{{ key }}</strong></td>
+                            <td>{{ value|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-3">
+                    <pre class="mb-0" style="white-space: pre-wrap;">{{ extra_raw }}</pre>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+{% endblock dashboard_content %}
