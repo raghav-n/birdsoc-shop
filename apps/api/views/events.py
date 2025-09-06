@@ -16,12 +16,16 @@ EventParticipant = get_model("event", "EventParticipant")
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
+# Global registration flag helpers
+from apps.event.utils import get_global_registration_closed
+
 
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     def list(self, request):
         qs = OrganizedEvent._default_manager.filter(is_active=True).order_by("start_date")
+        closed = get_global_registration_closed()
         data = [
             {
                 "id": e.id,
@@ -38,6 +42,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "json_schema": e.json_schema,
                 "price_tiers": e.price_tiers,
                 "validate_participant_data": e.validate_participant_data,
+                "global_registration_closed": closed,
             }
             for e in qs
         ]
@@ -63,6 +68,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "json_schema": e.json_schema,
             "price_tiers": e.price_tiers,
             "validate_participant_data": e.validate_participant_data,
+            "global_registration_closed": get_global_registration_closed(),
         }
         return Response(data)
 
@@ -73,6 +79,13 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Global switch: block all registrations when closed
+        if get_global_registration_closed():
+            return Response(
+                {"detail": "Registration is temporarily closed", "code": "registration_closed", "global_registration_closed": True},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Extract fields
         first_name = (request.data.get("first_name") or "").strip()
@@ -252,6 +265,13 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Global switch: block all registrations when closed
+        if get_global_registration_closed():
+            return Response(
+                {"detail": "Registration is temporarily closed", "code": "registration_closed", "global_registration_closed": True},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Participants payload
         participants_payload = request.data.get("participants")
@@ -621,6 +641,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "amount_with_donation": str(total_amount + _D(str(donation_int or 0))),
             },
             "requires_payment": requires_payment,
+            "global_registration_closed": get_global_registration_closed(),
         }
         if capacity is not None:
             response["capacity"] = capacity

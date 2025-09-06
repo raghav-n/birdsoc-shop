@@ -35,6 +35,7 @@ from apps.event.forms import (
 )
 
 from django.template.loader import render_to_string
+from apps.event.utils import get_global_registration_closed, set_global_registration_closed
 
 
 # Create a custom dashboard mixin to replace the missing one
@@ -51,6 +52,11 @@ class EventListView(DashboardMixin, ListView):
     context_object_name = "events"
     template_name = "dashboard/event/event_list.html"
     paginate_by = 20
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["global_registration_closed"] = get_global_registration_closed()
+        return ctx
 
 
 class EventDetailView(DashboardMixin, DetailView):
@@ -124,6 +130,20 @@ class EventRegistrationGroupVerifyView(DashboardMixin, View):
             f"Group {grp.reference} marked as paid and confirmed for {count} registration(s).",
         )
         return redirect("event-dashboard:event-detail", pk=grp.event_id)
+
+
+class GlobalRegistrationToggleView(DashboardMixin, View):
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        currently_closed = get_global_registration_closed()
+        # Toggle state
+        set_global_registration_closed(not currently_closed)
+        if not currently_closed:
+            messages.success(request, "Registration has been closed for all events.")
+        else:
+            messages.success(request, "Registration has been reopened for all events.")
+        return redirect("event-dashboard:event-list")
 
 
 class EventCreateView(DashboardMixin, CreateView):

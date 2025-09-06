@@ -186,7 +186,19 @@ Bulk Group Registration (New)
     ```
 - GET `/api/v1/event-registration-groups/{id}` → group summary with items and statuses.
   - Response includes: `{ amount_total, donation_amount, amount_total_with_donation, ... }` and for each item, registration includes `{ amount, donation_amount, amount_with_donation, ... }`.
-- POST `/api/v1/event-registration-groups/{id}/payment/paynow-proof` (multipart) → upload/replace a single PayNow proof for the whole group.
+  - POST `/api/v1/event-registration-groups/{id}/payment/paynow-proof` (multipart) → upload/replace a single PayNow proof for the whole group.
+
+Global Registration Toggle (New)
+
+- Purpose: Temporarily disable or re-enable registrations across ALL events from the dashboard. Persisted as a simple `0/1` text file.
+- Dashboard: A toggle button appears on the Events list page with a confirmation modal (Close registration / Reopen registration).
+- API changes and new endpoint:
+  - GET `/api/v1/events` and GET `/api/v1/events/{id}` now include a boolean `global_registration_closed` field so clients can disable UI as needed.
+  - GET `/api/v1/events/registration-status` returns `{ "global_registration_closed": true|false }` for lightweight polling.
+  - POST `/api/v1/events/{id}/register` and POST `/api/v1/events/{id}/register/bulk` will return `403` when globally closed with payload:
+    `{ "detail": "Registration is temporarily closed", "code": "registration_closed", "global_registration_closed": true }`.
+  - POST `/api/v1/events/{id}/price-breakdown` remains available but now includes `global_registration_closed` in its response body for awareness.
+
 
 Price Tiers (Lightweight JSON)
 

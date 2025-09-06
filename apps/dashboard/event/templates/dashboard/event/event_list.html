@@ -21,11 +21,28 @@
 {% endblock header %}
 
 {% block dashboard_content %}
-    <div class="table-header">
-        <a href="{% url 'dashboard-event:event-create' %}" class="btn btn-primary float-right">
-            <i class="fas fa-plus"></i> {% trans "Create new event" %}
-        </a>
-        <h3>{% trans "Event List" %}</h3>
+    <div class="table-header d-flex justify-content-between align-items-center">
+        <h3 class="mb-0">{% trans "Event List" %}</h3>
+        <div class="btn-group">
+            <button type="button" class="btn {% if global_registration_closed %}btn-success{% else %}btn-warning{% endif %} mr-2" data-toggle="modal" data-target="#globalRegToggleModal">
+                {% if global_registration_closed %}
+                    <i class="fas fa-unlock"></i> {% trans "Reopen registration" %}
+                {% else %}
+                    <i class="fas fa-lock"></i> {% trans "Close registration" %}
+                {% endif %}
+            </button>
+            <a href="{% url 'dashboard-event:event-create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> {% trans "Create new event" %}
+            </a>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        {% if global_registration_closed %}
+            <span class="badge badge-danger">{% trans "Registration is currently CLOSED globally" %}</span>
+        {% else %}
+            <span class="badge badge-success">{% trans "Registration is OPEN globally" %}</span>
+        {% endif %}
     </div>
 
     {% if events %}
@@ -76,4 +93,44 @@
     {% endif %}
 
     {% include 'oscar/dashboard/partials/pagination.html' %}
+    
+    <!-- Global registration toggle confirmation modal -->
+    <div class="modal fade" id="globalRegToggleModal" tabindex="-1" role="dialog" aria-labelledby="globalRegToggleModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="globalRegToggleModalLabel">
+                {% if global_registration_closed %}
+                    {% trans "Reopen registration?" %}
+                {% else %}
+                    {% trans "Close registration?" %}
+                {% endif %}
+            </h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            {% if global_registration_closed %}
+                {% trans "This will reopen event registration across ALL events. Are you sure?" %}
+            {% else %}
+                {% trans "This will disable event registration across ALL events. Are you sure?" %}
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Cancel" %}</button>
+            <form method="post" action="{% url 'event-dashboard:toggle-registration' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn {% if global_registration_closed %}btn-success{% else %}btn-warning{% endif %}">
+                    {% if global_registration_closed %}
+                        {% trans "Yes, reopen registration" %}
+                    {% else %}
+                        {% trans "Yes, close registration" %}
+                    {% endif %}
+                </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
 {% endblock dashboard_content %}

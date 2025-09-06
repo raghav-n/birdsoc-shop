@@ -64,6 +64,12 @@ urlpatterns = [
         views.EventRegistrationVerifyView.as_view(),
         name="event-registration-verify",
     ),
+    # Global registration toggle
+    path(
+        "toggle-registration/",
+        views.GlobalRegistrationToggleView.as_view(),
+        name="toggle-registration",
+    ),
     # Group Registrations (bulk payments)
     path(
         "groups/<int:group_id>/verify/",

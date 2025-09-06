@@ -1,3 +1,5 @@
+import os
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template import Template, Context
@@ -6,6 +8,41 @@ from django.utils.safestring import mark_safe
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+REGISTRATION_STATE_FILENAME = "registration_closed_state.txt"
+
+
+def _get_state_file_path() -> str:
+    """Return absolute path to the global registration state file.
+
+    Uses the project directory so the file sits alongside other project-level state files
+    like maintenance_mode_state.txt.
+    """
+    project_dir = getattr(settings, "PROJECT_DIR", settings.BASE_DIR)
+    return os.path.join(project_dir, REGISTRATION_STATE_FILENAME)
+
+
+def get_global_registration_closed() -> bool:
+    """Read the registration closed flag from a simple text file ("0"/"1").
+
+    Missing file defaults to open (False).
+    """
+    path = _get_state_file_path()
+    try:
+        with open(path, "r") as f:
+            return f.read().strip() == "1"
+    except FileNotFoundError:
+        return False
+
+
+def set_global_registration_closed(closed: bool) -> None:
+    """Persist the registration closed flag to a simple text file as "0"/"1"."""
+    path = _get_state_file_path()
+    # Ensure directory exists; PROJECT_DIR should already exist, but be safe for tests
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write("1" if closed else "0")
 
 
 def send_payment_confirmation_email(event_registration):

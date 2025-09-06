@@ -15,6 +15,7 @@ from apps.api.views.basket import (
 from apps.api.views.orders import OrdersViewSet
 from apps.api.views.refunds import RefundRequestCreateView, RefundRequestDetailView
 from apps.api.views.events import EventsViewSet
+from apps.api.views.registration_status import RegistrationStatusView
 from apps.api.views.event_registrations import (
     EventRegistrationDetailView,
     EventRegistrationProofUploadView,
@@ -88,6 +89,8 @@ urlpatterns = [
         EventRegistrationDetailView.as_view(),
         name="event-registration-detail",
     ),
+    # Events: global registration status
+    path("events/registration-status", RegistrationStatusView.as_view(), name="events-registration-status"),
     path(
         "event-registrations/<int:reg_id>/payment/paynow-proof",
         EventRegistrationProofUploadView.as_view(),
