@@ -63,7 +63,12 @@
                         <td>{{ event.title }}</td>
                         <td>{{ event.start_date }}</td>
                         <td>{{ event.location|default:"-" }}</td>
-                        <td>{{ event.participant_count }}{% if event.max_participants %} / {{ event.max_participants }}{% endif %}</td>
+                        <td>
+                            {{ event.participant_count }}{% if event.max_participants %} / {{ event.max_participants }}{% endif %}
+                            {% if event.pending_count %}
+                                <br><small class="text-warning">{% trans "Pending:" %} {{ event.pending_count }}</small>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if event.is_active %}
                                 <span class="badge badge-success">{% trans "Active" %}</span>

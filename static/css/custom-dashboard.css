@@ -17,3 +17,19 @@ h1, h2, h3, h4, h5, h6 {
     font-family: "Libre Franklin";
     font-weight: 600;
 }
+
+/* Override warning color to darker yellow */
+:root {
+    --warning: #b8860b; /* Dark goldenrod - darker shade of yellow */
+}
+
+/* Ensure the override applies in dark mode as well */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --warning: #b8860b; /* Dark goldenrod - darker shade of yellow */
+    }
+}
+
+.text-warning {
+    color: var(--warning) !important;
+}

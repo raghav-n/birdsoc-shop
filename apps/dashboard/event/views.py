@@ -53,6 +53,13 @@ class EventListView(DashboardMixin, ListView):
     template_name = "dashboard/event/event_list.html"
     paginate_by = 20
 
+    def get_queryset(self):
+        # Prefetch related data to optimize queries for pending count calculations
+        return super().get_queryset().prefetch_related(
+            'eventregistration_set__participant',
+            'eventparticipant_set__participant'
+        )
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["global_registration_closed"] = get_global_registration_closed()
