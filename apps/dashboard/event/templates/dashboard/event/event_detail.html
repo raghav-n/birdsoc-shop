@@ -150,7 +150,7 @@
                             <th>{% trans "Party Size" %}</th>
                             <th>{% trans "Reference" %}</th>
                             <th>{% trans "Registered" %}</th>
-                            <th>{% trans "Confirmed" %}</th>
+                            <th>{% trans "Status" %}</th>
                             <th>{% trans "Attended" %}</th>
                             <th>{% trans "Actions" %}</th>
                         </tr>
@@ -176,8 +176,10 @@
                                 </td>
                                 <td>{{ ep.registered_at }}</td>
                                 <td>
-                                    {% if ep.is_confirmed %}
-                                        <span class="badge badge-success">{% trans "Yes" %}</span>
+                                    {% if ep.is_cancelled %}
+                                        <span class="badge badge-danger">{% trans "Cancelled" %}</span>
+                                    {% elif ep.is_confirmed %}
+                                        <span class="badge badge-success">{% trans "Confirmed" %}</span>
                                     {% else %}
                                         <span class="badge badge-warning">{% trans "Pending" %}</span>
                                     {% endif %}

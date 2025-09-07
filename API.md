@@ -344,3 +344,11 @@ Migration Path
 Notes on django-oscar-api (optional)
 
 - You can adopt `django-oscar-api` to accelerate CRUD for products/basket/orders. If chosen, mount it under `/api/oscar/` and layer custom endpoints (donation, PayNow proof, dynamic shipping, refunds) on top. Ensure serializers match your donation/shipping/source extensions.
+
+Maintenance Jobs
+
+- Prune stale event registrations (free up capacity when users abandon before proof):
+  - Command: `python manage.py prune_stale_event_registrations --older-than-minutes 30`
+  - Behavior: Sets `status='cancelled'` on pending `EventRegistrationGroup` (and their child registrations) and on individual pending `EventRegistration` records with no `payment_proof` older than the cutoff. Safe to run frequently.
+  - Dry run: append `--dry-run` to see counts without changes.
+  - Notes: Later payment verification (via `/api/verify-event-payment/`) still works and will transition a cancelled record to paid.

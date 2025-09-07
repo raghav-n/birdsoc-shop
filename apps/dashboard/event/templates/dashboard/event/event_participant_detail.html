@@ -138,10 +138,12 @@
                     <td>{{ event_participant.registered_at }}</td>
                 </tr>
                 <tr>
-                    <th>{% trans "Confirmed" %}</th>
+                    <th>{% trans "Status" %}</th>
                     <td>
-                        {% if event_participant.is_confirmed %}
-                            <span class="badge badge-success">{% trans "Yes" %}</span>
+                        {% if event_participant.is_cancelled %}
+                            <span class="badge badge-danger">{% trans "Cancelled" %}</span>
+                        {% elif event_participant.is_confirmed %}
+                            <span class="badge badge-success">{% trans "Confirmed" %}</span>
                         {% else %}
                             <span class="badge badge-warning">{% trans "Pending" %}</span>
                         {% endif %}

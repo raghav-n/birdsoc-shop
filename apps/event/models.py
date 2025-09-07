@@ -68,7 +68,7 @@ class OrganizedEvent(models.Model):
         return sum(
             ep.participant.quantity
             for ep in self.eventparticipant_set.select_related("participant")
-            .filter(is_confirmed=True)
+            .filter(is_confirmed=True, is_cancelled=False)
             .all()
         )
 
@@ -80,10 +80,14 @@ class OrganizedEvent(models.Model):
     @property
     def pending_count(self):
         """Count of reserved (pending payment) participants."""
-        return sum(
-            r.participant.quantity
-            for r in self.eventregistration_set.select_related("participant").filter(status="pending")
+        # Sum quantities of pending registrations whose EventParticipant is not cancelled
+        qs = self.eventregistration_set.select_related("participant").filter(status="pending")
+        # Exclude participants explicitly cancelled for this event
+        qs = qs.exclude(
+            participant__eventparticipant__event=self,
+            participant__eventparticipant__is_cancelled=True,
         )
+        return sum(r.participant.quantity for r in qs)
 
     @property
     def is_full(self):
@@ -262,6 +266,7 @@ class EventParticipant(models.Model):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     registered_at = models.DateTimeField(_("Registered At"), auto_now_add=True)
     is_confirmed = models.BooleanField(_("Confirmed"), default=False)
+    is_cancelled = models.BooleanField(_("Cancelled"), default=False)
     is_main_contact = models.BooleanField(_("Main Contact"), default=True, help_text=_("Only main contacts receive payment confirmation emails"))
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
@@ -333,10 +338,10 @@ class EventRegistration(models.Model):
         self.payment_verified_on = timezone.now()
         self.save()
 
-        # Confirm the EventParticipant
+        # Confirm the EventParticipant and ensure it's not cancelled
         EventParticipant.objects.filter(
             event=self.event, participant=self.participant
-        ).update(is_confirmed=True)
+        ).update(is_confirmed=True, is_cancelled=False)
         
         # Only send individual payment confirmation email if this is NOT part of a group
         # Group payments are handled separately by the group's verify() method
@@ -400,10 +405,10 @@ class EventRegistrationGroup(models.Model):
                 reg.payment_verified_on = timezone.now()
                 reg.save()
 
-                # Confirm the EventParticipant
+                # Confirm the EventParticipant (clear cancelled bit)
                 EventParticipant.objects.filter(
                     event=reg.event, participant=reg.participant
-                ).update(is_confirmed=True)
+                ).update(is_confirmed=True, is_cancelled=False)
 
         self.payment_verified = True
         self.status = "paid"
