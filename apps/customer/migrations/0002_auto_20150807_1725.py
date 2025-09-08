@@ -7,7 +7,6 @@ import django.core.validators
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("customer", "0001_initial"),
     ]

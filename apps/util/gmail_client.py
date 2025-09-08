@@ -59,6 +59,7 @@ def build_gmail_service():
 
 def _extract_body(payload) -> str:
     """Extract and decode the email body (plain or HTML) from Gmail message payload."""
+
     def walk_parts(part):
         if not part:
             return []
@@ -67,7 +68,11 @@ def _extract_body(payload) -> str:
         data = body.get("data")
         res = []
         if data and mime in ("text/plain", "text/html"):
-            res.append(base64.urlsafe_b64decode(data.encode("utf-8")).decode("utf-8", errors="ignore"))
+            res.append(
+                base64.urlsafe_b64decode(data.encode("utf-8")).decode(
+                    "utf-8", errors="ignore"
+                )
+            )
         for p in part.get("parts", []) or []:
             res.extend(walk_parts(p))
         return res
@@ -114,7 +119,7 @@ def find_paynow_email_for_order(
     except Exception as e:
         raise GmailClientError(f"Error querying Gmail API: {e}") from e
 
-    for item in (msgs.get("messages") or []):
+    for item in msgs.get("messages") or []:
         try:
             msg = (
                 service.users()
@@ -147,4 +152,3 @@ def find_paynow_email_for_order(
             continue
 
     return None
-

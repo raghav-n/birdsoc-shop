@@ -5,7 +5,6 @@ import oscar.models.fields.autoslugfield
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("communication", "0002_reset_table_names"),
     ]

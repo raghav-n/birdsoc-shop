@@ -45,7 +45,9 @@ class Command(BaseCommand):
         )
 
         # Select groups: pending, not verified, older than cutoff, no payment proof
-        stale_groups = EventRegistrationGroup._default_manager.select_related("event").filter(
+        stale_groups = EventRegistrationGroup._default_manager.select_related(
+            "event"
+        ).filter(
             Q(payment_proof__isnull=True) | Q(payment_proof=""),
             status="pending",
             payment_verified=False,
@@ -53,7 +55,9 @@ class Command(BaseCommand):
         )
 
         # Select individual regs (not part of a group): pending, not verified, older, no proof
-        stale_regs = EventRegistration._default_manager.select_related("event", "participant").filter(
+        stale_regs = EventRegistration._default_manager.select_related(
+            "event", "participant"
+        ).filter(
             Q(payment_proof__isnull=True) | Q(payment_proof=""),
             status="pending",
             payment_verified=False,
@@ -75,7 +79,9 @@ class Command(BaseCommand):
             # Cancel groups first, then child regs
             for grp in stale_groups.select_for_update():
                 # Cancel child regs that are still pending
-                child_qs = grp.registrations.select_related("participant").filter(status="pending", payment_verified=False)
+                child_qs = grp.registrations.select_related("participant").filter(
+                    status="pending", payment_verified=False
+                )
                 # Mark corresponding EventParticipants as cancelled for this event
                 part_ids = list(child_qs.values_list("participant_id", flat=True))
                 if part_ids:
@@ -113,7 +119,9 @@ class Command(BaseCommand):
                 # Detailed logging for individual registration
                 p = reg.participant
                 e = reg.event
-                self.stdout.write(self.style.WARNING("--- Cancelled Individual Registration ---"))
+                self.stdout.write(
+                    self.style.WARNING("--- Cancelled Individual Registration ---")
+                )
                 self.stdout.write(
                     f"Registration: id={reg.id}, reference={reg.reference}, event_id={reg.event_id}, "
                     f"event_title={getattr(e, 'title', '')}, status=cancelled, amount={reg.amount}, donation={reg.donation_amount}, "

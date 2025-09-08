@@ -13,9 +13,13 @@ class EventRegistrationDetailView(APIView):
 
     def get(self, request, reg_id: int):
         try:
-            reg = EventRegistration._default_manager.select_related("event", "participant").get(id=reg_id)
+            reg = EventRegistration._default_manager.select_related(
+                "event", "participant"
+            ).get(id=reg_id)
         except EventRegistration.DoesNotExist:
-            return Response({"detail": "Registration not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Registration not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         p = reg.participant
         data = {
@@ -52,11 +56,16 @@ class EventRegistrationProofUploadView(APIView):
         try:
             reg = EventRegistration._default_manager.get(id=reg_id)
         except EventRegistration.DoesNotExist:
-            return Response({"detail": "Registration not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Registration not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         upload = request.FILES.get("payment_proof")
         if not upload:
-            return Response({"detail": "payment_proof file is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "payment_proof file is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from django.core.files.base import ContentFile
         from os.path import basename
@@ -64,11 +73,14 @@ class EventRegistrationProofUploadView(APIView):
         content = upload.read()
         reg.payment_proof.save(basename(upload.name), ContentFile(content), save=True)
 
-        return Response({
-            "id": reg.id,
-            "reference": reg.reference,
-            "uploaded": True,
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "id": reg.id,
+                "reference": reg.reference,
+                "uploaded": True,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class EventRegistrationGroupDetailView(APIView):
@@ -76,9 +88,13 @@ class EventRegistrationGroupDetailView(APIView):
 
     def get(self, request, group_id: int):
         try:
-            grp = EventRegistrationGroup._default_manager.select_related("event").get(id=group_id)
+            grp = EventRegistrationGroup._default_manager.select_related("event").get(
+                id=group_id
+            )
         except EventRegistrationGroup.DoesNotExist:
-            return Response({"detail": "Group not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Group not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         regs = (
             EventRegistration._default_manager.select_related("participant")
@@ -89,30 +105,32 @@ class EventRegistrationGroupDetailView(APIView):
         items = []
         for reg in regs:
             p = reg.participant
-            items.append({
-                "registration": {
-                    "id": reg.id,
-                    "reference": reg.reference,
-                    "amount": str(reg.amount),
-                    "donation_amount": str(reg.donation_amount),
-                    "amount_with_donation": str(reg.amount + reg.donation_amount),
-                    "currency": reg.currency,
-                    "emergency_contact_name": reg.emergency_contact_name,
-                    "emergency_contact_phone": reg.emergency_contact_phone,
-                    "status": reg.status,
-                    "payment_verified": reg.payment_verified,
-                },
-                "participant": {
-                    "id": p.id,
-                    "first_name": p.first_name,
-                    "last_name": p.last_name,
-                    "email": p.email,
-                    "phone_number": p.phone_number,
-                    "emergency_contact_name": p.emergency_contact_name,
-                    "emergency_contact_phone": p.emergency_contact_phone,
-                    "quantity": p.quantity,
-                },
-            })
+            items.append(
+                {
+                    "registration": {
+                        "id": reg.id,
+                        "reference": reg.reference,
+                        "amount": str(reg.amount),
+                        "donation_amount": str(reg.donation_amount),
+                        "amount_with_donation": str(reg.amount + reg.donation_amount),
+                        "currency": reg.currency,
+                        "emergency_contact_name": reg.emergency_contact_name,
+                        "emergency_contact_phone": reg.emergency_contact_phone,
+                        "status": reg.status,
+                        "payment_verified": reg.payment_verified,
+                    },
+                    "participant": {
+                        "id": p.id,
+                        "first_name": p.first_name,
+                        "last_name": p.last_name,
+                        "email": p.email,
+                        "phone_number": p.phone_number,
+                        "emergency_contact_name": p.emergency_contact_name,
+                        "emergency_contact_phone": p.emergency_contact_phone,
+                        "quantity": p.quantity,
+                    },
+                }
+            )
 
         data = {
             "id": grp.id,
@@ -140,11 +158,16 @@ class EventRegistrationGroupProofUploadView(APIView):
         try:
             grp = EventRegistrationGroup._default_manager.get(id=group_id)
         except EventRegistrationGroup.DoesNotExist:
-            return Response({"detail": "Group not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Group not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         upload = request.FILES.get("payment_proof")
         if not upload:
-            return Response({"detail": "payment_proof file is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "payment_proof file is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from django.core.files.base import ContentFile
         from os.path import basename
@@ -152,8 +175,11 @@ class EventRegistrationGroupProofUploadView(APIView):
         content = upload.read()
         grp.payment_proof.save(basename(upload.name), ContentFile(content), save=True)
 
-        return Response({
-            "id": grp.id,
-            "reference": grp.reference,
-            "uploaded": True,
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "id": grp.id,
+                "reference": grp.reference,
+                "uploaded": True,
+            },
+            status=status.HTTP_201_CREATED,
+        )

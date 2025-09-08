@@ -2,7 +2,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("event", "0013_add_emergency_contact_fields"),
     ]
@@ -14,4 +13,3 @@ class Migration(migrations.Migration):
             field=models.BooleanField(default=False, verbose_name="Cancelled"),
         ),
     ]
-

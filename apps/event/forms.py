@@ -24,13 +24,19 @@ class EventForm(forms.ModelForm):
             "start_date": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "end_date": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             # Allow editing JSON comfortably
-            "json_schema": forms.Textarea(attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}),
-            "price_tiers": forms.Textarea(attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}),
-            "confirmed_email_template": forms.Textarea(attrs={
-                "rows": 15, 
-                "class": "form-control", 
-                "placeholder": "Enter your HTML email template here. Use the Variables menu in the editor to insert template variables."
-            }),
+            "json_schema": forms.Textarea(
+                attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}
+            ),
+            "price_tiers": forms.Textarea(
+                attrs={"rows": 6, "spellcheck": "false", "placeholder": "{}"}
+            ),
+            "confirmed_email_template": forms.Textarea(
+                attrs={
+                    "rows": 15,
+                    "class": "form-control",
+                    "placeholder": "Enter your HTML email template here. Use the Variables menu in the editor to insert template variables.",
+                }
+            ),
         }
 
     def clean(self):
@@ -47,6 +53,7 @@ class EventForm(forms.ModelForm):
                 )
         elif isinstance(schema_val, str):
             import json
+
             try:
                 cleaned["json_schema"] = json.loads(schema_val)
             except Exception as e:

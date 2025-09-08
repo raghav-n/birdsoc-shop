@@ -49,21 +49,27 @@ class BasketExtraTests(APITestCase):
 
         # Invalid product
         r = self.client.post(
-            f"/api/v1/baskets/{basket_id}/lines", {"product_id": 999999, "quantity": 1}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": 999999, "quantity": 1},
+            format="json",
         )
         self.assertEqual(r.status_code, 404)
 
         # User B forbidden to edit A's basket
         # Add a valid line under A
         client_a.post(
-            f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 1}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
         )
         line_id = Basket._default_manager.get(id=basket_id).lines.first().id
 
         client_b = APIClient()
         auth_client(client_b, email="userb@example.com")
         r = client_b.patch(
-            f"/api/v1/baskets/{basket_id}/lines/{line_id}", {"quantity": 2}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines/{line_id}",
+            {"quantity": 2},
+            format="json",
         )
         self.assertEqual(r.status_code, 403)
 
@@ -71,13 +77,16 @@ class BasketExtraTests(APITestCase):
         p = create_product(price=5)
         basket_id = self.client.post("/api/v1/baskets").data["cart_id"]
         resp = self.client.post(
-            f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 1}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
         )
         line_id = resp.data["lines"][0]["id"]
 
         # Non-integer quantity
         r = self.client.patch(
-            f"/api/v1/baskets/{basket_id}/lines/{line_id}", {"quantity": "x"}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines/{line_id}",
+            {"quantity": "x"},
+            format="json",
         )
         self.assertEqual(r.status_code, 400)
-

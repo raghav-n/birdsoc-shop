@@ -3,7 +3,7 @@ from django.db import migrations
 
 
 def confirm_existing_eventparticipants(apps, schema_editor):
-    EventParticipant = apps.get_model('event', 'EventParticipant')
+    EventParticipant = apps.get_model("event", "EventParticipant")
     EventParticipant.objects.update(is_confirmed=True)
 
 
@@ -13,12 +13,10 @@ def noop_reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('event', '0004_paid_event_fields'),
+        ("event", "0004_paid_event_fields"),
     ]
 
     operations = [
         migrations.RunPython(confirm_existing_eventparticipants, noop_reverse),
     ]
-

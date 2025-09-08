@@ -23,7 +23,10 @@ from oscar.apps.voucher.models import Voucher
 from decimal import Decimal
 from django.db.models import Count, Sum
 
-from oscar.apps.dashboard.orders.views import OrderStatsView as BaseOrderStatsView, queryset_orders_for_user
+from oscar.apps.dashboard.orders.views import (
+    OrderStatsView as BaseOrderStatsView,
+    queryset_orders_for_user,
+)
 
 Product = get_model("catalogue", "Product")
 Line = get_model("basket", "Line")
@@ -180,8 +183,7 @@ class OnsitePurchaseView(TemplateView):
             Product.objects.filter(is_public=True)
             .filter(
                 # Include standalone products or parent products that have children
-                models.Q(structure="standalone")
-                | models.Q(structure="parent")
+                models.Q(structure="standalone") | models.Q(structure="parent")
             )
             .distinct()
         )
@@ -300,7 +302,7 @@ class OnsitePurchaseView(TemplateView):
         with transaction.atomic():
             # Create or get a guest user for the order
             guest_user, _created = User.objects.get_or_create(
-                username=f'guest_{timezone.now().strftime("%Y%m%d%H%M%S")}',
+                username=f"guest_{timezone.now().strftime('%Y%m%d%H%M%S')}",
                 defaults={
                     "is_active": False,
                     "first_name": "Onsite",
@@ -421,13 +423,13 @@ class OnsitePurchaseView(TemplateView):
 
                 # Create payment source and event with the TOTAL discounted amount
                 paynow_reference = f"{settings.ORDER_PREFIX}{order_number}"
-                
+
                 # Set source type based on purchase type
                 if is_cash_purchase:
                     source_type, _ = SourceType.objects.get_or_create(name="cash")
                 else:
                     source_type, _ = SourceType.objects.get_or_create(name="PayNow")
-                
+
                 source = Source.objects.create(
                     source_type=source_type,
                     amount_allocated=order_total.incl_tax,
@@ -438,10 +440,12 @@ class OnsitePurchaseView(TemplateView):
 
                 # Create payment event with the DISCOUNTED total
                 if is_cash_purchase:
-                    event_type, _ = PaymentEventType.objects.get_or_create(name="cash-payment")
+                    event_type, _ = PaymentEventType.objects.get_or_create(
+                        name="cash-payment"
+                    )
                 else:
                     event_type = PaymentEventType.objects.get(name="paynow-processing")
-                
+
                 event = PaymentEvent.objects.create(
                     event_type=event_type,
                     amount=order_total.incl_tax,  # Use the discounted total
@@ -477,8 +481,7 @@ class OnsitePurchaseView(TemplateView):
                     "products": Product.objects.filter(is_public=True)
                     .filter(
                         # Include standalone products or parent products that have children
-                        models.Q(structure="standalone")
-                        | models.Q(structure="parent")
+                        models.Q(structure="standalone") | models.Q(structure="parent")
                     )
                     .distinct(),
                     "selected_products": product_quantities,
@@ -805,35 +808,37 @@ class SiteOffersView(View):
             }
         )
 
+
 class OrderStatsView(BaseOrderStatsView):
     template_name = "oscar/dashboard/orders/statistics.html"
-    
+
     def get_stats(self, filters):
         orders = queryset_orders_for_user(self.request.user).filter(**filters)
-        
+
         # Collect number of units sold of each product
         product_sales = (
             OrderLine.objects.filter(order__in=orders)
-            .values('product__title', 'product__id')
+            .values("product__title", "product__id")
             .annotate(
-                total_quantity=Sum('quantity'),
-                total_revenue=Sum('line_price_incl_tax')
+                total_quantity=Sum("quantity"), total_revenue=Sum("line_price_incl_tax")
             )
-            .order_by('-total_quantity')
+            .order_by("-total_quantity")
         )
-        
+
         # Format product sales data for easier consumption
         product_sales_list = []
         for item in product_sales:
-            product_sales_list.append({
-                'product_id': item['product__id'],
-                'product_title': item['product__title'],
-                'units_sold': item['total_quantity'],
-                'revenue': item['total_revenue'] or Decimal('0.00')
-            })
+            product_sales_list.append(
+                {
+                    "product_id": item["product__id"],
+                    "product_title": item["product__title"],
+                    "units_sold": item["total_quantity"],
+                    "revenue": item["total_revenue"] or Decimal("0.00"),
+                }
+            )
 
         print(f"Product sales data: {product_sales_list}")
-        
+
         stats = {
             "total_orders": orders.count(),
             "total_lines": OrderLine.objects.filter(order__in=orders).count(),

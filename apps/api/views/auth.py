@@ -27,14 +27,29 @@ class RegisterView(APIView):
         first_name = request.data.get("first_name", "")
         last_name = request.data.get("last_name", "")
         if not email or not password:
-            return Response({"detail": "email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "email and password are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if User.objects.filter(email__iexact=email).exists():
-            return Response({"detail": "Email already registered"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Email already registered"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             validate_password(password)
         except Exception as e:
-            return Response({"detail": " ".join([str(i) for i in e])}, status=status.HTTP_400_BAD_REQUEST)
-        user = User.objects.create_user(username=email, email=email, password=password, first_name=first_name, last_name=last_name)
+            return Response(
+                {"detail": " ".join([str(i) for i in e])},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+        )
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
@@ -66,9 +81,13 @@ class PasswordResetView(APIView):
 
     def post(self, request):
         email = (request.data.get("email") or "").strip()
-        redirect_base = request.data.get("redirect_base_url")  # e.g., https://app.example/reset
+        redirect_base = request.data.get(
+            "redirect_base_url"
+        )  # e.g., https://app.example/reset
         if not email:
-            return Response({"detail": "email is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "email is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             user = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
@@ -87,7 +106,13 @@ class PasswordResetView(APIView):
                 "If you didn’t request this, you can ignore this email."
             )
             try:
-                send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=True)
+                send_mail(
+                    subject,
+                    body,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=True,
+                )
             except Exception:
                 pass
 
@@ -104,21 +129,32 @@ class PasswordResetConfirmView(APIView):
         new_password = request.data.get("new_password")
 
         if not uid or not token or not new_password:
-            return Response({"detail": "uid, token, and new_password are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "uid, token, and new_password are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             user_id = force_str(urlsafe_base64_decode(uid))
             user = User.objects.get(pk=user_id)
         except Exception:
-            return Response({"detail": "Invalid uid"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid uid"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not default_token_generator.check_token(user, token):
-            return Response({"detail": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid or expired token"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             validate_password(new_password, user)
         except Exception as e:
-            return Response({"detail": " ".join([str(i) for i in e])}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": " ".join([str(i) for i in e])},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         user.set_password(new_password)
         user.save(update_fields=["password"])

@@ -17,4 +17,3 @@ class MiscExtraTests(APITestCase):
         r = self.client.get("/api/v1/shipping/methods", {"self_collect": "false"})
         self.assertEqual(r.status_code, 200)
         self.assertTrue(all(not i["is_self_collect"] for i in r.data))
-

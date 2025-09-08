@@ -29,7 +29,6 @@ def forward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     replaces = [("order", "0012_json_option_value")]
 
     dependencies = [

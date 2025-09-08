@@ -18,7 +18,6 @@ EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
 
 class EventsAndRegistrationsExtraTests(APITestCase):
-
     def test_register_missing_fields_and_bad_quantity(self):
         e = create_event()
         # Missing core fields
@@ -51,7 +50,9 @@ class EventsAndRegistrationsExtraTests(APITestCase):
 
         # Participant is confirmed in DB
         self.assertEqual(
-            EventParticipant._default_manager.filter(event=e, is_confirmed=True).count(),
+            EventParticipant._default_manager.filter(
+                event=e, is_confirmed=True
+            ).count(),
             1,
         )
         # No EventRegistration for free events
@@ -159,8 +160,12 @@ class EventsAndRegistrationsExtraTests(APITestCase):
             "email": "sam@example.com",
             "quantity": 1,
         }
-        r1 = self.client.post(f"/api/v1/events/{e1.id}/register", payload, format="json")
-        r2 = self.client.post(f"/api/v1/events/{e2.id}/register", payload, format="json")
+        r1 = self.client.post(
+            f"/api/v1/events/{e1.id}/register", payload, format="json"
+        )
+        r2 = self.client.post(
+            f"/api/v1/events/{e2.id}/register", payload, format="json"
+        )
         self.assertEqual(r1.status_code, 201, r1.data)
         self.assertEqual(r2.status_code, 201, r2.data)
 
@@ -233,7 +238,9 @@ class EventsAndRegistrationsExtraTests(APITestCase):
 
         # Sign JWT with payload (registration_id + amount)
         token = jwt.encode(
-            {"registration_id": reg_id, "amount": amount}, settings.JWT_SECRET, algorithm="HS256"
+            {"registration_id": reg_id, "amount": amount},
+            settings.JWT_SECRET,
+            algorithm="HS256",
         )
         r = self.client.post(
             "/api/verify-event-payment/",
@@ -276,7 +283,9 @@ class EventsAndRegistrationsExtraTests(APITestCase):
 
         # Wrong amount
         token = jwt.encode(
-            {"registration_id": reg_id, "amount": "1.00"}, settings.JWT_SECRET, algorithm="HS256"
+            {"registration_id": reg_id, "amount": "1.00"},
+            settings.JWT_SECRET,
+            algorithm="HS256",
         )
         r = self.client.post(
             "/api/verify-event-payment/",
@@ -293,11 +302,23 @@ class EventsAndRegistrationsExtraTests(APITestCase):
         # Create a paid bulk registration (2 participants)
         payload = {
             "participants": [
-                {"first_name": "G1", "last_name": "A", "email": "g1@example.com", "quantity": 1},
-                {"first_name": "G2", "last_name": "B", "email": "g2@example.com", "quantity": 2},
+                {
+                    "first_name": "G1",
+                    "last_name": "A",
+                    "email": "g1@example.com",
+                    "quantity": 1,
+                },
+                {
+                    "first_name": "G2",
+                    "last_name": "B",
+                    "email": "g2@example.com",
+                    "quantity": 2,
+                },
             ]
         }
-        r = self.client.post(f"/api/v1/events/{e.id}/register/bulk", payload, format="json")
+        r = self.client.post(
+            f"/api/v1/events/{e.id}/register/bulk", payload, format="json"
+        )
         self.assertEqual(r.status_code, 201, r.data)
         self.assertIn("group", r.data)
         group = r.data["group"]
@@ -306,9 +327,13 @@ class EventsAndRegistrationsExtraTests(APITestCase):
 
         # Verify via webhook using group_id + amount
         token = jwt.encode(
-            {"group_id": group_id, "amount": amount_total}, settings.JWT_SECRET, algorithm="HS256"
+            {"group_id": group_id, "amount": amount_total},
+            settings.JWT_SECRET,
+            algorithm="HS256",
         )
-        r = self.client.post("/api/verify-event-payment/", {}, HTTP_AUTHORIZATION=f"Bearer {token}")
+        r = self.client.post(
+            "/api/verify-event-payment/", {}, HTTP_AUTHORIZATION=f"Bearer {token}"
+        )
         self.assertEqual(r.status_code, 200, r.json())
 
         # Check DB states
@@ -318,9 +343,13 @@ class EventsAndRegistrationsExtraTests(APITestCase):
         regs = grp.registrations.all()
         self.assertTrue(all(rg.payment_verified and rg.status == "paid" for rg in regs))
         for rg in regs:
-            ep = EventParticipant._default_manager.get(event=e, participant=rg.participant)
+            ep = EventParticipant._default_manager.get(
+                event=e, participant=rg.participant
+            )
             self.assertTrue(ep.is_confirmed)
 
         # Second call should be idempotent-safe (400 already paid)
-        r = self.client.post("/api/verify-event-payment/", {}, HTTP_AUTHORIZATION=f"Bearer {token}")
+        r = self.client.post(
+            "/api/verify-event-payment/", {}, HTTP_AUTHORIZATION=f"Bearer {token}"
+        )
         self.assertEqual(r.status_code, 400)

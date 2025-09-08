@@ -5,7 +5,6 @@ import oscar.utils.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("catalogue", "0016_auto_20190327_0757"),
     ]

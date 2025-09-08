@@ -12,7 +12,9 @@ class CheckoutExtraTests(APITestCase):
         p = create_product(price=price)
         basket_id = self.client.post("/api/v1/baskets").data["cart_id"]
         self.client.post(
-            f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 1}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
         )
         return basket_id
 
@@ -23,12 +25,16 @@ class CheckoutExtraTests(APITestCase):
         self.assertEqual(r.status_code, 400)
         # Invalid email
         r = self.client.post(
-            "/api/v1/checkout/email", {"basket_id": basket_id, "email": "bad"}, format="json"
+            "/api/v1/checkout/email",
+            {"basket_id": basket_id, "email": "bad"},
+            format="json",
         )
         self.assertEqual(r.status_code, 400)
         # OK
         r = self.client.post(
-            "/api/v1/checkout/email", {"basket_id": basket_id, "email": "guest@example.com"}, format="json"
+            "/api/v1/checkout/email",
+            {"basket_id": basket_id, "email": "guest@example.com"},
+            format="json",
         )
         self.assertEqual(r.status_code, 200)
 
@@ -75,7 +81,11 @@ class CheckoutExtraTests(APITestCase):
         img = SimpleUploadedFile("proof.jpg", b"bytes2", content_type="image/jpeg")
         r = self.client.post(
             "/api/v1/checkout/place-order",
-            {"basket_id": basket_id, "payment_proof": img, "shipping_method_code": "nope"},
+            {
+                "basket_id": basket_id,
+                "payment_proof": img,
+                "shipping_method_code": "nope",
+            },
         )
         self.assertEqual(r.status_code, 400)
 
@@ -90,8 +100,9 @@ class CheckoutExtraTests(APITestCase):
         self.assertEqual(r.status_code, 201, r.data)
         self.assertEqual(r.data["donation_amount"], 5)
         # Ensure sources present and amount includes donation
-        self.assertTrue(r.data["sources"]) 
+        self.assertTrue(r.data["sources"])
         from decimal import Decimal as D
+
         total_incl_tax = D(str(r.data["total_incl_tax"]))
         expected = total_incl_tax + D("5")
         amounts = [D(str(s["amount_debited"])) for s in r.data["sources"]]

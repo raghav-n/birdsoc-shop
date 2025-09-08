@@ -12,14 +12,22 @@ class OrdersExtraTests(APITestCase):
         m = create_shipping_method(price=0)
         basket_id = client.post("/api/v1/baskets").data["cart_id"]
         client.post(
-            f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 1}, format="json"
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
         )
         img = SimpleUploadedFile("proof.jpg", b"fake-bytes", content_type="image/jpeg")
         temp_key = client.post(
-            "/api/v1/checkout/payment/paynow-proof", {"basket_id": basket_id, "payment_proof": img}
+            "/api/v1/checkout/payment/paynow-proof",
+            {"basket_id": basket_id, "payment_proof": img},
         ).data["temp_key"]
         order = client.post(
-            "/api/v1/checkout/place-order", {"basket_id": basket_id, "temp_key": temp_key, "shipping_method_code": m.code}
+            "/api/v1/checkout/place-order",
+            {
+                "basket_id": basket_id,
+                "temp_key": temp_key,
+                "shipping_method_code": m.code,
+            },
         ).data
         return order
 
@@ -33,4 +41,3 @@ class OrdersExtraTests(APITestCase):
         r = c2.get(f"/api/v1/orders/{order['number']}")
         # Not in queryset for user => 404
         self.assertEqual(r.status_code, 404)
-

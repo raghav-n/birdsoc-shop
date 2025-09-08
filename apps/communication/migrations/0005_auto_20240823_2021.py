@@ -16,7 +16,6 @@ def create_communication_event_types(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("communication", "0004_auto_20200801_0817"),
     ]

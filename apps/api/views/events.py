@@ -24,7 +24,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     def list(self, request):
-        qs = OrganizedEvent._default_manager.filter(is_active=True).order_by("start_date")
+        qs = OrganizedEvent._default_manager.filter(is_active=True).order_by(
+            "start_date"
+        )
         closed = get_global_registration_closed()
         data = [
             {
@@ -78,12 +80,18 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
-            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # Global switch: block all registrations when closed
         if get_global_registration_closed():
             return Response(
-                {"detail": "Registration is temporarily closed", "code": "registration_closed", "global_registration_closed": True},
+                {
+                    "detail": "Registration is temporarily closed",
+                    "code": "registration_closed",
+                    "global_registration_closed": True,
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -92,21 +100,35 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         last_name = (request.data.get("last_name") or "").strip()
         email = (request.data.get("email") or "").strip()
         phone_number = (request.data.get("phone_number") or "").strip()
-        emergency_contact_name = (request.data.get("emergency_contact_name") or "").strip()
-        emergency_contact_phone = (request.data.get("emergency_contact_phone") or "").strip()
+        emergency_contact_name = (
+            request.data.get("emergency_contact_name") or ""
+        ).strip()
+        emergency_contact_phone = (
+            request.data.get("emergency_contact_phone") or ""
+        ).strip()
         try:
             quantity = int(request.data.get("quantity", 1))
         except Exception:
-            return Response({"detail": "quantity must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "quantity must be an integer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not first_name or not last_name or not email:
-            return Response({"detail": "first_name, last_name, and email are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "first_name, last_name, and email are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             validate_email(email)
         except ValidationError:
-            return Response({"detail": "Invalid email"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid email"}, status=status.HTTP_400_BAD_REQUEST
+            )
         if quantity <= 0:
-            return Response({"detail": "quantity must be >= 1"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "quantity must be >= 1"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Duplicate email registration for same event should be allowed
 
@@ -125,14 +147,19 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         # If provided as a string via form-data, parse to dict
         if isinstance(extra_json, str) and extra_json:
             import json as _json
+
             try:
                 extra_json = _json.loads(extra_json)
             except Exception as e:
-                return Response({"detail": f"extra_json must be valid JSON: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"extra_json must be valid JSON: {e}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Compute unit price from price_tiers (fallback to event.price_incl_tax)
         unit_price = event.get_unit_price_from_tiers(extra_json or {})
         from decimal import Decimal as _D
+
         amount = unit_price * _D(str(quantity))
         # Optional donation top-up (parse early to determine paid flow correctly)
         donation_raw = request.data.get("donation")
@@ -141,9 +168,15 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             try:
                 donation_int = int(donation_raw)
             except Exception:
-                return Response({"detail": "donation must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "donation must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if donation_int < 0:
-                return Response({"detail": "donation must be >= 0"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "donation must be >= 0"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Paid or free? Consider donation too
         is_paid = (amount > 0) or (donation_int > 0)
@@ -155,7 +188,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             if confirmed + pending + quantity > event.max_participants:
                 remaining = max(event.max_participants - confirmed - pending, 0)
                 return Response(
-                    {"detail": f"Cannot add participant. Only {remaining} spots remaining."},
+                    {
+                        "detail": f"Cannot add participant. Only {remaining} spots remaining."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -219,7 +254,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         if upload:
             # Save with the proper upload_to using reference
             content = upload.read()
-            reg.payment_proof.save(basename(upload.name), ContentFile(content), save=True)
+            reg.payment_proof.save(
+                basename(upload.name), ContentFile(content), save=True
+            )
 
         return Response(
             {
@@ -264,31 +301,46 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
-            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # Global switch: block all registrations when closed
         if get_global_registration_closed():
             return Response(
-                {"detail": "Registration is temporarily closed", "code": "registration_closed", "global_registration_closed": True},
+                {
+                    "detail": "Registration is temporarily closed",
+                    "code": "registration_closed",
+                    "global_registration_closed": True,
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         # Participants payload
         participants_payload = request.data.get("participants")
         if participants_payload is None:
-            return Response({"detail": "participants is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "participants is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Parse if needed
         if isinstance(participants_payload, str):
             try:
                 participants = _json.loads(participants_payload)
             except Exception as e:
-                return Response({"detail": f"participants must be valid JSON list: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"participants must be valid JSON list: {e}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         else:
             participants = participants_payload
 
         if not isinstance(participants, list) or not participants:
-            return Response({"detail": "participants must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "participants must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Optional payer metadata
         payer_name = (request.data.get("payer_name") or "").strip()
@@ -298,14 +350,20 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             try:
                 validate_email(payer_email)
             except ValidationError:
-                return Response({"detail": "Invalid payer_email"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Invalid payer_email"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         # Optional custom reference (only applies when a paid group is created)
         raw_reference = request.data.get("reference")
         provided_reference = None
         if isinstance(raw_reference, str):
             provided_reference = raw_reference.strip()
         elif raw_reference is not None:
-            return Response({"detail": "reference must be a string"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "reference must be a string"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Optional donation for the whole group
         donation_raw = request.data.get("donation")
@@ -314,9 +372,15 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             try:
                 donation_int = int(donation_raw)
             except Exception:
-                return Response({"detail": "donation must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "donation must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if donation_int < 0:
-                return Response({"detail": "donation must be >= 0"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "donation must be >= 0"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Validate each participant and build normalized list
         normalized = []
@@ -325,21 +389,33 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         errors = []
         for idx, item in enumerate(participants):
             if not isinstance(item, dict):
-                errors.append({"index": idx, "detail": "Each participant must be an object"})
+                errors.append(
+                    {"index": idx, "detail": "Each participant must be an object"}
+                )
                 continue
             first_name = (item.get("first_name") or "").strip()
             last_name = (item.get("last_name") or "").strip()
             email = (item.get("email") or "").strip()
             phone_number = (item.get("phone_number") or "").strip()
             emergency_contact_name = (item.get("emergency_contact_name") or "").strip()
-            emergency_contact_phone = (item.get("emergency_contact_phone") or "").strip()
+            emergency_contact_phone = (
+                item.get("emergency_contact_phone") or ""
+            ).strip()
             try:
                 quantity = int(item.get("quantity", 1))
             except Exception:
-                return Response({"detail": f"quantity must be an integer (index {idx})"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"quantity must be an integer (index {idx})"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             if not first_name or not last_name or not email:
-                errors.append({"index": idx, "detail": "first_name, last_name, and email are required"})
+                errors.append(
+                    {
+                        "index": idx,
+                        "detail": "first_name, last_name, and email are required",
+                    }
+                )
                 continue
             try:
                 validate_email(email)
@@ -356,29 +432,37 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 try:
                     extra_json = _json.loads(extra_json)
                 except Exception as e:
-                    errors.append({"index": idx, "detail": f"extra_json must be valid JSON: {e}"})
+                    errors.append(
+                        {"index": idx, "detail": f"extra_json must be valid JSON: {e}"}
+                    )
                     continue
 
-            normalized.append({
-                "first_name": first_name,
-                "last_name": last_name,
-                "email": email,
-                "phone_number": phone_number,
-                "emergency_contact_name": emergency_contact_name,
-                "emergency_contact_phone": emergency_contact_phone,
-                "quantity": quantity,
-                "extra_json": extra_json,
-            })
+            normalized.append(
+                {
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": email,
+                    "phone_number": phone_number,
+                    "emergency_contact_name": emergency_contact_name,
+                    "emergency_contact_phone": emergency_contact_phone,
+                    "quantity": quantity,
+                    "extra_json": extra_json,
+                }
+            )
             emails.append(email.lower())
             total_qty += quantity
 
         if errors:
-            return Response({"detail": "Invalid participant data", "errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Invalid participant data", "errors": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Duplicate emails within payload are allowed (they may be different people)
 
         # Compute unit prices per normalized participant and total amount
         from decimal import Decimal as _D
+
         total_amount = _D("0")
         for item in normalized:
             unit_price = event.get_unit_price_from_tiers(item.get("extra_json") or {})
@@ -397,12 +481,14 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             if confirmed + pending + total_qty > event.max_participants:
                 remaining = max(event.max_participants - confirmed - pending, 0)
                 return Response(
-                    {"detail": f"Cannot add participants. Only {remaining} spots remaining."},
+                    {
+                        "detail": f"Cannot add participants. Only {remaining} spots remaining."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
         # Duplicate email registration for same event should be allowed
-        
+
         # Create group (for paid events)
         group = None
         if requires_payment:
@@ -411,12 +497,19 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 # Format: max 25 chars, A–Z 0–9 hyphen only
                 if not re.fullmatch(r"[A-Z0-9-]{1,25}", provided_reference or ""):
                     return Response(
-                        {"detail": "Invalid reference format. Use A–Z, 0–9, and hyphen only, max 25 characters."},
+                        {
+                            "detail": "Invalid reference format. Use A–Z, 0–9, and hyphen only, max 25 characters."
+                        },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 # Uniqueness across groups (global)
-                if EventRegistrationGroup.objects.filter(reference=provided_reference).exists():
-                    return Response({"detail": "Reference already in use"}, status=status.HTTP_409_CONFLICT)
+                if EventRegistrationGroup.objects.filter(
+                    reference=provided_reference
+                ).exists():
+                    return Response(
+                        {"detail": "Reference already in use"},
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
             group = EventRegistrationGroup.objects.create(
                 event=event,
@@ -425,7 +518,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 payer_phone=payer_phone,
                 amount_total=total_amount,
                 currency=event.currency,
-                reference=(provided_reference or ""),  # set after we have an ID if not provided
+                reference=(
+                    provided_reference or ""
+                ),  # set after we have an ID if not provided
                 donation_amount=_D(str(donation_int or 0)),
             )
             if not provided_reference:
@@ -437,8 +532,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             if upload:
                 from django.core.files.base import ContentFile
                 from os.path import basename
+
                 content = upload.read()
-                group.payment_proof.save(basename(upload.name), ContentFile(content), save=True)
+                group.payment_proof.save(
+                    basename(upload.name), ContentFile(content), save=True
+                )
 
         # Create participants, eventparticipants, and registrations
         items = []
@@ -454,7 +552,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
             try:
-                ep = event.add_participant(p, is_confirmed=not requires_payment, extra_json=item.get("extra_json"))
+                ep = event.add_participant(
+                    p,
+                    is_confirmed=not requires_payment,
+                    extra_json=item.get("extra_json"),
+                )
             except ValueError as e:
                 return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -502,7 +604,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
 
         response = {
             "event": event.id,
-            "totals": {"quantity": total_qty, "amount": str(total_amount), "currency": event.currency},
+            "totals": {
+                "quantity": total_qty,
+                "amount": str(total_amount),
+                "currency": event.currency,
+            },
             "items": items,
         }
         if requires_payment and group:
@@ -511,7 +617,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "reference": group.reference,
                 "amount_total": str(group.amount_total),
                 "donation_amount": str(group.donation_amount),
-                "amount_total_with_donation": str(group.amount_total + group.donation_amount),
+                "amount_total_with_donation": str(
+                    group.amount_total + group.donation_amount
+                ),
                 "currency": group.currency,
                 "status": group.status,
                 "payment_proof_uploaded": bool(group.payment_proof),
@@ -532,27 +640,39 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
-            return Response({"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         participants_payload = request.data.get("participants")
         if participants_payload is None:
-            return Response({"detail": "participants is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "participants is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if isinstance(participants_payload, str):
             try:
                 participants = _json.loads(participants_payload)
             except Exception as e:
-                return Response({"detail": f"participants must be valid JSON list: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"participants must be valid JSON list: {e}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         else:
             participants = participants_payload
 
         if not isinstance(participants, list) or not participants:
-            return Response({"detail": "participants must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "participants must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Normalize inputs
         items = []
         emails = []
         from decimal import Decimal as _D
+
         total_qty = 0
         total_amount = _D("0")
         # Optional donation on the preview
@@ -562,25 +682,43 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             try:
                 donation_int = int(donation_raw)
             except Exception:
-                return Response({"detail": "donation must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "donation must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if donation_int < 0:
-                return Response({"detail": "donation must be >= 0"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "donation must be >= 0"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         for idx, item in enumerate(participants):
             if not isinstance(item, dict):
-                return Response({"detail": f"Each participant must be an object (index {idx})"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"Each participant must be an object (index {idx})"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             try:
                 quantity = int(item.get("quantity", 1))
             except Exception:
-                return Response({"detail": f"quantity must be an integer (index {idx})"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"quantity must be an integer (index {idx})"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             if quantity <= 0:
-                return Response({"detail": f"quantity must be >= 1 (index {idx})"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": f"quantity must be >= 1 (index {idx})"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             extra_json = item.get("extra_json")
             if isinstance(extra_json, str) and extra_json:
                 try:
                     extra_json = _json.loads(extra_json)
                 except Exception as e:
-                    return Response({"detail": f"extra_json must be valid JSON (index {idx}): {e}"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"detail": f"extra_json must be valid JSON (index {idx}): {e}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             unit_price = event.get_unit_price_from_tiers(extra_json or {})
             line_total = unit_price * _D(str(quantity))
@@ -595,9 +733,15 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             matched_tier = None
             tiers = event.price_tiers or []
             if isinstance(tiers, dict):
-                tiers = [dict({"code": code}, **cfg) for code, cfg in tiers.items() if isinstance(cfg, dict)]
+                tiers = [
+                    dict({"code": code}, **cfg)
+                    for code, cfg in tiers.items()
+                    if isinstance(cfg, dict)
+                ]
             for t in tiers:
-                if event._match_rule(str((t or {}).get("rule") or "*"), extra_json or {}):
+                if event._match_rule(
+                    str((t or {}).get("rule") or "*"), extra_json or {}
+                ):
                     matched_tier = {
                         "code": t.get("code"),
                         "name": t.get("name"),
@@ -606,13 +750,15 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     }
                     break
 
-            items.append({
-                "index": idx,
-                "quantity": quantity,
-                "unit_price": str(unit_price),
-                "line_total": str(line_total),
-                "tier": matched_tier,
-            })
+            items.append(
+                {
+                    "index": idx,
+                    "quantity": quantity,
+                    "unit_price": str(unit_price),
+                    "line_total": str(line_total),
+                    "tier": matched_tier,
+                }
+            )
 
         # Allow duplicate emails within payload
 

@@ -28,10 +28,12 @@ class RefundsExtraTests(APITestCase):
         # Staff user can access
         User = get_user_model()
         staff = User.objects.create_user(
-            username="staff@example.com", email="staff@example.com", password="Passw0rd!", is_staff=True
+            username="staff@example.com",
+            email="staff@example.com",
+            password="Passw0rd!",
+            is_staff=True,
         )
         c = APIClient()
         auth_client(c, email=staff.email)
         r = c.get(f"/api/v1/refunds/{rid}")
         self.assertEqual(r.status_code, 200)
-

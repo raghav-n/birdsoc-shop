@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("communication", "0003_remove_notification_category_make_code_uppercase"),
     ]

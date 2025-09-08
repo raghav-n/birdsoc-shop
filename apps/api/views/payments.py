@@ -20,17 +20,26 @@ class PayNowGmailCheckView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        order_number = request.query_params.get("order") or request.query_params.get("order_number")
+        order_number = request.query_params.get("order") or request.query_params.get(
+            "order_number"
+        )
         if not order_number:
-            return Response({"detail": "order (order_number) query param is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "order (order_number) query param is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             order = Order._default_manager.get(number=order_number)
         except Order.DoesNotExist:
-            return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # If already confirmed, short-circuit
-        if order.payment_events.filter(event_type__code__in=["paynow-auto-verified", "paynow-verified"]).exists():
+        if order.payment_events.filter(
+            event_type__code__in=["paynow-auto-verified", "paynow-verified"]
+        ).exists():
             return Response({"confirmed": True, "already_confirmed": True})
 
         # Build Gmail service
@@ -60,36 +69,44 @@ class PayNowGmailCheckView(APIView):
         try:
             amount = Decimal(amount_str)
         except Exception:
-            return Response({
-                "confirmed": False,
-                "found": True,
-                "amount": amount_str,
-                "message": "Unable to parse amount from email",
-            })
+            return Response(
+                {
+                    "confirmed": False,
+                    "found": True,
+                    "amount": amount_str,
+                    "message": "Unable to parse amount from email",
+                }
+            )
 
         if order.total_incl_tax_with_donation != amount:
-            return Response({
-                "confirmed": False,
-                "found": True,
-                "amount": amount_str,
-                "message": f"Amount mismatch. Expected SGD {order.total_incl_tax_with_donation}.",
-            })
+            return Response(
+                {
+                    "confirmed": False,
+                    "found": True,
+                    "amount": amount_str,
+                    "message": f"Amount mismatch. Expected SGD {order.total_incl_tax_with_donation}.",
+                }
+            )
 
         # Confirm the order
         try:
             confirm_paynow_payment(order, amount)
         except PaymentConfirmationError as e:
-            return Response({
-                "confirmed": False,
+            return Response(
+                {
+                    "confirmed": False,
+                    "found": True,
+                    "amount": amount_str,
+                    "message": str(e),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "confirmed": True,
                 "found": True,
                 "amount": amount_str,
-                "message": str(e),
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({
-            "confirmed": True,
-            "found": True,
-            "amount": amount_str,
-            "email_timestamp": received_at.isoformat(),
-        })
-
+                "email_timestamp": received_at.isoformat(),
+            }
+        )

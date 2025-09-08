@@ -436,9 +436,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_PAGINATION_CLASS": "apps.api.pagination.DefaultPagination",
     "PAGE_SIZE": 20,
 }
@@ -448,9 +446,7 @@ CORS_ALLOW_CREDENTIALS = False
 # Adjust this in production
 CORS_ALLOW_ALL_ORIGINS = not SESSION_ENVIRONMENT_PRODUCTION
 
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    "https:\/\/([a-z0-9-]+\.)*birdsociety\.sg$"
-]
+CORS_ALLOWED_ORIGIN_REGEXES = ["https:\/\/([a-z0-9-]+\.)*birdsociety\.sg$"]
 
 # Allow API URLs to bypass login-required middleware
 OPEN_URLS = [
@@ -694,12 +690,18 @@ OSCAR_DASHBOARD_NAVIGATION = [
             {
                 "label": _("Events"),
                 "url_name": "dashboard-event:event-list",
-                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+                "access_fn": lambda user,
+                _url_name,
+                _url_args,
+                _url_kwargs: user.is_staff,
             },
             {
                 "label": _("Participants"),
                 "url_name": "dashboard-event:participant-list",
-                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+                "access_fn": lambda user,
+                _url_name,
+                _url_args,
+                _url_kwargs: user.is_staff,
             },
         ],
     },

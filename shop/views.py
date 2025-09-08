@@ -30,12 +30,11 @@ def login(request):
     # Generate and store a state parameter to prevent CSRF attacks
     state = secrets.token_urlsafe(32)
     request.session["auth0_state"] = state
-    
+
     return oauth.auth0.authorize_redirect(
-        request, 
-        request.build_absolute_uri(reverse("dashboard_callback")),
-        state=state
+        request, request.build_absolute_uri(reverse("dashboard_callback")), state=state
     )
+
 
 def callback(request):
     # Verify state parameter to prevent CSRF attacks
@@ -74,7 +73,7 @@ def logout(request):
     request.session.clear()
     auth_logout(request)
     rotate_token(request)
-    
+
     # Then redirect to Auth0 logout
     return redirect(
         f"https://{settings.AUTH0_DOMAIN}/v2/logout?"

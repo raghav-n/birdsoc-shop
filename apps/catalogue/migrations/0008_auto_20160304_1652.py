@@ -7,7 +7,6 @@ import oscar.core.validators
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("catalogue", "0007_auto_20151207_1440"),
     ]

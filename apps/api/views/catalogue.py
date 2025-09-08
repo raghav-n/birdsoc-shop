@@ -17,8 +17,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "pk"
 
     def get_queryset(self):
-        qs = Product._default_manager.all().select_related("product_class").prefetch_related(
-            "images", "stockrecords"
+        qs = (
+            Product._default_manager.all()
+            .select_related("product_class")
+            .prefetch_related("images", "stockrecords")
         )
         q = self.request.query_params.get("q")
         if q:

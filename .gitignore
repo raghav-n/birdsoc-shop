@@ -11,3 +11,4 @@ config/
 .env
 
 .*-mcp/
+registration_closed_state.txt

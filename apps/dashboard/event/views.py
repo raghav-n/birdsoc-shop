@@ -25,6 +25,7 @@ from django import forms
 
 from apps.event.models import OrganizedEvent, Participant, EventParticipant
 from oscar.core.loading import get_model
+
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 from apps.event.forms import (
@@ -35,7 +36,10 @@ from apps.event.forms import (
 )
 
 from django.template.loader import render_to_string
-from apps.event.utils import get_global_registration_closed, set_global_registration_closed
+from apps.event.utils import (
+    get_global_registration_closed,
+    set_global_registration_closed,
+)
 
 
 # Create a custom dashboard mixin to replace the missing one
@@ -55,9 +59,13 @@ class EventListView(DashboardMixin, ListView):
 
     def get_queryset(self):
         # Prefetch related data to optimize queries for pending count calculations
-        return super().get_queryset().prefetch_related(
-            'eventregistration_set__participant',
-            'eventparticipant_set__participant'
+        return (
+            super()
+            .get_queryset()
+            .prefetch_related(
+                "eventregistration_set__participant",
+                "eventparticipant_set__participant",
+            )
         )
 
     def get_context_data(self, **kwargs):
@@ -75,54 +83,59 @@ class EventDetailView(DashboardMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         event = self.object
         # Include group registrations/payments for bulk flows
-        groups = (
-            EventRegistrationGroup._default_manager
-            .filter(event=event)
-            .order_by("-created_at")
+        groups = EventRegistrationGroup._default_manager.filter(event=event).order_by(
+            "-created_at"
         )
         ctx["groups"] = groups
-        
+
         # Include individual registrations/payments (not part of a group)
         individual_registrations = (
-            event.eventregistration_set
-            .filter(group__isnull=True)
-            .select_related('participant')
+            event.eventregistration_set.filter(group__isnull=True)
+            .select_related("participant")
             .order_by("-created_at")
         )
         ctx["individual_registrations"] = individual_registrations
-        
+
         ctx["pending_count"] = event.pending_count
-        
+
         # Calculate total donation amounts
-        individual_donations = event.eventregistration_set.aggregate(
-            total=models.Sum('donation_amount')
-        )['total'] or 0
-        
-        group_donations = groups.aggregate(
-            total=models.Sum('donation_amount')
-        )['total'] or 0
-        
+        individual_donations = (
+            event.eventregistration_set.aggregate(total=models.Sum("donation_amount"))[
+                "total"
+            ]
+            or 0
+        )
+
+        group_donations = (
+            groups.aggregate(total=models.Sum("donation_amount"))["total"] or 0
+        )
+
         ctx["total_donations"] = individual_donations + group_donations
         ctx["individual_donations"] = individual_donations
         ctx["group_donations"] = group_donations
-        
+
         # Annotate event participants with their registration references
         event_participants = []
-        for ep in event.eventparticipant_set.select_related('participant').all():
+        for ep in event.eventparticipant_set.select_related("participant").all():
             # Find the registration for this participant for this event
-            registration = event.eventregistration_set.filter(participant=ep.participant).first()
+            registration = event.eventregistration_set.filter(
+                participant=ep.participant
+            ).first()
             ep.registration_reference = registration.reference if registration else None
             event_participants.append(ep)
         ctx["event_participants"] = event_participants
-        
+
         return ctx
+
 
 class EventRegistrationVerifyView(DashboardMixin, View):
     def post(self, request, *args, **kwargs):
         reg_id = kwargs.get("reg_id")
         reg = get_object_or_404(EventRegistration, id=reg_id)
         reg.verify(user=request.user)
-        messages.success(request, f"Registration {reg.reference} marked as paid and confirmed.")
+        messages.success(
+            request, f"Registration {reg.reference} marked as paid and confirmed."
+        )
         return redirect("event-dashboard:event-detail", pk=reg.event_id)
 
 
@@ -734,11 +747,7 @@ class EventParticipantDetailView(DashboardMixin, DetailView):
 
     def get_queryset(self):
         # Pull related objects for efficient template rendering
-        return (
-            super()
-            .get_queryset()
-            .select_related("event", "participant")
-        )
+        return super().get_queryset().select_related("event", "participant")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -748,9 +757,7 @@ class EventParticipantDetailView(DashboardMixin, DetailView):
         ctx["title"] = f"{ep.participant.full_name} @ {ep.event.title}"
         # Prepare extra_json for table display in template
         extra = ep.extra_json or {}
-        ctx["extra_items"] = (
-            extra.items() if isinstance(extra, dict) else []
-        )
+        ctx["extra_items"] = extra.items() if isinstance(extra, dict) else []
         ctx["extra_is_dict"] = isinstance(extra, dict)
         ctx["extra_raw"] = extra
         return ctx

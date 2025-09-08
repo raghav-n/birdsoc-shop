@@ -13,7 +13,6 @@ models_AutoField = import_string(settings.DEFAULT_AUTO_FIELD)
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

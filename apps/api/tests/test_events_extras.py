@@ -47,4 +47,3 @@ class EventsExtraTests(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
-

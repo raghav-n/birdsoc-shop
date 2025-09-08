@@ -9,7 +9,6 @@ models_AutoField = import_string(settings.DEFAULT_AUTO_FIELD)
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("order", "0005_update_email_length"),
     ]

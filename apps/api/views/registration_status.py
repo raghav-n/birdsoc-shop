@@ -9,7 +9,6 @@ class RegistrationStatusView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response({
-            "global_registration_closed": get_global_registration_closed()
-        })
-
+        return Response(
+            {"global_registration_closed": get_global_registration_closed()}
+        )

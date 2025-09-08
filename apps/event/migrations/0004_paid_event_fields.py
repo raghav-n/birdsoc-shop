@@ -5,7 +5,6 @@ from django.conf import settings
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("event", "0003_remove_participant_unique_participant_email"),
     ]
@@ -14,12 +13,19 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="organizedevent",
             name="price_incl_tax",
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=12, verbose_name="Price (incl tax)"),
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                max_digits=12,
+                verbose_name="Price (incl tax)",
+            ),
         ),
         migrations.AddField(
             model_name="organizedevent",
             name="currency",
-            field=models.CharField(default="SGD", max_length=8, verbose_name="Currency"),
+            field=models.CharField(
+                default="SGD", max_length=8, verbose_name="Currency"
+            ),
         ),
         migrations.AddField(
             model_name="eventparticipant",
@@ -29,22 +35,63 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="EventRegistration",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("status", models.CharField(choices=[("pending", "Pending payment"), ("paid", "Paid"), ("cancelled", "Cancelled")], default="pending", max_length=16)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending payment"),
+                            ("paid", "Paid"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
+                        max_length=16,
+                    ),
+                ),
                 ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
                 ("currency", models.CharField(default="SGD", max_length=8)),
                 ("reference", models.CharField(max_length=64, unique=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("payment_verified", models.BooleanField(default=False)),
                 ("payment_verified_on", models.DateTimeField(blank=True, null=True)),
-                ("payment_proof", models.ImageField(null=True, upload_to=apps.payment.models.get_payment_proof_path)),
-                ("event", models.ForeignKey(on_delete=models.deletion.CASCADE, to="event.organizedevent")),
-                ("participant", models.ForeignKey(on_delete=models.deletion.CASCADE, to="event.participant")),
-                ("payment_verified_by", models.ForeignKey(blank=True, null=True, on_delete=models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
+                (
+                    "payment_proof",
+                    models.ImageField(
+                        null=True, upload_to=apps.payment.models.get_payment_proof_path
+                    ),
+                ),
+                (
+                    "event",
+                    models.ForeignKey(
+                        on_delete=models.deletion.CASCADE, to="event.organizedevent"
+                    ),
+                ),
+                (
+                    "participant",
+                    models.ForeignKey(
+                        on_delete=models.deletion.CASCADE, to="event.participant"
+                    ),
+                ),
+                (
+                    "payment_verified_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
                 "ordering": ["-created_at"],
             },
         ),
     ]
-

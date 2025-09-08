@@ -24,7 +24,9 @@ class OrdersViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "number"
 
     def get_queryset(self):
-        return Order._default_manager.filter(user=self.request.user).order_by("-date_placed")
+        return Order._default_manager.filter(user=self.request.user).order_by(
+            "-date_placed"
+        )
 
     def retrieve(self, request, *args, **kwargs):
         obj = self.get_object()
@@ -40,4 +42,3 @@ class OrdersViewSet(viewsets.ReadOnlyModelViewSet):
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
         resp["Content-Disposition"] = f"inline; filename=receipt-{number}.pdf"
         return resp
-

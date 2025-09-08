@@ -39,19 +39,23 @@ class OrganizedEvent(models.Model):
         null=True,
         help_text=_(
             "Optional list of price tier rules. Example: "
-            "[{\"code\":\"student\",\"name\":\"Under 19\",\"rule\":\"age:<19\",\"price_incl_tax\":10.0}, {\"code\":\"adult\",\"name\":\"Adult\",\"rule\":\"*\",\"price_incl_tax\":15.0}]"
+            '[{"code":"student","name":"Under 19","rule":"age:<19","price_incl_tax":10.0}, {"code":"adult","name":"Adult","rule":"*","price_incl_tax":15.0}]'
         ),
     )
     validate_participant_data = models.BooleanField(
         _("Validate participant data"),
         default=False,
-        help_text=_("If true, participant data will be validated against the JSON schema"),
+        help_text=_(
+            "If true, participant data will be validated against the JSON schema"
+        ),
     )
     confirmed_email_template = models.TextField(
         _("Payment Confirmation Email Template"),
         blank=True,
         null=True,
-        help_text=_("HTML email template sent when payment is confirmed. Available variables: {{first_name}}, {{last_name}}, {{email}}, {{phone_number}}, {{quantity}}, {{event_title}}, {{event_date}}, {{event_location}}, {{amount}}, {{currency}}, {{participant_details}}"),
+        help_text=_(
+            "HTML email template sent when payment is confirmed. Available variables: {{first_name}}, {{last_name}}, {{email}}, {{phone_number}}, {{quantity}}, {{event_title}}, {{event_date}}, {{event_location}}, {{amount}}, {{currency}}, {{participant_details}}"
+        ),
     )
 
     class Meta:
@@ -81,7 +85,9 @@ class OrganizedEvent(models.Model):
     def pending_count(self):
         """Count of reserved (pending payment) participants."""
         # Sum quantities of pending registrations whose EventParticipant is not cancelled
-        qs = self.eventregistration_set.select_related("participant").filter(status="pending")
+        qs = self.eventregistration_set.select_related("participant").filter(
+            status="pending"
+        )
         # Exclude participants explicitly cancelled for this event
         qs = qs.exclude(
             participant__eventparticipant__event=self,
@@ -114,7 +120,9 @@ class OrganizedEvent(models.Model):
                 raise ValueError(f"Invalid JSON schema configured: {e.msg}")
 
             try:
-                jsonschema.validate(instance=kwargs.get("extra_json", {}), schema=schema)
+                jsonschema.validate(
+                    instance=kwargs.get("extra_json", {}), schema=schema
+                )
             except jsonschema.ValidationError as e:
                 raise ValueError(f"Participant data validation error: {e.message}")
 
@@ -171,7 +179,7 @@ class OrganizedEvent(models.Model):
         for candidate in ops:
             if cond.startswith(candidate):
                 op = candidate
-                threshold = cond[len(candidate):].strip()
+                threshold = cond[len(candidate) :].strip()
                 break
         # Support legacy style like "<19" (missing == prefix for equality not used)
         if op is None and cond and cond[0] in ("<", ">"):
@@ -210,7 +218,11 @@ class OrganizedEvent(models.Model):
             return fallback
         if isinstance(tiers, dict):
             # Allow a map, but prefer list; treat dict as {code: {rule, price_incl_tax}}
-            tiers = [dict({"code": code}, **cfg) for code, cfg in tiers.items() if isinstance(cfg, dict)]
+            tiers = [
+                dict({"code": code}, **cfg)
+                for code, cfg in tiers.items()
+                if isinstance(cfg, dict)
+            ]
         for tier in tiers:
             rule = tier.get("rule")
             if self._match_rule(str(rule or "*"), extra_json or {}):
@@ -228,8 +240,12 @@ class Participant(models.Model):
     last_name = models.CharField(_("Last Name"), max_length=100)
     email = models.EmailField(_("Email"))
     phone_number = models.CharField(_("Phone Number"), max_length=20, blank=True)
-    emergency_contact_name = models.CharField(_("Emergency Contact Name"), max_length=200, blank=True)
-    emergency_contact_phone = models.CharField(_("Emergency Contact Phone"), max_length=20, blank=True)
+    emergency_contact_name = models.CharField(
+        _("Emergency Contact Name"), max_length=200, blank=True
+    )
+    emergency_contact_phone = models.CharField(
+        _("Emergency Contact Phone"), max_length=20, blank=True
+    )
     quantity = models.PositiveIntegerField(
         _("Party Size"),
         default=1,
@@ -243,12 +259,12 @@ class Participant(models.Model):
         verbose_name_plural = _("Participants")
 
     def __str__(self):
-        qty_str = f" (+{self.quantity-1})" if self.quantity > 1 else ""
+        qty_str = f" (+{self.quantity - 1})" if self.quantity > 1 else ""
         return f"{self.first_name} {self.last_name}{qty_str} ({self.email})"
 
     @property
     def full_name(self):
-        qty_str = f" (+{self.quantity-1})" if self.quantity > 1 else ""
+        qty_str = f" (+{self.quantity - 1})" if self.quantity > 1 else ""
         return f"{self.first_name} {self.last_name}{qty_str}"
 
     def get_events(self):
@@ -267,7 +283,11 @@ class EventParticipant(models.Model):
     registered_at = models.DateTimeField(_("Registered At"), auto_now_add=True)
     is_confirmed = models.BooleanField(_("Confirmed"), default=False)
     is_cancelled = models.BooleanField(_("Cancelled"), default=False)
-    is_main_contact = models.BooleanField(_("Main Contact"), default=True, help_text=_("Only main contacts receive payment confirmation emails"))
+    is_main_contact = models.BooleanField(
+        _("Main Contact"),
+        default=True,
+        help_text=_("Only main contacts receive payment confirmation emails"),
+    )
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
     extra_json = models.JSONField(_("Extra data"), blank=True, null=True)
@@ -301,8 +321,12 @@ class EventRegistration(models.Model):
     donation_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     currency = models.CharField(max_length=8, default="SGD")
     reference = models.CharField(max_length=64, unique=True)
-    emergency_contact_name = models.CharField(_("Emergency Contact Name"), max_length=200, blank=True)
-    emergency_contact_phone = models.CharField(_("Emergency Contact Phone"), max_length=20, blank=True)
+    emergency_contact_name = models.CharField(
+        _("Emergency Contact Name"), max_length=200, blank=True
+    )
+    emergency_contact_phone = models.CharField(
+        _("Emergency Contact Phone"), max_length=20, blank=True
+    )
     # Optional link to a group registration
     group = models.ForeignKey(
         "event.EventRegistrationGroup",
@@ -318,6 +342,7 @@ class EventRegistration(models.Model):
     )
     payment_verified_on = models.DateTimeField(null=True, blank=True)
     from apps.payment.models import get_payment_proof_path
+
     payment_proof = models.ImageField(null=True, upload_to=get_payment_proof_path)
 
     class Meta:
@@ -342,13 +367,14 @@ class EventRegistration(models.Model):
         EventParticipant.objects.filter(
             event=self.event, participant=self.participant
         ).update(is_confirmed=True, is_cancelled=False)
-        
+
         # Only send individual payment confirmation email if this is NOT part of a group
         # Group payments are handled separately by the group's verify() method
         if not self.group:
             from .utils import send_payment_confirmation_email
+
             send_payment_confirmation_email(self)
-        
+
         return True
 
 
@@ -381,6 +407,7 @@ class EventRegistrationGroup(models.Model):
     )
     payment_verified_on = models.DateTimeField(null=True, blank=True)
     from apps.payment.models import get_payment_proof_path as _grp_payment_path
+
     payment_proof = models.ImageField(null=True, upload_to=_grp_payment_path)
 
     class Meta:
@@ -395,7 +422,7 @@ class EventRegistrationGroup(models.Model):
 
         if self.payment_verified:
             return True
-        
+
         # Verify all child registrations (without sending individual emails)
         for reg in self.registrations.select_related("event", "participant").all():
             if not reg.payment_verified:
@@ -415,14 +442,17 @@ class EventRegistrationGroup(models.Model):
         self.payment_verified_by = user
         self.payment_verified_on = timezone.now()
         self.save()
-        
+
         # Send single group confirmation email to the payer
         from .utils import send_group_payment_confirmation_emails
+
         send_group_payment_confirmation_emails(self)
-        
+
         return True
-    
+
     @property
     def paid_for(self):
         """Return all Participants linked to this payment group."""
-        return self.registrations.select_related("participant").values_list("participant__first_name", "participant__last_name")
+        return self.registrations.select_related("participant").values_list(
+            "participant__first_name", "participant__last_name"
+        )

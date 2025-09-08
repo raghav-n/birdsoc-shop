@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("refund", "0002_refundrequest_disbursed_at_and_more"),
     ]

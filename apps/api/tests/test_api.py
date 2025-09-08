@@ -34,10 +34,14 @@ class AuthTests(APITestCase):
     def test_register_login_and_me(self):
         email = "testuser@example.com"
         password = "Passw0rd!"
-        r = self.client.post("/api/v1/auth/register/", {"email": email, "password": password})
+        r = self.client.post(
+            "/api/v1/auth/register/", {"email": email, "password": password}
+        )
         self.assertEqual(r.status_code, 201)
 
-        r = self.client.post("/api/v1/auth/token/", {"email": email, "password": password})
+        r = self.client.post(
+            "/api/v1/auth/token/", {"email": email, "password": password}
+        )
         self.assertEqual(r.status_code, 200)
         token = r.data["access"]
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -96,13 +100,21 @@ class BasketTests(APITestCase):
         basket_id = r.data["cart_id"]
 
         # Add line
-        r = self.client.post(f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 2}, format="json")
+        r = self.client.post(
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 2},
+            format="json",
+        )
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.data["lines"][0]["quantity"], 2)
 
         # Update quantity
         line_id = r.data["lines"][0]["id"]
-        r = self.client.patch(f"/api/v1/baskets/{basket_id}/lines/{line_id}", {"quantity": 1}, format="json")
+        r = self.client.patch(
+            f"/api/v1/baskets/{basket_id}/lines/{line_id}",
+            {"quantity": 1},
+            format="json",
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["lines"][0]["quantity"], 1)
 
@@ -115,17 +127,27 @@ class BasketTests(APITestCase):
         # Create basket and try invalid code
         r = self.client.post("/api/v1/baskets")
         basket_id = r.data["cart_id"]
-        r = self.client.post(f"/api/v1/baskets/{basket_id}/apply-voucher", {"code": "NOPE"}, format="json")
+        r = self.client.post(
+            f"/api/v1/baskets/{basket_id}/apply-voucher",
+            {"code": "NOPE"},
+            format="json",
+        )
         self.assertEqual(r.status_code, 400)
 
     def test_merge_guest_into_user(self):
         p = create_product(price=10)
         guest = self.client.post("/api/v1/baskets").data["cart_id"]
-        self.client.post(f"/api/v1/baskets/{guest}/lines", {"product_id": p.id, "quantity": 1}, format="json")
+        self.client.post(
+            f"/api/v1/baskets/{guest}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
+        )
 
         client = APIClient()
         auth_client(client)
-        r = client.post("/api/v1/baskets/merge", {"source_cart_id": guest}, format="json")
+        r = client.post(
+            "/api/v1/baskets/merge", {"source_cart_id": guest}, format="json"
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(len(r.data["lines"]), 1)
 
@@ -138,22 +160,39 @@ class CheckoutTests(APITestCase):
 
         # Basket create and add
         basket_id = self.client.post("/api/v1/baskets").data["cart_id"]
-        self.client.post(f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 1}, format="json")
+        self.client.post(
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
+        )
 
         # Upload proof
-        img = SimpleUploadedFile("proof.jpg", b"fake-image-bytes", content_type="image/jpeg")
-        r = self.client.post("/api/v1/checkout/payment/paynow-proof", {"basket_id": basket_id, "donation": 2, "payment_proof": img})
+        img = SimpleUploadedFile(
+            "proof.jpg", b"fake-image-bytes", content_type="image/jpeg"
+        )
+        r = self.client.post(
+            "/api/v1/checkout/payment/paynow-proof",
+            {"basket_id": basket_id, "donation": 2, "payment_proof": img},
+        )
         self.assertEqual(r.status_code, 201)
         temp_key = r.data["temp_key"]
 
         # Place order
-        r = self.client.post("/api/v1/checkout/place-order", {"basket_id": basket_id, "temp_key": temp_key, "shipping_method_code": m.code})
+        r = self.client.post(
+            "/api/v1/checkout/place-order",
+            {
+                "basket_id": basket_id,
+                "temp_key": temp_key,
+                "shipping_method_code": m.code,
+            },
+        )
         self.assertEqual(r.status_code, 201, r.data)
         self.assertIn("number", r.data)
 
 
 try:
     import weasyprint  # noqa
+
     WEASYPRINT_AVAILABLE = True
 except Exception:
     WEASYPRINT_AVAILABLE = False
@@ -169,10 +208,26 @@ class OrdersTests(APITestCase):
         m = create_shipping_method(price=0)
 
         basket_id = client.post("/api/v1/baskets").data["cart_id"]
-        client.post(f"/api/v1/baskets/{basket_id}/lines", {"product_id": p.id, "quantity": 1}, format="json")
-        img = SimpleUploadedFile("proof.jpg", b"fake-image-bytes", content_type="image/jpeg")
-        temp_key = client.post("/api/v1/checkout/payment/paynow-proof", {"basket_id": basket_id, "payment_proof": img}).data["temp_key"]
-        order = client.post("/api/v1/checkout/place-order", {"basket_id": basket_id, "temp_key": temp_key, "shipping_method_code": m.code}).data
+        client.post(
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
+        )
+        img = SimpleUploadedFile(
+            "proof.jpg", b"fake-image-bytes", content_type="image/jpeg"
+        )
+        temp_key = client.post(
+            "/api/v1/checkout/payment/paynow-proof",
+            {"basket_id": basket_id, "payment_proof": img},
+        ).data["temp_key"]
+        order = client.post(
+            "/api/v1/checkout/place-order",
+            {
+                "basket_id": basket_id,
+                "temp_key": temp_key,
+                "shipping_method_code": m.code,
+            },
+        ).data
 
         # List orders
         r = client.get("/api/v1/orders")
@@ -224,8 +279,12 @@ class EventsTests(APITestCase):
             "email": "jane@example.com",
             "quantity": 2,
         }
-        r = self.client.post(f"/api/v1/events/{event.id}/register", payload, format="json")
+        r = self.client.post(
+            f"/api/v1/events/{event.id}/register", payload, format="json"
+        )
         self.assertEqual(r.status_code, 201, r.data)
         # Duplicate email should fail
-        r = self.client.post(f"/api/v1/events/{event.id}/register", payload, format="json")
+        r = self.client.post(
+            f"/api/v1/events/{event.id}/register", payload, format="json"
+        )
         self.assertEqual(r.status_code, 400)

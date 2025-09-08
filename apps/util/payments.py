@@ -72,4 +72,3 @@ def confirm_paynow_payment(order: "Order", amount: Decimal) -> None:
 
     except InvalidOrderStatus as e:
         raise PaymentConfirmationError(f"Failed to confirm payment: {str(e)}") from e
-

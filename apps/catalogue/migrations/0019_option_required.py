@@ -17,7 +17,6 @@ def migrate_product_options(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("catalogue", "0018_auto_20191220_0920"),
     ]

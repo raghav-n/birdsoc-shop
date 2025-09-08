@@ -110,7 +110,6 @@ def migrate_shipping_methods(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         (
             "shipping",

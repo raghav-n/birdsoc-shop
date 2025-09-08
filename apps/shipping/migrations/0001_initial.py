@@ -12,7 +12,6 @@ models_AutoField = import_string(settings.DEFAULT_AUTO_FIELD)
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("address", "0001_initial"),
     ]

@@ -6,4 +6,3 @@ class ApiConfig(AppConfig):
     name = "apps.api"
     label = "api"
     verbose_name = "BirdSoc Shop API"
-

@@ -1,2 +1,1 @@
 """Commands for event app."""
-

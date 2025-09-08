@@ -144,15 +144,25 @@ def verify_event_payment(request):
     reg_keys = bool(registration_id or reference)
     grp_keys = bool(group_id or group_reference)
     if not reg_keys and not grp_keys:
-        return JsonResponse({"error": "Must provide registration_id/reference or group_id/group_reference"}, status=400)
+        return JsonResponse(
+            {
+                "error": "Must provide registration_id/reference or group_id/group_reference"
+            },
+            status=400,
+        )
     if reg_keys and grp_keys:
-        return JsonResponse({"error": "Provide either registration fields or group fields, not both"}, status=400)
+        return JsonResponse(
+            {"error": "Provide either registration fields or group fields, not both"},
+            status=400,
+        )
 
     from oscar.core.loading import get_model
+
     EventRegistration = get_model("event", "EventRegistration")
     EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
     from decimal import Decimal
+
     try:
         amt = Decimal(str(amount))
     except Exception:
@@ -164,7 +174,9 @@ def verify_event_payment(request):
             if group_id:
                 grp = EventRegistrationGroup._default_manager.get(id=group_id)
             else:
-                grp = EventRegistrationGroup._default_manager.get(reference=group_reference)
+                grp = EventRegistrationGroup._default_manager.get(
+                    reference=group_reference
+                )
         except EventRegistrationGroup.DoesNotExist:
             return JsonResponse({"error": "Group not found"}, status=404)
 
@@ -172,10 +184,17 @@ def verify_event_payment(request):
             return JsonResponse({"error": "Group already marked as paid."}, status=400)
 
         if (grp.amount_total + (grp.donation_amount or Decimal("0"))) != amt:
-            return JsonResponse({"error": f"Amount mismatch. Expected SGD {grp.amount_total + (grp.donation_amount or Decimal('0'))}"}, status=400)
+            return JsonResponse(
+                {
+                    "error": f"Amount mismatch. Expected SGD {grp.amount_total + (grp.donation_amount or Decimal('0'))}"
+                },
+                status=400,
+            )
 
         grp.verify(user=None)
-        return JsonResponse({"success": f"Event registration group {grp.id} marked as paid."})
+        return JsonResponse(
+            {"success": f"Event registration group {grp.id} marked as paid."}
+        )
 
     # Single registration verification path
     try:
@@ -187,10 +206,17 @@ def verify_event_payment(request):
         return JsonResponse({"error": "Registration not found"}, status=404)
 
     if reg.payment_verified:
-        return JsonResponse({"error": "Registration already marked as paid."}, status=400)
+        return JsonResponse(
+            {"error": "Registration already marked as paid."}, status=400
+        )
 
     if (reg.amount + (reg.donation_amount or Decimal("0"))) != amt:
-        return JsonResponse({"error": f"Amount mismatch. Expected SGD {reg.amount + (reg.donation_amount or Decimal('0'))}"}, status=400)
+        return JsonResponse(
+            {
+                "error": f"Amount mismatch. Expected SGD {reg.amount + (reg.donation_amount or Decimal('0'))}"
+            },
+            status=400,
+        )
 
     reg.verify(user=None)
     return JsonResponse({"success": f"Event registration {reg.id} marked as paid."})

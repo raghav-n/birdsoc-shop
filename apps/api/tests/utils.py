@@ -19,27 +19,36 @@ OrganizedEvent = get_model("event", "OrganizedEvent")
 
 def create_user(email="user@example.com", password="Passw0rd!", **kwargs):
     User = get_user_model()
-    user, _ = User.objects.get_or_create(email=email, defaults={
-        "username": email,
-        "first_name": kwargs.get("first_name", "Test"),
-        "last_name": kwargs.get("last_name", "User"),
-    })
+    user, _ = User.objects.get_or_create(
+        email=email,
+        defaults={
+            "username": email,
+            "first_name": kwargs.get("first_name", "Test"),
+            "last_name": kwargs.get("last_name", "User"),
+        },
+    )
     user.set_password(password)
     user.save()
     return user
 
 
-def auth_client(client: APIClient, email="user@example.com", password="Passw0rd!") -> APIClient:
+def auth_client(
+    client: APIClient, email="user@example.com", password="Passw0rd!"
+) -> APIClient:
     # Register or ensure user exists, then get token
     create_user(email=email, password=password)
-    resp = client.post("/api/v1/auth/token/", {"email": email, "password": password}, format="json")
+    resp = client.post(
+        "/api/v1/auth/token/", {"email": email, "password": password}, format="json"
+    )
     assert resp.status_code == 200, resp.data
     token = resp.data["access"]
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     return client
 
 
-def create_shipping_method(code: str = None, price: Decimal = Decimal("0.00"), is_self_collect: bool = True):
+def create_shipping_method(
+    code: str = None, price: Decimal = Decimal("0.00"), is_self_collect: bool = True
+):
     code = code or f"SM-{get_random_string(6)}"
     return DynamicShippingMethod._default_manager.create(
         name=f"Shipping {code}",
@@ -51,7 +60,9 @@ def create_shipping_method(code: str = None, price: Decimal = Decimal("0.00"), i
     )
 
 
-def create_product(title: str = None, price: Decimal = Decimal("10.00"), num_in_stock: int = 10) -> Product:
+def create_product(
+    title: str = None, price: Decimal = Decimal("10.00"), num_in_stock: int = 10
+) -> Product:
     title = title or f"Widget {get_random_string(6)}"
     pclass, _ = ProductClass._default_manager.get_or_create(name="Standard")
     product = Product._default_manager.create(
@@ -84,6 +95,7 @@ def create_event(**kwargs):
     }
     # Minimal datetime values
     from django.utils import timezone
+
     if data["start_date"] is None:
         data["start_date"] = timezone.now() + timezone.timedelta(days=1)
     return OrganizedEvent._default_manager.create(**data)

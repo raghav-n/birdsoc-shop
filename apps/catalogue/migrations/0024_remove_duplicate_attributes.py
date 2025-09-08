@@ -110,7 +110,6 @@ def remove_duplicate_attributes(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("catalogue", "0023_auto_20210824_1414"),
     ]

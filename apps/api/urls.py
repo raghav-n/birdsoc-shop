@@ -53,36 +53,54 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view(), name="auth-register"),
     path("users/me/", MeView.as_view(), name="users-me"),
     path("auth/password/reset/", PasswordResetView.as_view(), name="password-reset"),
-    path("auth/password/reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
-
+    path(
+        "auth/password/reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
     # Misc
     path("health", HealthView.as_view(), name="health"),
     path("config", ConfigView.as_view(), name="config"),
     path("contact", ContactFormAPIView.as_view(), name="contact"),
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
-    path("checkout/shipping-methods", ShippingMethodsView.as_view(), name="checkout-shipping-methods"),
-    path("checkout/payment/paynow-proof", PayNowProofUploadView.as_view(), name="checkout-paynow-proof"),
-    path("checkout/payment/paynow-email-check", PayNowGmailCheckView.as_view(), name="checkout-paynow-email-check"),
+    path(
+        "checkout/shipping-methods",
+        ShippingMethodsView.as_view(),
+        name="checkout-shipping-methods",
+    ),
+    path(
+        "checkout/payment/paynow-proof",
+        PayNowProofUploadView.as_view(),
+        name="checkout-paynow-proof",
+    ),
+    path(
+        "checkout/payment/paynow-email-check",
+        PayNowGmailCheckView.as_view(),
+        name="checkout-paynow-email-check",
+    ),
     path("checkout/place-order", PlaceOrderView.as_view(), name="checkout-place-order"),
     path("checkout/email", CheckoutEmailView.as_view(), name="checkout-email"),
     path("checkout/address", CheckoutAddressView.as_view(), name="checkout-address"),
-
     # Basket
     path("baskets", BasketCreateView.as_view(), name="basket-create"),
     path("baskets/current", BasketCurrentView.as_view(), name="basket-current"),
-    path("baskets/<int:basket_id>/lines", BasketLinesView.as_view(), name="basket-lines"),
+    path(
+        "baskets/<int:basket_id>/lines", BasketLinesView.as_view(), name="basket-lines"
+    ),
     path(
         "baskets/<int:basket_id>/lines/<int:line_id>",
         BasketLineDetailView.as_view(),
         name="basket-line-detail",
     ),
-    path("baskets/<int:basket_id>/apply-voucher", BasketApplyVoucherView.as_view(), name="basket-apply-voucher"),
+    path(
+        "baskets/<int:basket_id>/apply-voucher",
+        BasketApplyVoucherView.as_view(),
+        name="basket-apply-voucher",
+    ),
     path("baskets/merge", BasketMergeView.as_view(), name="basket-merge"),
-
     # Refunds
     path("refunds", RefundRequestCreateView.as_view(), name="refunds-create"),
     path("refunds/<int:pk>", RefundRequestDetailView.as_view(), name="refunds-detail"),
-
     # Event registrations (paid events)
     path(
         "event-registrations/<int:reg_id>",
@@ -90,7 +108,11 @@ urlpatterns = [
         name="event-registration-detail",
     ),
     # Events: global registration status
-    path("events/registration-status", RegistrationStatusView.as_view(), name="events-registration-status"),
+    path(
+        "events/registration-status",
+        RegistrationStatusView.as_view(),
+        name="events-registration-status",
+    ),
     path(
         "event-registrations/<int:reg_id>/payment/paynow-proof",
         EventRegistrationProofUploadView.as_view(),
@@ -106,7 +128,6 @@ urlpatterns = [
         EventRegistrationGroupProofUploadView.as_view(),
         name="event-registration-group-paynow-proof",
     ),
-
     # Routers
     path("", include(router.urls)),
 ]

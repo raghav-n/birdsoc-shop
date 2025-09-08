@@ -64,9 +64,9 @@ class RefundDisbursementForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.fields["status"].label = "Update Status"
-        self.fields["status"].help_text = (
-            "Mark as disbursed when you have sent the funds"
-        )
+        self.fields[
+            "status"
+        ].help_text = "Mark as disbursed when you have sent the funds"
         self.fields["status"].widget.attrs.update({"class": "form-control"})
 
     def clean_status(self):

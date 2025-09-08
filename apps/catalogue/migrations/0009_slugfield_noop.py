@@ -7,7 +7,6 @@ import oscar.models.fields.slugfield
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("catalogue", "0008_auto_20160304_1652"),
     ]

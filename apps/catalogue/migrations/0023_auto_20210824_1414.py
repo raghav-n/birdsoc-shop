@@ -5,7 +5,6 @@ import oscar.models.fields.slugfield
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("catalogue", "0022_auto_20210210_0539"),
     ]

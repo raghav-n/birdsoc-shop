@@ -13,7 +13,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             OnsitePurchaseView,
             VoucherCheckView,
             SiteOffersView,
-            OrderStatsView
+            OrderStatsView,
         )
 
         new_urls = [

@@ -49,7 +49,9 @@ class AuthExtraTests(APITestCase):
         email = "dupe@example.com"
         create_user(email=email)
         r = self.client.post(
-            "/api/v1/auth/register/", {"email": email, "password": "Passw0rd!"}, format="json"
+            "/api/v1/auth/register/",
+            {"email": email, "password": "Passw0rd!"},
+            format="json",
         )
         self.assertEqual(r.status_code, 400)
 
@@ -71,4 +73,3 @@ class AuthExtraTests(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
-

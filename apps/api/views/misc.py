@@ -52,4 +52,3 @@ class ShippingMethodsView(APIView):
             for m in qs
         ]
         return Response(data)
-

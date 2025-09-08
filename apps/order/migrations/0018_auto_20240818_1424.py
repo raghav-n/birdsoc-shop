@@ -17,7 +17,6 @@ def create_payment_event_types(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("order", "0017_paymentevent_verified"),
     ]

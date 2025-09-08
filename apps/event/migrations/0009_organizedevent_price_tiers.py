@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("event", "0008_eventregistrationgroup_and_link"),
     ]
@@ -13,7 +12,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="organizedevent",
             name="price_tiers",
-            field=models.JSONField(blank=True, null=True, verbose_name="Price Tiers", help_text='Optional list of price tier rules. Example: [{"code":"student","name":"Under 19","rule":"age:<19","price_incl_tax":10.0}, {"code":"adult","name":"Adult","rule":"*","price_incl_tax":15.0}]'),
+            field=models.JSONField(
+                blank=True,
+                null=True,
+                verbose_name="Price Tiers",
+                help_text='Optional list of price tier rules. Example: [{"code":"student","name":"Under 19","rule":"age:<19","price_incl_tax":10.0}, {"code":"adult","name":"Adult","rule":"*","price_incl_tax":15.0}]',
+            ),
         ),
     ]
-
