@@ -1,0 +1,47 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Submissions" %}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-detail' pk=form_obj.id %}">{{ form_obj.name }}</a></li>
+  <li class="breadcrumb-item active">{% trans "Submissions" %}</li>
+</ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <div class="card">
+    <div class="card-header">{% trans "Submissions" %}</div>
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{% trans "Submitted at" %}</th>
+            <th>{% trans "User" %}</th>
+            <th>{% trans "IP" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in submissions %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.submitted_at }}</td>
+            <td>{{ s.user|default:"-" }}</td>
+            <td>{{ s.submitter_ip|default:"-" }}</td>
+            <td class="text-right">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard-form:submission-detail' form_id=form_obj.id pk=s.id %}">{% trans "View" %}</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted p-4">{% trans "No submissions yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+

@@ -1,0 +1,23 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}{% trans "Edit form" %}{% else %}{% trans "Create form" %}{% endif %}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-list' %}">{% trans "Forms" %}</a></li>
+  <li class="breadcrumb-item active">{% if object %}{{ object.name }}{% else %}{% trans "Create" %}{% endif %}</li>
+</ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button class="btn btn-primary">{% trans "Save" %}</button>
+    <a class="btn btn-light" href="{% if object %}{% url 'dashboard-form:form-detail' pk=object.id %}{% else %}{% url 'dashboard-form:form-list' %}{% endif %}">{% trans "Cancel" %}</a>
+  </form>
+{% endblock %}
+

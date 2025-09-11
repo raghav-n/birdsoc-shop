@@ -1,0 +1,25 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Delete field" %}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-detail' pk=form_obj.id %}">{{ form_obj.name }}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:field-list' form_id=form_obj.id %}">{% trans "Fields" %}</a></li>
+  <li class="breadcrumb-item active">{% trans "Delete" %}</li>
+</ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <div class="alert alert-danger">
+    <p>{% trans "Are you sure you want to delete this field?" %}</p>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn-danger">{% trans "Confirm delete" %}</button>
+    <a class="btn btn-light" href="{% url 'dashboard-form:field-list' form_id=form_obj.id %}">{% trans "Cancel" %}</a>
+  </form>
+{% endblock %}
+

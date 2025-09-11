@@ -1,0 +1,52 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Fields" %}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-detail' pk=form_obj.id %}">{{ form_obj.name }}</a></li>
+  <li class="breadcrumb-item active">{% trans "Fields" %}</li>
+  <li class="ml-auto"><a class="btn btn-primary btn-sm" href="{% url 'dashboard-form:field-create' form_id=form_obj.id %}">{% trans "Add field" %}</a></li>
+</ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <div class="card">
+    <div class="card-header">{% trans "Fields" %}</div>
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{% trans "Key" %}</th>
+            <th>{% trans "Label" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Required" %}</th>
+            <th>{% trans "Display" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for fld in fields %}
+          <tr>
+            <td>{{ fld.order }}</td>
+            <td><code>{{ fld.key }}</code></td>
+            <td>{{ fld.label }}</td>
+            <td>{{ fld.get_field_type_display }}</td>
+            <td>{{ fld.required|yesno:_('Yes,No') }}</td>
+            <td>{{ fld.display|yesno:_('Yes,No') }}</td>
+            <td class="text-right">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard-form:field-update' form_id=form_obj.id pk=fld.id %}">{% trans "Edit" %}</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'dashboard-form:field-delete' form_id=form_obj.id pk=fld.id %}">{% trans "Delete" %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-center text-muted p-4">{% trans "No fields yet." %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

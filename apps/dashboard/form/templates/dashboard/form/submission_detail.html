@@ -1,0 +1,40 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Submission" %} {{ submission.id }}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-detail' pk=form_obj.id %}">{{ form_obj.name }}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:submission-list' form_id=form_obj.id %}">{% trans "Submissions" %}</a></li>
+  <li class="breadcrumb-item active">#{{ submission.id }}</li>
+</ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <div class="card mb-3">
+    <div class="card-header">{% trans "Submitted data" %}</div>
+    <div class="card-body">
+      <dl class="row">
+      {% for key, val in submission.data.items %}
+        <dt class="col-sm-4">{{ key }}</dt>
+        <dd class="col-sm-8">{{ val }}</dd>
+      {% empty %}
+        <p class="text-muted">{% trans "No data." %}</p>
+      {% endfor %}
+      </dl>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">{% trans "Meta" %}</div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-4">{% trans "Submitted at" %}</dt><dd class="col-sm-8">{{ submission.submitted_at }}</dd>
+        <dt class="col-sm-4">{% trans "User" %}</dt><dd class="col-sm-8">{{ submission.user|default:"-" }}</dd>
+        <dt class="col-sm-4">{% trans "IP" %}</dt><dd class="col-sm-8">{{ submission.submitter_ip|default:"-" }}</dd>
+        <dt class="col-sm-4">{% trans "User agent" %}</dt><dd class="col-sm-8">{{ submission.user_agent|default:"-" }}</dd>
+      </dl>
+    </div>
+  </div>
+{% endblock %}

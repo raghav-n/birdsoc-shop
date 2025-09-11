@@ -1,0 +1,48 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Forms" %}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item active">{% trans "Forms" %}</li>
+  <li class="ml-auto"><a class="btn btn-primary btn-sm" href="{% url 'dashboard-form:form-create' %}">{% trans "Create form" %}</a></li>
+  </ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <div class="card">
+    <div class="card-header">{% trans "Forms" %}</div>
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Slug" %}</th>
+            <th>{% trans "Active" %}</th>
+            <th>{% trans "Submissions" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for f in forms %}
+          <tr>
+            <td><a href="{% url 'dashboard-form:form-detail' pk=f.id %}">{{ f.name }}</a></td>
+            <td>{{ f.slug }}</td>
+            <td>{{ f.is_active|yesno:_('Yes,No') }}</td>
+            <td>{{ f.submissions.count }}</td>
+            <td class="text-right">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard-form:form-update' pk=f.id %}">{% trans "Edit" %}</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'dashboard-form:form-delete' pk=f.id %}">{% trans "Delete" %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-muted p-4">{% trans "No forms yet." %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+

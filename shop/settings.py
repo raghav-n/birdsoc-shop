@@ -157,6 +157,8 @@ INSTALLED_APPS = [
     "apps.dashboard.catalogue.apps.CatalogueDashboardConfig",
     "apps.event.apps.EventConfig",  # Add the new events app
     "apps.dashboard.event.apps.EventDashboardConfig",  # Event dashboard app - Add this line
+    "apps.form.apps.FormConfig",  # Dynamic forms app
+    "apps.dashboard.form.apps.FormDashboardConfig",  # Forms dashboard
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",

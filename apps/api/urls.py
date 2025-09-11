@@ -37,6 +37,7 @@ from apps.api.views.checkout import (
     CheckoutAddressView,
 )
 from apps.api.views.payments import PayNowGmailCheckView
+from apps.api.views.forms import FormSubmissionView, FormSchemaView
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -81,6 +82,10 @@ urlpatterns = [
     path("checkout/place-order", PlaceOrderView.as_view(), name="checkout-place-order"),
     path("checkout/email", CheckoutEmailView.as_view(), name="checkout-email"),
     path("checkout/address", CheckoutAddressView.as_view(), name="checkout-address"),
+    # Forms: submission only
+    path("forms/<slug:slug>/submit", FormSubmissionView.as_view(), name="form-submit"),
+    # Forms: schema for rendering on frontend
+    path("forms/<slug:slug>/schema", FormSchemaView.as_view(), name="form-schema"),
     # Basket
     path("baskets", BasketCreateView.as_view(), name="basket-create"),
     path("baskets/current", BasketCurrentView.as_view(), name="basket-current"),
