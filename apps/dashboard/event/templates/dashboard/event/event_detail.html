@@ -137,6 +137,9 @@
                 <a href="{% url 'dashboard-event:event-participant-create' pk=event.id %}" class="btn btn-success btn-sm ml-2">
                     <i class="fas fa-user-plus"></i> {% trans "Create New Participant" %}
                 </a>
+                <a href="{% url 'dashboard-event:event-manual-register' pk=event.id %}" class="btn btn-warning btn-sm ml-2">
+                    <i class="fas fa-qrcode"></i> {% trans "Manually Register Participants" %}
+                </a>
             </div>
         </div>
         <div class="card-body">

@@ -64,6 +64,12 @@ urlpatterns = [
         views.EventBatchEmailPreviewView.as_view(),
         name="event-batch-email-preview",
     ),
+    # Manual registration (dashboard-side helper)
+    path(
+        "<int:pk>/manual-register/",
+        views.EventManualRegisterView.as_view(),
+        name="event-manual-register",
+    ),
     # Registrations
     path(
         "registrations/<int:reg_id>/verify/",

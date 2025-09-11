@@ -761,3 +761,19 @@ class EventParticipantDetailView(DashboardMixin, DetailView):
         ctx["extra_is_dict"] = isinstance(extra, dict)
         ctx["extra_raw"] = extra
         return ctx
+
+
+# Manual registration helper page (dashboard)
+from django.views.generic import TemplateView
+
+
+class EventManualRegisterView(DashboardMixin, SingleObjectMixin, TemplateView):
+    model = OrganizedEvent
+    template_name = "dashboard/event/event_manual_register.html"
+
+    def get_context_data(self, **kwargs):
+        self.object = self.get_object()
+        ctx = super().get_context_data(**kwargs)
+        ctx["event"] = self.object
+        ctx["title"] = f"Manually Register – {self.object.title}"
+        return ctx
