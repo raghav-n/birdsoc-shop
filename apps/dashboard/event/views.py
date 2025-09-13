@@ -545,6 +545,24 @@ class EventParticipantRemoveView(DashboardMixin, View):
 class BatchEmailForm(forms.Form):
     subject = forms.CharField(max_length=255, required=True)
     message = forms.CharField(widget=forms.Textarea, required=True)
+    bcc_sales = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="BCC birdsocsgsales@gmail.com",
+        help_text="Also send a blind carbon copy to birdsocsgsales@gmail.com",
+    )
+    recipient_mode = forms.ChoiceField(
+        choices=(
+            ("participants", "All event participants (one email per participant)"),
+            (
+                "verified_groups",
+                "Verified payment groups (one email per group payer)",
+            ),
+        ),
+        required=True,
+        initial="participants",
+        label="Recipients",
+    )
     attachment1 = forms.FileField(required=False, label="Attachment 1")
     attachment2 = forms.FileField(required=False, label="Attachment 2")
     attachment3 = forms.FileField(required=False, label="Attachment 3")
@@ -555,7 +573,8 @@ class BatchEmailForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["message"].help_text = (
             "You can use the following variables: {{first_name}}, {{last_name}}, "
-            "{{email}}, {{phone_number}}, {{event_title}}, {{event_date}}, {{event_location}}"
+            "{{email}}, {{phone_number}}, {{event_title}}, {{event_date}}, {{event_location}}, "
+            "{{registration_reference}}"
         )
 
     def get_attachments(self):
@@ -578,15 +597,22 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
         context = super().get_context_data(**kwargs)
         context["event"] = self.object
         context["participant_count"] = self.object.eventparticipant_set.count()
+        context["verified_group_count"] = (
+            EventRegistrationGroup._default_manager.filter(
+                event=self.object, payment_verified=True
+            )
+            .exclude(payer_email__isnull=True)
+            .exclude(payer_email="")
+            .count()
+        )
         return context
 
     def form_valid(self, form):
         event = self.get_object()
         subject = form.cleaned_data["subject"]
         message_template = form.cleaned_data["message"]
-
-        # Get all participants for this event
-        event_participants = event.eventparticipant_set.all()
+        recipient_mode = form.cleaned_data.get("recipient_mode") or "participants"
+        bcc_sales = form.cleaned_data.get("bcc_sales") is True
 
         # Get attachments
         attachments = form.get_attachments()
@@ -596,63 +622,163 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
         successful = 0
         failed = 0
 
-        for ep in event_participants:
-            participant = ep.participant
+        # Build BCC list
+        reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+        bcc_list = []
+        if reply_to_email:
+            bcc_list.append(reply_to_email)
+        if bcc_sales:
+            bcc_list.append("birdsocsgsales@gmail.com")
+        # Deduplicate while preserving order
+        seen = set()
+        bcc_list = [x for x in bcc_list if not (x.lower() in seen or seen.add(x.lower()))]
 
-            # Create context for template variables
-            context = {
-                "first_name": participant.first_name,
-                "last_name": participant.last_name,
-                "email": participant.email,
-                "phone_number": participant.phone_number or "",
-                "event_title": event.title,
-                "event_date": event.start_date.strftime("%B %d, %Y"),
-                "event_location": event.location or "TBD",
-            }
-
-            # Replace template variables in the message
-            personalized_message = message_template
-            for key, value in context.items():
-                personalized_message = personalized_message.replace(
-                    f"{{{{{key}}}}}", str(value)
+        if recipient_mode == "verified_groups":
+            # Send one email per verified group payer
+            groups_qs = (
+                EventRegistrationGroup._default_manager.filter(
+                    event=event, payment_verified=True
                 )
+                .exclude(payer_email__isnull=True)
+                .exclude(payer_email="")
+            )
 
-            # Create context for the email template
-            email_context = {
-                "subject": subject,
-                "message": personalized_message,
-                "participant": participant,
-                "event": event,
-            }
+            seen_emails = set()
+            for grp in groups_qs:
+                if grp.payer_email.lower() in seen_emails:
+                    # Avoid duplicate emails if multiple groups share an email
+                    continue
+                seen_emails.add(grp.payer_email.lower())
 
-            try:
-                # Render HTML email using the base template
-                html_message = render_to_string(
-                    "dashboard/event/email/batch_email.html", email_context
+                # Create context for template variables
+                first_name = (grp.payer_name or "").split(" ")[0] if grp.payer_name else ""
+                last_name = (
+                    " ".join((grp.payer_name or "").split(" ")[1:]) if grp.payer_name else ""
                 )
+                context = {
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": grp.payer_email,
+                    "phone_number": grp.payer_phone or "",
+                    "event_title": event.title,
+                    "event_date": event.start_date.strftime("%B %d, %Y"),
+                    "event_location": event.location or "TBD",
+                    "registration_reference": grp.reference,
+                }
 
-                # Create email
-                email = EmailMultiAlternatives(
-                    subject,
-                    html_message,  # Plain text fallback
-                    settings.DEFAULT_FROM_EMAIL,
-                    [participant.email],  # Send to actual participant email
-                    bcc=[settings.REPLY_TO_EMAIL],  # BCC the reply-to email
-                )
-                email.content_subtype = "html"
-
-                # Add attachments
-                for attachment, read_attachment in attachments:
-                    email.attach(
-                        attachment.name, read_attachment, attachment.content_type
+                # Replace template variables in the message
+                personalized_message = message_template
+                for key, value in context.items():
+                    personalized_message = personalized_message.replace(
+                        f"{{{{{key}}}}}", str(value)
                     )
 
-                email.send()
-                successful += 1
-            except Exception as e:
-                failed += 1
-                # Log the error
-                print(f"Failed to send email to {participant.email}: {str(e)}")
+                email_context = {
+                    "subject": subject,
+                    "message": personalized_message,
+                    "group": grp,
+                    "event": event,
+                }
+
+                try:
+                    # Render HTML email using the base template
+                    html_message = render_to_string(
+                        "dashboard/event/email/batch_email.html", email_context
+                    )
+
+                    email = EmailMultiAlternatives(
+                        subject,
+                        html_message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [grp.payer_email],
+                        bcc=bcc_list,
+                    )
+                    email.content_subtype = "html"
+
+                    for attachment, read_attachment in attachments:
+                        email.attach(
+                            attachment.name, read_attachment, attachment.content_type
+                        )
+
+                    email.send()
+                    successful += 1
+                except Exception as e:
+                    failed += 1
+                    print(
+                        f"Failed to send email to group payer {grp.payer_email}: {str(e)}"
+                    )
+        else:
+            # Default: send to all event participants
+            event_participants = event.eventparticipant_set.all()
+            # Optional: prefetch registrations for potential registration_reference
+            for ep in event_participants:
+                participant = ep.participant
+
+                # Attempt to find a registration reference if any (most recent)
+                reg = (
+                    EventRegistration._default_manager.filter(
+                        event=event, participant=participant
+                    )
+                    .order_by("-created_at")
+                    .first()
+                )
+                registration_reference = reg.reference if reg else ""
+
+                # Create context for template variables
+                context = {
+                    "first_name": participant.first_name,
+                    "last_name": participant.last_name,
+                    "email": participant.email,
+                    "phone_number": participant.phone_number or "",
+                    "event_title": event.title,
+                    "event_date": event.start_date.strftime("%B %d, %Y"),
+                    "event_location": event.location or "TBD",
+                    "registration_reference": registration_reference,
+                }
+
+                # Replace template variables in the message
+                personalized_message = message_template
+                for key, value in context.items():
+                    personalized_message = personalized_message.replace(
+                        f"{{{{{key}}}}}", str(value)
+                    )
+
+                # Create context for the email template
+                email_context = {
+                    "subject": subject,
+                    "message": personalized_message,
+                    "participant": participant,
+                    "event": event,
+                }
+
+                try:
+                    # Render HTML email using the base template
+                    html_message = render_to_string(
+                        "dashboard/event/email/batch_email.html", email_context
+                    )
+
+                    # Create email
+                    email = EmailMultiAlternatives(
+                        subject,
+                        html_message,  # Plain text fallback
+                        settings.DEFAULT_FROM_EMAIL,
+                        [participant.email],  # Send to actual participant email
+                        bcc=bcc_list,  # Optional BCCs
+                    )
+                    email.content_subtype = "html"
+
+                    # Add attachments
+                    for attachment, read_attachment in attachments:
+                        email.attach(
+                            attachment.name, read_attachment, attachment.content_type
+                        )
+
+                    email.send()
+                    successful += 1
+                except Exception as e:
+                    failed += 1
+                    # Log the error
+                    print(f"Failed to send email to {participant.email}: {str(e)}")
 
         if failed > 0:
             messages.warning(
@@ -660,10 +786,16 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
                 f"Sent {successful} emails successfully, but {failed} emails failed to send.",
             )
         else:
-            messages.success(
-                self.request,
-                f"Successfully sent emails to all {successful} participants.",
-            )
+            if recipient_mode == "verified_groups":
+                messages.success(
+                    self.request,
+                    f"Successfully sent emails to all {successful} group payers.",
+                )
+            else:
+                messages.success(
+                    self.request,
+                    f"Successfully sent emails to all {successful} participants.",
+                )
 
         return redirect("event-dashboard:event-detail", pk=event.pk)
 
@@ -675,41 +807,91 @@ class EventBatchEmailPreviewView(DashboardMixin, View):
         event = get_object_or_404(OrganizedEvent, pk=kwargs.get("pk"))
         subject = request.POST.get("subject", "")
         message_template = request.POST.get("message", "")
+        recipient_mode = request.POST.get("recipient_mode", "participants")
 
-        # Use a sample participant for the preview
-        sample_participant = event.eventparticipant_set.first()
+        if recipient_mode == "verified_groups":
+            grp = (
+                EventRegistrationGroup._default_manager.filter(
+                    event=event, payment_verified=True
+                )
+                .exclude(payer_email__isnull=True)
+                .exclude(payer_email="")
+                .first()
+            )
+            if not grp:
+                # Dummy group-like object
+                grp = type(
+                    "grp",
+                    (object,),
+                    {
+                        "payer_name": "Jane Doe",
+                        "payer_email": "jane@example.com",
+                        "payer_phone": "555-987-6543",
+                        "reference": "EVG-EXAMPLE",
+                    },
+                )
 
-        if not sample_participant:
-            # If there are no participants, create a dummy one for preview purposes
-            sample_participant = type(
-                "obj",
-                (object,),
-                {
-                    "participant": type(
-                        "obj",
-                        (object,),
-                        {
-                            "first_name": "John",
-                            "last_name": "Doe",
-                            "email": "john.doe@example.com",
-                            "phone_number": "555-123-4567",
-                        },
-                    )
-                },
+            first_name = (grp.payer_name or "").split(" ")[0] if getattr(grp, "payer_name", None) else ""
+            last_name = (
+                " ".join((grp.payer_name or "").split(" ")[1:]) if getattr(grp, "payer_name", None) else ""
+            )
+            context = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": getattr(grp, "payer_email", ""),
+                "phone_number": getattr(grp, "payer_phone", "") or "",
+                "event_title": event.title,
+                "event_date": event.start_date.strftime("%B %d, %Y"),
+                "event_location": event.location or "TBD",
+                "registration_reference": getattr(grp, "reference", ""),
+            }
+            email_context_extra = {"group": grp}
+        else:
+            # Use a sample participant for the preview
+            sample_participant = event.eventparticipant_set.first()
+
+            if not sample_participant:
+                # If there are no participants, create a dummy one for preview purposes
+                sample_participant = type(
+                    "obj",
+                    (object,),
+                    {
+                        "participant": type(
+                            "obj",
+                            (object,),
+                            {
+                                "first_name": "John",
+                                "last_name": "Doe",
+                                "email": "john.doe@example.com",
+                                "phone_number": "555-123-4567",
+                            },
+                        )
+                    },
+                )
+
+            participant = sample_participant.participant
+
+            # Attempt to find a registration reference if any
+            reg = (
+                EventRegistration._default_manager.filter(
+                    event=event, participant__email=participant.email
+                )
+                .order_by("-created_at")
+                .first()
             )
 
-        participant = sample_participant.participant
-
-        # Create context for template variables
-        context = {
-            "first_name": participant.first_name,
-            "last_name": participant.last_name,
-            "email": participant.email,
-            "phone_number": participant.phone_number or "",
-            "event_title": event.title,
-            "event_date": event.start_date.strftime("%B %d, %Y"),
-            "event_location": event.location or "TBD",
-        }
+            # Create context for template variables
+            context = {
+                "first_name": participant.first_name,
+                "last_name": participant.last_name,
+                "email": participant.email,
+                "phone_number": participant.phone_number or "",
+                "event_title": event.title,
+                "event_date": event.start_date.strftime("%B %d, %Y"),
+                "event_location": event.location or "TBD",
+                "registration_reference": reg.reference if reg else "",
+            }
+            email_context_extra = {"participant": participant}
 
         # Replace template variables in the message
         personalized_message = message_template
@@ -719,12 +901,8 @@ class EventBatchEmailPreviewView(DashboardMixin, View):
             )
 
         # Create context for the email template
-        email_context = {
-            "subject": subject,
-            "message": personalized_message,
-            "participant": participant,
-            "event": event,
-        }
+        email_context = {"subject": subject, "message": personalized_message, "event": event}
+        email_context.update(email_context_extra)
 
         # Render HTML email using the base template
         html_message = render_to_string(

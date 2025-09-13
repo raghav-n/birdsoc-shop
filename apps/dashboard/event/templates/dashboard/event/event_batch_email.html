@@ -29,7 +29,16 @@
         </div>
         <div class="card-body">
             <div class="alert alert-info">
-                <p>{% trans "You are about to send an email to" %} <strong>{{ participant_count }}</strong> {% trans "participants of this event." %}</p>
+                <p>
+                    {% trans "You are about to send an email to" %}
+                    <strong id="recipient-count">{{ participant_count }}</strong>
+                    <span id="recipient-label">{% trans "participants" %}</span>
+                    {% trans "of this event." %}
+                </p>
+                <p class="small text-muted">
+                    {% trans "Participants:" %} {{ participant_count }} ·
+                    {% trans "Verified groups:" %} {{ verified_group_count }}
+                </p>
                 <p>{% trans "You can use template variables to personalize your message. Available variables:" %}</p>
                 <ul>
                     
@@ -40,11 +49,35 @@
                     <li><code>{% verbatim %}{{event_title}}{% endverbatim %}</code> - {% trans "Event title" %}</li>
                     <li><code>{% verbatim %}{{event_date}}{% endverbatim %}</code> - {% trans "Event date (formatted)" %}</li>
                     <li><code>{% verbatim %}{{event_location}}{% endverbatim %}</code> - {% trans "Event location" %}</li>
+                    <li><code>{% verbatim %}{{registration_reference}}{% endverbatim %}</code> - {% trans "Registration reference (group reference when using verified groups)" %}</li>
                 </ul>
             </div>
 
             <form method="post" id="email-form" enctype="multipart/form-data">
                 {% csrf_token %}
+
+                <div class="form-group">
+                    <label>{% trans "Recipients" %}</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="recipient_mode" id="id_recipient_mode_participants" value="participants" checked>
+                        <label class="form-check-label" for="id_recipient_mode_participants">
+                            {% trans "All event participants (one email per participant)" %}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="recipient_mode" id="id_recipient_mode_verified_groups" value="verified_groups">
+                        <label class="form-check-label" for="id_recipient_mode_verified_groups">
+                            {% trans "Verified payment groups (one email per group payer)" %}
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group form-check">
+                    <input class="form-check-input" type="checkbox" name="bcc_sales" id="id_bcc_sales">
+                    <label class="form-check-label" for="id_bcc_sales">
+                        {% trans "BCC birdsocsgsales@gmail.com" %}
+                    </label>
+                </div>
                 
                 <div class="form-group">
                     <label for="{{ form.subject.id_for_label }}">{% trans "Subject" %}</label>
@@ -193,6 +226,7 @@
                     data: {
                         subject: subject,
                         message: content,
+                        recipient_mode: $('input[name="recipient_mode"]:checked').val(),
                         csrfmiddlewaretoken: '{{ csrf_token }}'
                     },
                     success: function(response) {
@@ -215,6 +249,20 @@
                 });
             });
             
+            // Update recipient count/label when toggling mode
+            function updateRecipientInfo() {
+                var mode = $('input[name="recipient_mode"]:checked').val();
+                if (mode === 'verified_groups') {
+                    $('#recipient-count').text('{{ verified_group_count }}');
+                    $('#recipient-label').text('{% trans "group payers" %}');
+                } else {
+                    $('#recipient-count').text('{{ participant_count }}');
+                    $('#recipient-label').text('{% trans "participants" %}');
+                }
+            }
+            $('input[name="recipient_mode"]').on('change', updateRecipientInfo);
+            updateRecipientInfo();
+
             // Handle form submission
             $('#email-form').on('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
