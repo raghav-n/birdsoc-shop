@@ -57,6 +57,21 @@ class Command(BaseCommand):
         # Collect all extra_json keys
         extra_keys = set()
         rows = []
+
+        # Preload EventRegistration rows for the events/participants to avoid N+1 queries.
+        # Map key (event_id, participant_id) -> registration instance (prefer latest by created_at)
+        from apps.event.models import EventRegistration
+
+        reg_qs = EventRegistration.objects.filter(event__in=events_qs, participant__in=[ep.participant for ep in eps])
+        # use select_related to fetch group
+        reg_qs = reg_qs.select_related("group").order_by("-created_at")
+        reg_map = {}
+        for reg in reg_qs:
+            key = (reg.event_id, reg.participant_id)
+            # prefer the first (latest) registration found
+            if key not in reg_map:
+                reg_map[key] = reg
+
         for ep in eps:
             pdata = ep.extra_json or {}
             if not isinstance(pdata, dict):
@@ -66,6 +81,7 @@ class Command(BaseCommand):
             row = {
                 "event_id": ep.event.id,
                 "event_title": ep.event.title,
+                "event_location": ep.event.location,
                 "event_start": ep.event.start_date.isoformat()
                 if ep.event.start_date
                 else "",
@@ -78,10 +94,20 @@ class Command(BaseCommand):
                 "registered_at": ep.registered_at.isoformat()
                 if ep.registered_at
                 else "",
+                # registration_reference: prefer group reference if linked, else registration reference
+                "registration_reference": "",
                 "is_main_contact": ep.is_main_contact,
                 "attended": ep.attended,
                 "notes": ep.notes,
             }
+            # fill registration_reference from reg_map if available
+            reg_key = (ep.event_id, ep.participant_id) if hasattr(ep, "event_id") and hasattr(ep, "participant_id") else (ep.event.id, ep.participant.id)
+            reg = reg_map.get(reg_key)
+            if reg:
+                if getattr(reg, "group", None) and getattr(reg.group, "reference", None):
+                    row["registration_reference"] = reg.group.reference
+                else:
+                    row["registration_reference"] = getattr(reg, "reference", "")
             # merge extra fields (stringify values)
             for k, v in pdata.items():
                 row[k] = v
@@ -91,6 +117,7 @@ class Command(BaseCommand):
         fixed_headers = [
             "event_id",
             "event_title",
+            "event_location",
             "event_start",
             "participant_id",
             "first_name",
@@ -99,6 +126,7 @@ class Command(BaseCommand):
             "phone_number",
             "quantity",
             "registered_at",
+            "registration_reference",
             "is_main_contact",
             "attended",
             "notes",
