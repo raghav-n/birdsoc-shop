@@ -11,6 +11,7 @@
   <li class="ml-auto">
       <a class="btn btn-primary btn-sm" href="{% url 'dashboard-form:field-list' form_id=form_obj.id %}">{% trans "Manage fields" %}</a>
       <a class="btn btn-info btn-sm" href="{% url 'dashboard-form:submission-list' form_id=form_obj.id %}">{% trans "View submissions" %}</a>
+      <a class="btn btn-outline-success btn-sm" href="{% url 'dashboard-form:submission-export' form_id=form_obj.id %}">{% trans "Export CSV" %}</a>
   </li>
 </ol>
 {% endblock %}
@@ -45,4 +46,3 @@
     </div>
   </div>
 {% endblock %}
-

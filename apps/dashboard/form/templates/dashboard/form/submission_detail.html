@@ -9,6 +9,10 @@
   <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-detail' pk=form_obj.id %}">{{ form_obj.name }}</a></li>
   <li class="breadcrumb-item"><a href="{% url 'dashboard-form:submission-list' form_id=form_obj.id %}">{% trans "Submissions" %}</a></li>
   <li class="breadcrumb-item active">#{{ submission.id }}</li>
+  <li class="ml-auto">
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard-form:submission-update' form_id=form_obj.id pk=submission.id %}">{% trans "Edit" %}</a>
+    <a class="btn btn-sm btn-outline-danger" href="{% url 'dashboard-form:submission-delete' form_id=form_obj.id pk=submission.id %}">{% trans "Delete" %}</a>
+  </li>
 </ol>
 {% endblock %}
 
@@ -32,8 +36,6 @@
       <dl class="row">
         <dt class="col-sm-4">{% trans "Submitted at" %}</dt><dd class="col-sm-8">{{ submission.submitted_at }}</dd>
         <dt class="col-sm-4">{% trans "User" %}</dt><dd class="col-sm-8">{{ submission.user|default:"-" }}</dd>
-        <dt class="col-sm-4">{% trans "IP" %}</dt><dd class="col-sm-8">{{ submission.submitter_ip|default:"-" }}</dd>
-        <dt class="col-sm-4">{% trans "User agent" %}</dt><dd class="col-sm-8">{{ submission.user_agent|default:"-" }}</dd>
       </dl>
     </div>
   </div>

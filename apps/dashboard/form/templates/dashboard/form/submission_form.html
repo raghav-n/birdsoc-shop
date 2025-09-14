@@ -1,0 +1,28 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Edit Submission" %} #{{ submission.id }}{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:form-detail' pk=form_obj.id %}">{{ form_obj.name }}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'dashboard-form:submission-list' form_id=form_obj.id %}">{% trans "Submissions" %}</a></li>
+  <li class="breadcrumb-item active">{% trans "Edit" %} #{{ submission.id }}</li>
+</ol>
+{% endblock %}
+
+{% block dashboard_content %}
+  <form method="post" class="card">
+    <div class="card-header">{% trans "Edit Submission" %} #{{ submission.id }}</div>
+    <div class="card-body">
+      {% csrf_token %}
+      {% include 'oscar/dashboard/partials/form_fields.html' with form=form %}
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+      <a class="btn btn-light" href="{% url 'dashboard-form:submission-detail' form_id=form_obj.id pk=submission.id %}">{% trans "Cancel" %}</a>
+      <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+    </div>
+  </form>
+{% endblock %}
+

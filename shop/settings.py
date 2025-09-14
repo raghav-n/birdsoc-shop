@@ -713,6 +713,12 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "url_name": "dashboard-refund:refund-request-list",
         "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
     },
+    {
+        "label": _("Forms"),
+        "icon": "fas fa-clipboard-list",
+        "url_name": "dashboard-form:form-list",
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+    },
 ]
 
 ORDER_PREFIX = "MER-"

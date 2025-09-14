@@ -13,7 +13,10 @@
 
 {% block dashboard_content %}
   <div class="card">
-    <div class="card-header">{% trans "Submissions" %}</div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>{% trans "Submissions" %}</span>
+      <a class="btn btn-sm btn-outline-success" href="{% url 'dashboard-form:submission-export' form_id=form_obj.id %}">{% trans "Export CSV" %}</a>
+    </div>
     <div class="table-responsive">
       <table class="table table-striped mb-0">
         <thead>
@@ -21,7 +24,9 @@
             <th>#</th>
             <th>{% trans "Submitted at" %}</th>
             <th>{% trans "User" %}</th>
-            <th>{% trans "IP" %}</th>
+            {% for field in fields %}
+              <th>{{ field.label }}</th>
+            {% endfor %}
             <th></th>
           </tr>
         </thead>
@@ -31,17 +36,20 @@
             <td>{{ s.id }}</td>
             <td>{{ s.submitted_at }}</td>
             <td>{{ s.user|default:"-" }}</td>
-            <td>{{ s.submitter_ip|default:"-" }}</td>
+            {% for val in s.field_values %}
+              <td>{{ val }}</td>
+            {% endfor %}
             <td class="text-right">
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard-form:submission-detail' form_id=form_obj.id pk=s.id %}">{% trans "View" %}</a>
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard-form:submission-update' form_id=form_obj.id pk=s.id %}">{% trans "Edit" %}</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'dashboard-form:submission-delete' form_id=form_obj.id pk=s.id %}">{% trans "Delete" %}</a>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="text-center text-muted p-4">{% trans "No submissions yet." %}</td></tr>
+          <tr><td colspan="100" class="text-center text-muted p-4">{% trans "No submissions yet." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 {% endblock %}
-

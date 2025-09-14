@@ -34,9 +34,23 @@ urlpatterns = [
         name="submission-list",
     ),
     path(
+        "<int:form_id>/submissions/export/",
+        views.SubmissionExportCSVView.as_view(),
+        name="submission-export",
+    ),
+    path(
         "<int:form_id>/submissions/<int:pk>/",
         views.SubmissionDetailView.as_view(),
         name="submission-detail",
     ),
+    path(
+        "<int:form_id>/submissions/<int:pk>/edit/",
+        views.SubmissionUpdateView.as_view(),
+        name="submission-update",
+    ),
+    path(
+        "<int:form_id>/submissions/<int:pk>/delete/",
+        views.SubmissionDeleteView.as_view(),
+        name="submission-delete",
+    ),
 ]
-
