@@ -64,6 +64,11 @@ urlpatterns = [
         views.EventBatchEmailPreviewView.as_view(),
         name="event-batch-email-preview",
     ),
+    path(
+        "<int:pk>/batch-email-count/",
+        views.EventBatchEmailCountView.as_view(),
+        name="event-batch-email-count",
+    ),
     # Manual registration (dashboard-side helper)
     path(
         "<int:pk>/manual-register/",

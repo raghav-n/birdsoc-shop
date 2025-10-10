@@ -13,9 +13,12 @@ from django.views.generic import (
 )
 from django.views.generic.detail import SingleObjectMixin
 from django.views import View
+from django.utils import timezone
+import datetime
 from django.db import models
 import csv
 import io
+import re
 from django.http import HttpResponseRedirect
 from django.views.generic.edit import FormMixin
 from django.core.mail import EmailMultiAlternatives
@@ -545,6 +548,19 @@ class EventParticipantRemoveView(DashboardMixin, View):
 class BatchEmailForm(forms.Form):
     subject = forms.CharField(max_length=255, required=True)
     message = forms.CharField(widget=forms.Textarea, required=True)
+    # Optional date range filters (sign-up dates)
+    start_date = forms.DateField(
+        required=False,
+        label="Signup start date",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Only include signups on/after this date (optional)",
+    )
+    end_date = forms.DateField(
+        required=False,
+        label="Signup end date",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Only include signups on/before this date (optional)",
+    )
     bcc_sales = forms.BooleanField(
         required=False,
         initial=False,
@@ -613,6 +629,21 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
         message_template = form.cleaned_data["message"]
         recipient_mode = form.cleaned_data.get("recipient_mode") or "participants"
         bcc_sales = form.cleaned_data.get("bcc_sales") is True
+        start_date = form.cleaned_data.get("start_date")
+        end_date = form.cleaned_data.get("end_date")
+
+        # Resolve date range to timezone-aware datetimes (inclusive bounds)
+        start_dt = None
+        end_dt = None
+        if start_date:
+            start_dt = timezone.make_aware(
+                datetime.datetime.combine(start_date, datetime.time.min)
+            ) if timezone.is_naive(datetime.datetime.combine(start_date, datetime.time.min)) else datetime.datetime.combine(start_date, datetime.time.min)
+        if end_date:
+            # inclusive: end of the given day
+            end_dt = timezone.make_aware(
+                datetime.datetime.combine(end_date, datetime.time.max)
+            ) if timezone.is_naive(datetime.datetime.combine(end_date, datetime.time.max)) else datetime.datetime.combine(end_date, datetime.time.max)
 
         # Get attachments
         attachments = form.get_attachments()
@@ -642,6 +673,10 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
                 .exclude(payer_email__isnull=True)
                 .exclude(payer_email="")
             )
+            if start_dt:
+                groups_qs = groups_qs.filter(created_at__gte=start_dt)
+            if end_dt:
+                groups_qs = groups_qs.filter(created_at__lte=end_dt)
 
             seen_emails = set()
             for grp in groups_qs:
@@ -650,11 +685,27 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
                     continue
                 seen_emails.add(grp.payer_email.lower())
 
-                # Create context for template variables
-                first_name = (grp.payer_name or "").split(" ")[0] if grp.payer_name else ""
-                last_name = (
-                    " ".join((grp.payer_name or "").split(" ")[1:]) if grp.payer_name else ""
+                registrations = list(
+                    grp.registrations.select_related("participant").all()
                 )
+                primary_participant = None
+                for registration in registrations:
+                    participant_candidate = registration.participant
+                    candidate_first_name = (participant_candidate.first_name or "").strip()
+                    if candidate_first_name and not re.search(r"\(\d+\)\s*$", candidate_first_name):
+                        primary_participant = participant_candidate
+                        break
+                if primary_participant is None and registrations:
+                    primary_participant = registrations[0].participant
+
+                if primary_participant:
+                    first_name = primary_participant.first_name or ""
+                    last_name = primary_participant.last_name or ""
+                else:
+                    first_name = grp.payer_name or ""
+                    last_name = ""
+
+                # Create context for template variables
                 context = {
                     "first_name": first_name,
                     "last_name": last_name,
@@ -710,6 +761,10 @@ class EventBatchEmailView(DashboardMixin, SingleObjectMixin, FormView):
         else:
             # Default: send to all event participants
             event_participants = event.eventparticipant_set.all()
+            if start_dt:
+                event_participants = event_participants.filter(registered_at__gte=start_dt)
+            if end_dt:
+                event_participants = event_participants.filter(registered_at__lte=end_dt)
             # Optional: prefetch registrations for potential registration_reference
             for ep in event_participants:
                 participant = ep.participant
@@ -915,6 +970,59 @@ class EventBatchEmailPreviewView(DashboardMixin, View):
                 "subject": subject,
             }
         )
+
+
+class EventBatchEmailCountView(DashboardMixin, View):
+    """Return dynamic recipient count for batch email based on filters."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        from django.utils.dateparse import parse_date
+
+        event = get_object_or_404(OrganizedEvent, pk=kwargs.get("pk"))
+        recipient_mode = request.POST.get("recipient_mode", "participants")
+        start_date_str = request.POST.get("start_date")
+        end_date_str = request.POST.get("end_date")
+
+        # Parse dates safely
+        start_dt = end_dt = None
+        start_date = parse_date(start_date_str) if start_date_str else None
+        end_date = parse_date(end_date_str) if end_date_str else None
+        if start_date:
+            start_naive = datetime.datetime.combine(start_date, datetime.time.min)
+            start_dt = timezone.make_aware(start_naive) if timezone.is_naive(start_naive) else start_naive
+        if end_date:
+            end_naive = datetime.datetime.combine(end_date, datetime.time.max)
+            end_dt = timezone.make_aware(end_naive) if timezone.is_naive(end_naive) else end_naive
+
+        if recipient_mode == "verified_groups":
+            qs = (
+                EventRegistrationGroup._default_manager.filter(
+                    event=event, payment_verified=True
+                )
+                .exclude(payer_email__isnull=True)
+                .exclude(payer_email="")
+            )
+            if start_dt:
+                qs = qs.filter(created_at__gte=start_dt)
+            if end_dt:
+                qs = qs.filter(created_at__lte=end_dt)
+
+            # Deduplicate by payer email to reflect sending behavior
+            emails = set(qs.values_list("payer_email", flat=True).iterator())
+            count = len({(e or "").lower() for e in emails if e})
+            label = "group payers"
+        else:
+            qs = event.eventparticipant_set.all()
+            if start_dt:
+                qs = qs.filter(registered_at__gte=start_dt)
+            if end_dt:
+                qs = qs.filter(registered_at__lte=end_dt)
+            count = qs.count()
+            label = "participants"
+
+        return JsonResponse({"count": count, "label": label, "mode": recipient_mode})
 
 
 # EventParticipant detail view
