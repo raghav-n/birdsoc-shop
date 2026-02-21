@@ -113,7 +113,7 @@ if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     from sentry_sdk.integrations.redis import RedisIntegration
 
     sentry_sdk.init(
-        dsn="https://a0d7f98f2180b92a2e5fccb7f903cfac@o1066695.ingest.us.sentry.io/4507791878782976",
+        dsn=os.environ.get("SENTRY_DSN"),
         integrations=[RedisIntegration(), DjangoIntegration()],
         send_default_pii=True,
         before_send=before_send,
@@ -195,18 +195,15 @@ INSTALLED_APPS = [
 FILE_UPLOAD_PERMISSIONS = 0o666
 
 ANYMAIL = {
-    # (exact settings here depend on your ESP...)
     "MAILERSEND_API_TOKEN": MAILERSEND_KEY,
-    "MAILERSEND_SENDER_DOMAIN": "birdsociety.sg",  # your MailerSend domain, if needed
+    "MAILERSEND_SENDER_DOMAIN": os.environ.get("MAILERSEND_SENDER_DOMAIN"), 
 }
 
 EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
-DEFAULT_FROM_EMAIL = "BirdSoc SG Shop <shop@birdsociety.sg>"  # if you don't already have this in settings
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 OSCAR_FROM_EMAIL = DEFAULT_FROM_EMAIL
-REPLY_TO_EMAIL = "birdsocsgsales@gmail.com"
-SERVER_EMAIL = (
-    "shop-server@birdsociety.sg"  # ditto (default from-email for Django errors)
-)
+REPLY_TO_EMAIL = os.environ.get("REPLY_TO_EMAIL")
+SERVER_EMAIL = os.environ.get("SERVER_EMAIL")
 
 SITE_ID = 1
 
@@ -383,18 +380,20 @@ AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
 )
 
-ADMINS = [("Raghav Narayanswamy", "raghavnswamy@gmail.com")]
+ADMIN_NAME = os.environ.get("ADMIN_NAME")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL")
+ADMINS = [(ADMIN_NAME, ADMIN_EMAIL)]
 MANAGERS = [
-    ("BirdSoc SG Outreach", "outreach.birdsocsg@gmail.com"),
-    ("BirdSoc SG Sales", "birdsocsgsales@gmail.com"),
+    ("BirdSoc SG Outreach", os.environ.get("OUTREACH_EMAIL")),
+    ("BirdSoc SG Sales", os.environ.get("SALES_EMAIL")),
 ]
 MANAGER_EMAILS = [i[1] for i in MANAGERS]
 ADMIN_EMAILS = [i[1] for i in ADMINS]
-TREASURER_EMAIL = "treasurer.birdsocsg@gmail.com"
+TREASURER_EMAIL = os.environ.get("TREASURER_EMAIL")
 
 if not SESSION_ENVIRONMENT_PRODUCTION:  # test config
     MANAGER_EMAILS = ADMIN_EMAILS
-    TREASURER_EMAIL = "raghavnswamy@gmail.com"
+    TREASURER_EMAIL = ADMIN_EMAIL
 
 HAYSTACK_CONNECTIONS = {
     "default": {
