@@ -64,3 +64,11 @@ class CatalogueExtraTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         titles = [i["title"] for i in r.data["results"]]
         self.assertEqual(sorted(titles), titles)
+
+    def test_product_retrieve_not_found(self):
+        r = self.client.get("/api/v1/products/999999")
+        self.assertEqual(r.status_code, 404)
+
+    def test_category_retrieve_not_found(self):
+        r = self.client.get("/api/v1/categories/no-such-slug")
+        self.assertEqual(r.status_code, 404)

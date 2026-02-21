@@ -47,3 +47,24 @@ class EventsExtraTests(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
+
+    def test_register_event_not_found(self):
+        r = self.client.post(
+            "/api/v1/events/999999/register",
+            {"first_name": "A", "last_name": "B", "email": "a@b.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_retrieve_not_found(self):
+        r = self.client.get("/api/v1/events/999999")
+        self.assertEqual(r.status_code, 404)
+
+    def test_list_excludes_inactive(self):
+        active = create_event(is_active=True)
+        inactive = create_event(is_active=False)
+        r = self.client.get("/api/v1/events")
+        self.assertEqual(r.status_code, 200)
+        ids = [e["id"] for e in r.data]
+        self.assertIn(active.id, ids)
+        self.assertNotIn(inactive.id, ids)
