@@ -193,6 +193,7 @@ class CheckoutTests(APITestCase):
 try:
     import weasyprint  # noqa
 
+    weasyprint.HTML(string="<p>test</p>").write_pdf()
     WEASYPRINT_AVAILABLE = True
 except Exception:
     WEASYPRINT_AVAILABLE = False
