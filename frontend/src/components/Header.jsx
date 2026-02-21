@@ -31,16 +31,22 @@ const Logo = styled(Link)`
   flex-shrink: 0;
 
   img {
-    height: 40px;
+    height: 55px;
     width: auto;
   }
+`;
+
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 `;
 
 const NavLinks = styled.div`
   display: flex;
   align-items: center;
   gap: 2rem;
-  
+
   @media (max-width: 768px) {
     display: none;
   }
@@ -216,6 +222,7 @@ const Header = () => {
             </IconButton>
           </SearchForm>
 
+          <RightSection>
           <NavLinks>
             <NavLink to="/products">Products</NavLink>
             <NavLink to="/events">Events</NavLink>
@@ -252,6 +259,7 @@ const Header = () => {
               </IconButton>
             </MobileMenu>
           </UserActions>
+          </RightSection>
         </NavContainer>
       </HeaderContainer>
 
