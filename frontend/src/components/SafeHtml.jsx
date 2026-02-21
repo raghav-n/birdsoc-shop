@@ -24,30 +24,34 @@ const SafeHtml = ({
 }) => {
   if (!html) return null;
 
+  // Build flat list of allowed attributes for DOMPurify
+  const attrList = new Set();
+  Object.values(allowedAttributes).forEach(attrs => {
+    attrs.forEach(a => attrList.add(a));
+  });
+
   // Configure DOMPurify
   const config = {
     ALLOWED_TAGS: allowedTags,
-    ALLOWED_ATTR: allowedAttributes,
+    ALLOWED_ATTR: [...attrList],
     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-    // Add target="_blank" and rel="noopener noreferrer" to external links
     ADD_ATTR: ['target', 'rel'],
-    TRANSFORM_ATTRIBUTES: {
-      a: function(attributeName, attributeValue) {
-        if (attributeName === 'href' && !attributeValue.startsWith('/') && !attributeValue.startsWith('#')) {
-          return {
-            name: attributeName,
-            value: attributeValue,
-            attributes: {
-              target: '_blank',
-              rel: 'noopener noreferrer'
-            }
-          };
-        }
-      }
-    }
   };
 
+  // Add target/rel to external links after sanitization
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A') {
+      const href = node.getAttribute('href') || '';
+      if (href && !href.startsWith('/') && !href.startsWith('#')) {
+        node.setAttribute('target', '_blank');
+        node.setAttribute('rel', 'noopener noreferrer');
+      }
+    }
+  });
+
   const sanitizedHtml = DOMPurify.sanitize(html, config);
+
+  DOMPurify.removeAllHooks();
   const Component = tag;
 
   return (

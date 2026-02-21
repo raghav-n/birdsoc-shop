@@ -80,7 +80,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-const SafeCheckbox = ({ 
+const SafeCheckbox = ({
   id,
   label,
   htmlLabel,
@@ -91,8 +91,22 @@ const SafeCheckbox = ({
   register,
   ...props
 }) => {
-  const handleContainerClick = () => {
-    if (onChange) {
+  const inputRef = React.useRef(null);
+
+  const registerProps = register || {};
+  const { ref: registerRef, ...restRegister } = registerProps;
+
+  const setRef = React.useCallback((el) => {
+    inputRef.current = el;
+    if (typeof registerRef === 'function') registerRef(el);
+  }, [registerRef]);
+
+  const handleContainerClick = (e) => {
+    // Let anchor clicks through
+    if (e.target.tagName === 'A') return;
+    if (inputRef.current) {
+      inputRef.current.click();
+    } else if (onChange) {
       onChange(!checked);
     }
   };
@@ -102,9 +116,8 @@ const SafeCheckbox = ({
       <CheckboxContainer onClick={handleContainerClick}>
         <HiddenCheckbox
           id={id}
-          checked={checked}
-          onChange={() => {}} // Handled by container click
-          {...(register ? register : {})}
+          ref={setRef}
+          {...restRegister}
           {...props}
         />
         <StyledCheckbox checked={checked} hasError={hasError}>

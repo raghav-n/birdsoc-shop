@@ -137,7 +137,6 @@ const Register = () => {
       <RegisterCard>
         <RegisterHeader>
           <RegisterTitle>Create Account</RegisterTitle>
-          <RegisterSubtitle>Join the BirdSoc Shop community</RegisterSubtitle>
         </RegisterHeader>
 
         {errors.root && (

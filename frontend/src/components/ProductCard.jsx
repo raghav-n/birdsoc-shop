@@ -100,7 +100,7 @@ const ImagePlaceholder = styled.div`
 `;
 
 const ProductCard = ({ product }) => {
-  const { addToCart } = useCart();
+  const { addToCart, shopOpen } = useCart();
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -157,15 +157,17 @@ const ProductCard = ({ product }) => {
           View
         </Button>
         
-        <Button 
-          onClick={handleAddToCart}
-          disabled={!inStock}
-          size="small"
-          style={{ flex: 1 }}
-        >
-          <ShoppingCart size={16} />
-          Add to Cart
-        </Button>
+        {shopOpen && (
+          <Button
+            onClick={handleAddToCart}
+            disabled={!inStock}
+            size="small"
+            style={{ flex: 1 }}
+          >
+            <ShoppingCart size={16} />
+            Add to Cart
+          </Button>
+        )}
       </ProductActions>
     </ProductCardContainer>
   );

@@ -459,10 +459,10 @@ const ModalButton = styled(Button)`
 
 const Checkout = () => {
   const { cart, loading: cartLoading, getCartCount, clearCart } = useCart();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(2);
   const [loading, setLoading] = useState(false);
   const [shippingMethods, setShippingMethods] = useState([]);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState('');
@@ -496,7 +496,6 @@ const Checkout = () => {
     watch
   } = useForm({
     defaultValues: {
-      email: user?.email || '',
       firstName: '',
       lastName: '',
       address1: '',
@@ -512,13 +511,17 @@ const Checkout = () => {
   const watchDonationType = watch('donationType');
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
     if (!cart || cart.lines?.length === 0) {
       navigate('/cart');
       return;
     }
-    
+
     loadShippingMethods();
-  }, [cart, navigate]);
+  }, [cart, navigate, isAuthenticated]);
 
   useEffect(() => {
     if (watchDonationType === 'custom') {
@@ -560,25 +563,7 @@ const Checkout = () => {
   };
 
   const handleStepComplete = async (step) => {
-    if (step === 1) {
-      // Contact information step
-      const formData = getValues();
-      if (!isAuthenticated && !formData.email) {
-        toast.error('Email is required for guest checkout');
-        return;
-      }
-      
-      if (!isAuthenticated) {
-        try {
-          await checkoutService.setCheckoutEmail(formData.email);
-        } catch (error) {
-          toast.error('Failed to save email');
-          return;
-        }
-      }
-      
-      setCurrentStep(2);
-    } else if (step === 2) {
+    if (step === 2) {
       // Shipping/Collection method selection step
       if (!selectedShippingMethod) {
         toast.error('Please select a shipping method');
@@ -673,10 +658,6 @@ const Checkout = () => {
         shipping_method_code: selectedShippingMethod,
         donation: donation
       };
-
-      if (!isAuthenticated) {
-        orderData.email = getValues().email;
-      }
 
       const order = await checkoutService.placeOrder(orderData);
       
@@ -855,16 +836,17 @@ const Checkout = () => {
   const shippingCost = selectedMethod ? (selectedMethod.is_self_collect ? 0 : parseFloat(selectedMethod.price) || 0) : 0;
   const totalWithDonation = subtotal + shippingCost + donation;
 
-  // Calculate visible step numbers based on whether shipping info is shown
+  // Calculate visible step numbers (contact step removed, so internal 2→1, 3→2, 4→3, 5→4)
   const getStepNumber = (stepIndex) => {
+    let num = stepIndex - 1; // offset since contact step is removed
     if (isSelectedMethodSelfCollect && stepIndex >= 3) {
-      return stepIndex - 1; // Skip step 3 for self-collect
+      num -= 1; // Skip shipping info step for self-collect
     }
-    return stepIndex;
+    return num;
   };
 
   const getMaxSteps = () => {
-    return isSelectedMethodSelfCollect ? 4 : 5;
+    return isSelectedMethodSelfCollect ? 3 : 4;
   };
 
   return (
@@ -879,54 +861,7 @@ const Checkout = () => {
 
       <CheckoutGrid>
         <CheckoutSteps>
-          {/* Step 1: Contact Information */}
-          <Step completed={currentStep > 1} disabled={currentStep < 1}>
-            <StepHeader>
-              <StepNumber completed={currentStep > 1}>
-                {currentStep > 1 ? <CheckCircle size={16} /> : getStepNumber(1)}
-              </StepNumber>
-              <StepTitle>Contact Information</StepTitle>
-            </StepHeader>
-            
-            {currentStep >= 1 && (
-              <StepContent>
-                {!isAuthenticated && (
-                  <FormGroup>
-                    <Label htmlFor="email">Email Address *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      {...register('email', { 
-                        required: 'Email is required',
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Invalid email address'
-                        }
-                      })}
-                      error={errors.email}
-                    />
-                    {errors.email && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{errors.email.message}</span>}
-                  </FormGroup>
-                )}
-
-                {isAuthenticated && (
-                  <Alert variant="info">
-                    Signed in as {user?.email}
-                  </Alert>
-                )}
-
-                {currentStep === 1 && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <Button onClick={() => handleStepComplete(1)}>
-                      Continue to Shipping Method
-                    </Button>
-                  </div>
-                )}
-              </StepContent>
-            )}
-          </Step>
-
-          {/* Step 2: Shipping/Collection Method */}
+          {/* Step 1: Shipping/Collection Method */}
           <Step completed={currentStep > 2} disabled={currentStep < 2}>
             <StepHeader>
               <StepNumber completed={currentStep > 2}>
@@ -1113,104 +1048,90 @@ const Checkout = () => {
                 </Alert>
 
                 <PaymentLayout>
-                  <div>
-                    <p style={{ margin: '0 0 1rem 0', color: '#666' }}>
-                      <strong>BirdSoc SG's UEN number is T23SS0038A.</strong>
-                    </p>
-                    <p style={{ margin: '0 0 1rem 0', color: '#666' }}>
-                      Your order total is shown below. <strong>Please make payment before uploading proof.</strong>
-                    </p>
-                    
-                    <Alert variant="warning" style={{ marginBottom: '1rem' }}>
-                      Please upload your PayNow payment proof after making the payment.
-                    </Alert>
-                  </div>
-                  
-                  
-                  <PayNowQR 
-                    amount={subtotal + shippingCost} 
-                    referenceId={orderReference} 
+                  <DonationSection>
+                    <SafeHtml
+                      html="<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
+                      tag="h4"
+                      style={{
+                        margin: '0 0 1rem 0',
+                        fontSize: '1.125rem',
+                        color: 'var(--dark)'
+                      }}
+                    />
+                    <SafeHtml
+                      html="<span style='color: #17a2b8; font-weight: 600;'>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
+                      tag="p"
+                      style={{
+                        margin: '0 0 1rem 0',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                    <DonationOptions>
+                      <DonationOption
+                        type="button"
+                        selected={donation === 0}
+                        onClick={() => {
+                          setDonation(0);
+                          setValue('donationType', '0');
+                          setCustomDonation('');
+                        }}
+                      >
+                        $0
+                      </DonationOption>
+                      <DonationOption
+                        type="button"
+                        selected={donation === 5}
+                        onClick={() => {
+                          setDonation(5);
+                          setValue('donationType', '5');
+                          setCustomDonation('');
+                        }}
+                      >
+                        $5
+                      </DonationOption>
+                      <DonationOption
+                        type="button"
+                        selected={donation === 10}
+                        onClick={() => {
+                          setDonation(10);
+                          setValue('donationType', '10');
+                          setCustomDonation('');
+                        }}
+                      >
+                        $10
+                      </DonationOption>
+                      <DonationOption
+                        type="button"
+                        selected={donation === 20}
+                        onClick={() => {
+                          setDonation(20);
+                          setValue('donationType', '20');
+                          setCustomDonation('');
+                        }}
+                      >
+                        $20
+                      </DonationOption>
+                    </DonationOptions>
+
+                    <FormGroup style={{ margin: 0 }}>
+                      <Label htmlFor="customDonation">Custom amount</Label>
+                      <Input
+                        id="customDonation"
+                        type="number"
+                        min="0"
+                        placeholder="Enter custom amount"
+                        value={customDonation}
+                        onChange={handleDonationAmountChange}
+                      />
+                    </FormGroup>
+                  </DonationSection>
+
+                  <PayNowQR
+                    amount={subtotal + shippingCost}
+                    referenceId={orderReference}
                     donation={donation}
                   />
                 </PaymentLayout>
-
-                <DonationSection>
-                  <SafeHtml 
-                    html="<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
-                    tag="h4"
-                    style={{ 
-                      margin: '0 0 1rem 0',
-                      fontSize: '1.125rem',
-                      color: 'var(--dark)'
-                    }}
-                  />
-                  <SafeHtml 
-                    html="<span style='color: #17a2b8; font-weight: 600;'>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
-                    tag="p"
-                    style={{ 
-                      margin: '0 0 1rem 0',
-                      fontSize: '0.9rem'
-                    }}
-                  />
-                  <DonationOptions>
-                    <DonationOption
-                      type="button"
-                      selected={donation === 0}
-                      onClick={() => {
-                        setDonation(0);
-                        setValue('donationType', '0');
-                        setCustomDonation('');
-                      }}
-                    >
-                      $0
-                    </DonationOption>
-                    <DonationOption
-                      type="button"
-                      selected={donation === 5}
-                      onClick={() => {
-                        setDonation(5);
-                        setValue('donationType', '5');
-                        setCustomDonation('');
-                      }}
-                    >
-                      $5
-                    </DonationOption>
-                    <DonationOption
-                      type="button"
-                      selected={donation === 10}
-                      onClick={() => {
-                        setDonation(10);
-                        setValue('donationType', '10');
-                        setCustomDonation('');
-                      }}
-                    >
-                      $10
-                    </DonationOption>
-                    <DonationOption
-                      type="button"
-                      selected={donation === 20}
-                      onClick={() => {
-                        setDonation(20);
-                        setValue('donationType', '20');
-                        setCustomDonation('');
-                      }}
-                    >
-                      $20
-                    </DonationOption>
-                  </DonationOptions>
-                  
-                  <FormGroup style={{ margin: 0 }}>
-                    <Label htmlFor="customDonation">Custom amount</Label>
-                    <Input
-                      id="customDonation"
-                      type="number"
-                      min="0"
-                      placeholder="Enter custom amount"
-                      value={customDonation}
-                      onChange={handleDonationAmountChange}
-                    />
-                  </FormGroup>
-                </DonationSection>
 
                 {autoPaymentConfirmationEnabled && (
                   <PaymentConfirmSection>
@@ -1307,7 +1228,6 @@ const Checkout = () => {
             {currentStep >= 5 && (
               <StepContent>
                 <Alert variant="success" style={{ marginBottom: '1rem' }}>
-                  <CheckCircle size={16} />
                   {paymentFile ? 'Payment proof uploaded successfully!' : 'Payment confirmation recorded!'} Reference: {orderReference}
                 </Alert>
 

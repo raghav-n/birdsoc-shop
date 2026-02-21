@@ -13,6 +13,12 @@ export const miscService = {
     return response.data;
   },
 
+  // Get FAQ items (public)
+  getFAQ: async () => {
+    const response = await api.get('/faq');
+    return response.data;
+  },
+
   // Get shipping methods (public)
   getShippingMethods: async (selfCollect = null) => {
     const params = selfCollect !== null ? { self_collect: selfCollect } : {};

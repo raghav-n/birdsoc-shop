@@ -6,6 +6,7 @@ import Alert from '../components/Alert';
 import SafeCheckbox from '../components/SafeCheckbox';
 import Loading from '../components/Loading';
 import { showToast } from '../utils/toast.jsx';
+import api from '../services/api';
 
 const ContactContainer = styled.div`
   max-width: 600px;
@@ -66,19 +67,26 @@ const Contact = () => {
     handleSubmit,
     watch,
     reset,
+    setError,
     formState: { errors }
   } = useForm();
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Here you would call your contact form API
-      console.log('Contact form data:', data);
+      await api.post('/contact', data);
       showToast.success('Thank you for your message! We will get back to you soon.');
       reset();
     } catch (error) {
-      console.error('Contact form error:', error);
-      showToast.error('Failed to send message. Please try again.');
+      if (error.response?.data) {
+        const serverErrors = error.response.data;
+        Object.entries(serverErrors).forEach(([field, messages]) => {
+          const msg = Array.isArray(messages) ? messages[0] : messages;
+          setError(field, { type: 'server', message: msg });
+        });
+      } else {
+        showToast.error('Failed to send message. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }

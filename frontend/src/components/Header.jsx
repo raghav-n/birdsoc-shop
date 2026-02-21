@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { ShoppingCart, User, Menu, X, Search, LogOut } from 'lucide-react';
+import { ShoppingCart, Menu, X, Search, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { Button } from '../styles/GlobalStyles';
@@ -174,7 +174,7 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
-  const { getCartCount } = useCart();
+  const { getCartCount, shopOpen } = useCart();
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -221,26 +221,20 @@ const Header = () => {
           </NavLinks>
 
           <UserActions>
-            <IconButton as={Link} to="/cart">
-              <ShoppingCart size={20} />
-              {cartCount > 0 && <CartBadge>{cartCount}</CartBadge>}
-            </IconButton>
+            {shopOpen && (
+              <IconButton as={Link} to="/cart">
+                <ShoppingCart size={20} />
+                {cartCount > 0 && <CartBadge>{cartCount}</CartBadge>}
+              </IconButton>
+            )}
 
             {isAuthenticated ? (
               <>
-                <IconButton as={Link} to="/orders">
-                  <User size={20} />
-                  <span className="hidden md:inline">Orders</span>
-                </IconButton>
-                <IconButton as={Link} to="/profile">
-                  <User size={20} />
-                  <span className="hidden md:inline">{user?.first_name || 'Profile'}</span>
-                </IconButton>
                 <IconButton onClick={handleLogout}>
                   <LogOut size={18} />
                 </IconButton>
               </>
-            ) : (
+            ) : shopOpen ? (
               <>
                 <Button as={Link} to="/login" size="small" variant="secondary">
                   Login
@@ -249,7 +243,7 @@ const Header = () => {
                   Register
                 </Button>
               </>
-            )}
+            ) : null}
 
             <MobileMenu>
               <IconButton onClick={() => setIsMobileMenuOpen(true)}>
@@ -276,19 +270,19 @@ const Header = () => {
         <MobileNavLinks>
           <NavLink to="/products" onClick={closeMobileMenu}>Products</NavLink>
           <NavLink to="/events" onClick={closeMobileMenu}>Events</NavLink>
-          <NavLink to="/cart" onClick={closeMobileMenu}>
-            Cart {cartCount > 0 && `(${cartCount})`}
-          </NavLink>
+          {shopOpen && (
+            <NavLink to="/cart" onClick={closeMobileMenu}>
+              Cart {cartCount > 0 && `(${cartCount})`}
+            </NavLink>
+          )}
           
           {isAuthenticated ? (
             <>
-              <NavLink to="/profile" onClick={closeMobileMenu}>Profile</NavLink>
-              <NavLink to="/orders" onClick={closeMobileMenu}>Orders</NavLink>
               <Button onClick={handleLogout} variant="secondary" fullWidth>
                 Logout
               </Button>
             </>
-          ) : (
+          ) : shopOpen ? (
             <>
               <Button as={Link} to="/login" onClick={closeMobileMenu} variant="secondary" fullWidth>
                 Login
@@ -297,7 +291,7 @@ const Header = () => {
                 Register
               </Button>
             </>
-          )}
+          ) : null}
         </MobileNavLinks>
       </MobileMenuContent>
     </>

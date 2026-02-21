@@ -1,6 +1,7 @@
-import React from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useShopConfig } from '../context/ShopConfigContext';
 
 const FooterContainer = styled.footer`
   background-color: var(--page-footer-background);
@@ -60,6 +61,17 @@ const FooterText = styled.p`
   line-height: 1.5;
 `;
 
+const ExternalLink = styled.a`
+  color: var(--dark);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--link-text);
+  }
+`;
+
 const FooterBottom = styled.div`
   border-top: 1px solid #e1e1e1;
   padding-top: 1rem;
@@ -69,51 +81,49 @@ const FooterBottom = styled.div`
 `;
 
 const Footer = () => {
+  const { isAuthenticated } = useAuth();
+  const { shopOpen } = useShopConfig();
   return (
     <FooterContainer>
       <FooterContent>
         <FooterGrid>
           <FooterSection>
-            <h4>BirdSoc Shop</h4>
+            <h4>Bird Society of Singapore</h4>
             <FooterText>
-              Your trusted source for birding equipment and accessories. 
-              Supporting the birding community with quality products.
+              The Bird Society of Singapore is the leading organisation promoting the conservation and research of our island's birds. 
+              Read more about us <b><ExternalLink href="https://birdsociety.sg/about-us/" target="_blank">here</ExternalLink></b>.
             </FooterText>
           </FooterSection>
 
           <FooterSection>
-            <h4>Quick Links</h4>
-            <FooterLinks>
-              <FooterLink to="/products">Products</FooterLink>
-              <FooterLink to="/events">Events</FooterLink>
-              <FooterLink to="/orders">Order History</FooterLink>
-              <FooterLink to="/refund">Request Refund</FooterLink>
-            </FooterLinks>
-          </FooterSection>
-
-          <FooterSection>
-            <h4>Customer Service</h4>
+            <h4>Useful Links</h4>
             <FooterLinks>
               <FooterLink to="/contact">Contact Us</FooterLink>
-              <FooterLink to="/shipping">Shipping Info</FooterLink>
-              <FooterLink to="/returns">Returns Policy</FooterLink>
+              <FooterLink to="/faq#shipping">Shipping Info</FooterLink>
               <FooterLink to="/faq">FAQ</FooterLink>
             </FooterLinks>
           </FooterSection>
 
-          <FooterSection>
-            <h4>Account</h4>
-            <FooterLinks>
-              <FooterLink to="/profile">My Profile</FooterLink>
-              <FooterLink to="/orders">My Orders</FooterLink>
-              <FooterLink to="/login">Sign In</FooterLink>
-              <FooterLink to="/register">Create Account</FooterLink>
-            </FooterLinks>
-          </FooterSection>
+          {shopOpen && (
+            <FooterSection>
+              <h4>Account</h4>
+              <FooterLinks>
+                <FooterLink to="/orders">My Orders</FooterLink>
+                {!isAuthenticated && (
+                  <>
+                    <FooterLink to="/login">Sign In</FooterLink>
+                    <FooterLink to="/register">Create Account</FooterLink>
+                  </>
+                )}
+              </FooterLinks>
+            </FooterSection>
+          )}
         </FooterGrid>
 
         <FooterBottom>
-          <p>&copy; 2024 BirdSoc Shop. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Bird Society of Singapore / <ExternalLink href="https://birdsociety.sg/data-protection-notice/" target="_blank" rel="noopener noreferrer">
+                Data Protection Notice
+              </ExternalLink></p>
         </FooterBottom>
       </FooterContent>
     </FooterContainer>

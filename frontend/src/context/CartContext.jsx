@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { basketService } from '../services/basket';
 import { tokenManager } from '../services/api';
 import { useAuth } from './AuthContext';
+import { useShopConfig } from './ShopConfigContext';
 import toast from 'react-hot-toast';
 
 const CartContext = createContext();
@@ -18,6 +19,7 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(false);
   const { isAuthenticated } = useAuth();
+  const { shopOpen } = useShopConfig();
 
   // Initialize or fetch cart
   const initializeCart = async () => {
@@ -81,6 +83,10 @@ export const CartProvider = ({ children }) => {
 
   // Add item to cart
   const addToCart = async (productId, quantity = 1, options = {}) => {
+    if (!shopOpen) {
+      toast.error('The shop is currently closed');
+      return { success: false, error: 'Shop is closed' };
+    }
     if (!cart) return { success: false, error: 'Cart not initialized' };
     
     try {
@@ -161,6 +167,7 @@ export const CartProvider = ({ children }) => {
   const value = {
     cart,
     loading,
+    shopOpen,
     addToCart,
     updateCartLine,
     removeFromCart,

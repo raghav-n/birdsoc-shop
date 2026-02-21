@@ -229,7 +229,7 @@ const ProductDetail = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
-  const { addToCart } = useCart();
+  const { addToCart, shopOpen } = useCart();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -377,27 +377,22 @@ const ProductDetail = () => {
               >
                 {stockStatus}
               </Badge>
-              {product.stock?.num_in_stock && (
-                <span style={{ fontSize: '0.9rem', color: '#666' }}>
-                  {product.stock.num_in_stock} available
-                </span>
-              )}
             </StockInfo>
           </StockSection>
 
-          {inStock && (
+          {inStock && shopOpen && (
             <>
               <QuantitySection>
                 <QuantityLabel>Quantity</QuantityLabel>
                 <QuantityControls>
-                  <QuantityButton 
+                  <QuantityButton
                     onClick={decrementQuantity}
                     disabled={quantity <= 1}
                   >
                     <Minus size={16} />
                   </QuantityButton>
                   <QuantityDisplay>{quantity}</QuantityDisplay>
-                  <QuantityButton 
+                  <QuantityButton
                     onClick={incrementQuantity}
                     disabled={quantity >= product.stock?.num_in_stock}
                   >

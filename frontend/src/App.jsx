@@ -1,10 +1,11 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { GlobalStyle } from './styles/GlobalStyles';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { ShopConfigProvider, useShopConfig } from './context/ShopConfigContext';
 import Layout from './components/Layout';
 
 // Pages
@@ -18,6 +19,18 @@ import OrderDetail from './pages/OrderDetail';
 import OrderSuccess from './pages/OrderSuccess';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Contact from './pages/Contact';
+import FAQ from './pages/FAQ';
+import Refund from './pages/Refund';
+import Events from './pages/Events';
+import EventDetail from './pages/EventDetail';
+import NotFound from './pages/NotFound';
+
+const ShopOpenOnly = ({ children }) => {
+  const { shopOpen } = useShopConfig();
+  if (!shopOpen) return <Navigate to="/" replace />;
+  return children;
+};
 
 // Create a client
 const queryClient = new QueryClient({
@@ -34,6 +47,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <GlobalStyle />
+        <ShopConfigProvider>
         <AuthProvider>
           <CartProvider>
             <Layout>
@@ -41,14 +55,19 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/orders" element={<Orders />} />
-                <Route path="/orders/:orderNumber" element={<OrderDetail />} />
-                <Route path="/order-success" element={<OrderSuccess />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                {/* More routes will be added */}
+                <Route path="/cart" element={<ShopOpenOnly><Cart /></ShopOpenOnly>} />
+                <Route path="/checkout" element={<ShopOpenOnly><Checkout /></ShopOpenOnly>} />
+                <Route path="/orders" element={<ShopOpenOnly><Orders /></ShopOpenOnly>} />
+                <Route path="/orders/:orderNumber" element={<ShopOpenOnly><OrderDetail /></ShopOpenOnly>} />
+                <Route path="/order-success" element={<ShopOpenOnly><OrderSuccess /></ShopOpenOnly>} />
+                <Route path="/login" element={<ShopOpenOnly><Login /></ShopOpenOnly>} />
+                <Route path="/register" element={<ShopOpenOnly><Register /></ShopOpenOnly>} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/refund" element={<Refund />} />
+                <Route path="/events" element={<Events />} />
+                <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
             <Toaster
@@ -78,6 +97,7 @@ function App() {
             />
           </CartProvider>
         </AuthProvider>
+        </ShopConfigProvider>
       </Router>
     </QueryClientProvider>
   );
