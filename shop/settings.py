@@ -75,6 +75,7 @@ SESSION_MOD_WSGI = sys.argv[0] == "mod_wsgi"
 # Get secret key
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 
+WHITELIST_USERS = []
 if os.path.exists(os.path.join(PROJECT_DIR, "config/whitelist.txt")):
     with open(os.path.join(PROJECT_DIR, "config/whitelist.txt")) as f:
         WHITELIST_USERS = [e.strip() for e in f.read().strip().splitlines()]
