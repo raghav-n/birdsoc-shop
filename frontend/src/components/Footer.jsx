@@ -17,24 +17,27 @@ const FooterContent = styled.div`
 `;
 
 const FooterGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2rem;
   margin-bottom: 2rem;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
 `;
 
 const FooterSection = styled.div`
+  flex: 0 1 300px;
+  text-align: center;
+
   h4 {
     color: var(--header-text);
     margin-bottom: 1rem;
     font-size: 1.1rem;
     font-weight: 600;
   }
+`;
+
+const FooterSectionCompact = styled(FooterSection)`
+  flex-basis: auto;
 `;
 
 const FooterLinks = styled.div`
@@ -95,17 +98,17 @@ const Footer = () => {
             </FooterText>
           </FooterSection>
 
-          <FooterSection>
+          <FooterSectionCompact>
             <h4>Useful Links</h4>
             <FooterLinks>
               <FooterLink to="/contact">Contact Us</FooterLink>
               <FooterLink to="/faq#shipping">Shipping Info</FooterLink>
               <FooterLink to="/faq">FAQ</FooterLink>
             </FooterLinks>
-          </FooterSection>
+          </FooterSectionCompact>
 
           {shopOpen && (
-            <FooterSection>
+            <FooterSectionCompact>
               <h4>Account</h4>
               <FooterLinks>
                 <FooterLink to="/orders">My Orders</FooterLink>
@@ -116,7 +119,7 @@ const Footer = () => {
                   </>
                 )}
               </FooterLinks>
-            </FooterSection>
+            </FooterSectionCompact>
           )}
         </FooterGrid>
 

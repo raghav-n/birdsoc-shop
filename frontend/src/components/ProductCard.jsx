@@ -23,7 +23,7 @@ const ProductCardContainer = styled(Card)`
 
 const ProductImage = styled.div`
   width: 100%;
-  height: 200px;
+  height: 220px;
   background-color: #f5f5f5;
   display: flex;
   align-items: center;
@@ -32,9 +32,9 @@ const ProductImage = styled.div`
   margin-bottom: 1rem;
 
   img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
     transition: transform 0.3s ease;
   }
 

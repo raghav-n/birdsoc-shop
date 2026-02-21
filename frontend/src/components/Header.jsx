@@ -26,14 +26,13 @@ const NavContainer = styled.nav`
 `;
 
 const Logo = styled(Link)`
-  font-family: "Libre Franklin", sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--header-text);
-  text-decoration: none;
-  
-  &:hover {
-    color: var(--header-text);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+
+  img {
+    height: 40px;
+    width: auto;
   }
 `;
 
@@ -201,7 +200,9 @@ const Header = () => {
     <>
       <HeaderContainer>
         <NavContainer>
-          <Logo to="/">BirdSoc Shop</Logo>
+          <Logo to="/">
+            <img src="/static/img/logo.png" alt="Bird Society of Singapore" />
+          </Logo>
           
           <SearchForm onSubmit={handleSearch}>
             <SearchInput
