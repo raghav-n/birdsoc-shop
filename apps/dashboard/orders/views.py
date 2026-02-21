@@ -1,6 +1,7 @@
 import json
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
+from io import BytesIO
 
 from django import forms
 from django.conf import settings
@@ -27,6 +28,8 @@ from oscar.apps.dashboard.orders.views import (
     OrderStatsView as BaseOrderStatsView,
     queryset_orders_for_user,
 )
+
+from apps.order.models import SalesPeriod
 
 Product = get_model("catalogue", "Product")
 Line = get_model("basket", "Line")
@@ -852,3 +855,216 @@ class OrderStatsView(BaseOrderStatsView):
             "product_sales": product_sales_list,
         }
         return stats
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class SalesReportView(View):
+    template_name = "oscar/dashboard/orders/sales_report.html"
+
+    def get(self, request):
+        form = OrderExportForm()
+        periods = SalesPeriod.objects.all()
+        return render(request, self.template_name, {
+            "form": form,
+            "periods": periods,
+        })
+
+    def post(self, request):
+        action = request.POST.get("action", "")
+        if action == "detect":
+            return self.handle_detect(request)
+        elif action == "save":
+            return self.handle_save(request)
+        elif action == "export":
+            return self.handle_export(request)
+        return redirect("dashboard:sales-report")
+
+    def handle_detect(self, request):
+        form = OrderExportForm(request.POST)
+        if not form.is_valid():
+            periods = SalesPeriod.objects.all()
+            return render(request, self.template_name, {
+                "form": form,
+                "periods": periods,
+            })
+
+        start_date = form.cleaned_data["start_date"]
+        end_date = form.cleaned_data["end_date"]
+
+        orders = Order.objects.filter(
+            date_placed__range=(start_date, end_date),
+        ).exclude(status="Cancelled")
+
+        detected = self.detect_periods(orders)
+        existing = SalesPeriod.objects.all()
+        created_count = 0
+
+        for p in detected:
+            # Check if any existing period overlaps
+            overlaps = existing.filter(
+                start__lt=p["end"],
+                end__gt=p["start"],
+            ).exists()
+            if not overlaps:
+                s = localtime(p["start"]).strftime("%d %b %Y")
+                e = localtime(p["end"]).strftime("%d %b %Y")
+                SalesPeriod.objects.create(
+                    name=f"Period ({s} – {e})",
+                    start=p["start"],
+                    end=p["end"],
+                )
+                created_count += 1
+
+        if created_count:
+            messages.success(request, f"{created_count} new period(s) detected and saved.")
+        else:
+            messages.info(request, "No new periods detected (all overlap with existing).")
+
+        return redirect("dashboard:sales-report")
+
+    def handle_save(self, request):
+        period_ids = request.POST.getlist("period_id")
+        delete_ids = request.POST.getlist("delete")
+
+        # Delete checked periods
+        if delete_ids:
+            SalesPeriod.objects.filter(id__in=delete_ids).delete()
+
+        # Update remaining periods
+        for pid in period_ids:
+            if pid in delete_ids:
+                continue
+            try:
+                period = SalesPeriod.objects.get(id=pid)
+            except SalesPeriod.DoesNotExist:
+                continue
+            name = request.POST.get(f"name_{pid}", period.name)
+            start = request.POST.get(f"start_{pid}", "")
+            end = request.POST.get(f"end_{pid}", "")
+            period.name = name
+            if start:
+                period.start = timezone.make_aware(
+                    timezone.datetime.strptime(start, "%Y-%m-%dT%H:%M")
+                ) if timezone.is_naive(
+                    timezone.datetime.strptime(start, "%Y-%m-%dT%H:%M")
+                ) else timezone.datetime.strptime(start, "%Y-%m-%dT%H:%M")
+            if end:
+                period.end = timezone.make_aware(
+                    timezone.datetime.strptime(end, "%Y-%m-%dT%H:%M")
+                ) if timezone.is_naive(
+                    timezone.datetime.strptime(end, "%Y-%m-%dT%H:%M")
+                ) else timezone.datetime.strptime(end, "%Y-%m-%dT%H:%M")
+            period.save()
+
+        messages.success(request, "Periods saved.")
+        return redirect("dashboard:sales-report")
+
+    def handle_export(self, request):
+        periods = SalesPeriod.objects.all()
+        if not periods.exists():
+            messages.error(request, "No periods to export. Detect periods first.")
+            return redirect("dashboard:sales-report")
+        return self.generate_report(periods)
+
+    @staticmethod
+    def detect_periods(orders):
+        """Split orders into sales periods based on 72h+ gaps."""
+        if not orders:
+            return []
+        sorted_orders = list(orders.order_by("date_placed"))
+        periods = []
+        current = {
+            "start": sorted_orders[0].date_placed,
+            "end": sorted_orders[0].date_placed,
+        }
+        for order in sorted_orders[1:]:
+            if order.date_placed - current["end"] > timedelta(hours=72):
+                periods.append(current)
+                current = {
+                    "start": order.date_placed,
+                    "end": order.date_placed,
+                }
+            else:
+                current["end"] = order.date_placed
+        periods.append(current)
+        return periods
+
+    def generate_report(self, periods):
+        """Generate multi-sheet Excel from saved SalesPeriod objects."""
+        summary_rows = []
+        product_rows = []
+        order_rows = []
+
+        for p in periods:
+            p_orders = Order.objects.filter(
+                date_placed__gte=p.start,
+                date_placed__lte=p.end,
+            ).exclude(status="Cancelled")
+
+            revenue = sum(
+                o.total_incl_tax_with_donation - o.donation_amount
+                for o in p_orders
+            )
+            donations = sum(o.donation_amount for o in p_orders)
+            count = p_orders.count()
+
+            summary_rows.append({
+                "Period": p.name,
+                "Start": localtime(p.start).strftime("%Y-%m-%d %H:%M"),
+                "End": localtime(p.end).strftime("%Y-%m-%d %H:%M"),
+                "Orders": count,
+                "Revenue": float(revenue),
+                "Donations": float(donations),
+                "Avg Order Value": round(float(revenue) / count, 2) if count else 0,
+            })
+
+            # Product breakdown for this period
+            lines = (
+                OrderLine.objects.filter(order__in=p_orders)
+                .values("product__title")
+                .annotate(
+                    qty=Sum("quantity"),
+                    revenue=Sum("line_price_incl_tax"),
+                )
+                .order_by("-qty")
+            )
+            for line in lines:
+                product_rows.append({
+                    "Period": p.name,
+                    "Product": line["product__title"],
+                    "Qty Sold": line["qty"],
+                    "Revenue": float(line["revenue"] or 0),
+                })
+
+            # All orders for this period
+            for o in p_orders:
+                items = ", ".join(
+                    f"{l.product.title}: {l.quantity}" for l in o.lines.all()
+                )
+                order_rows.append({
+                    "Period": p.name,
+                    "Order #": o.number,
+                    "Customer": o.user.get_full_name() if o.user else "Guest",
+                    "Date": localtime(o.date_placed).strftime("%Y-%m-%d %H:%M:%S"),
+                    "Status": o.status,
+                    "Items": items,
+                    "Total": float(o.total_incl_tax_with_donation - o.donation_amount),
+                    "Donation": float(o.donation_amount),
+                })
+
+        df_summary = pd.DataFrame(summary_rows)
+        df_products = pd.DataFrame(product_rows)
+        df_orders = pd.DataFrame(order_rows)
+
+        buf = BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            df_summary.to_excel(writer, sheet_name="Summary", index=False)
+            df_products.to_excel(writer, sheet_name="Product Breakdown", index=False)
+            df_orders.to_excel(writer, sheet_name="All Orders", index=False)
+
+        response = HttpResponse(
+            buf.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="sales_report.xlsx"'
+        return response

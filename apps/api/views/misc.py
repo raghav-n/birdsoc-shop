@@ -48,6 +48,8 @@ class ShippingMethodsView(APIView):
                 "is_self_collect": m.is_self_collect,
                 "price": str(m.price),
                 "method_id": m.method_id,
+                "website_faq_description": m.website_faq_description or "",
+                "website_home_description": m.website_home_description or "",
             }
             for m in qs
         ]

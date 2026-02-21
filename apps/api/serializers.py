@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from oscar.core.loading import get_model, get_class
 
+from apps.faq.models import FAQItem
 
 Product = get_model("catalogue", "Product")
 Category = get_model("catalogue", "Category")
@@ -230,6 +231,12 @@ class OrderSerializer(serializers.ModelSerializer):
                 }
             )
         return results
+
+
+class FAQItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQItem
+        fields = ["id", "question", "answer", "position"]
 
 
 class RefundRequestSerializer(serializers.ModelSerializer):

@@ -159,6 +159,8 @@ INSTALLED_APPS = [
     "apps.dashboard.event.apps.EventDashboardConfig",  # Event dashboard app - Add this line
     "apps.form.apps.FormConfig",  # Dynamic forms app
     "apps.dashboard.form.apps.FormDashboardConfig",  # Forms dashboard
+    "apps.faq.apps.FAQConfig",
+    "apps.dashboard.faq.apps.FAQDashboardConfig",
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",
@@ -615,6 +617,10 @@ OSCAR_DASHBOARD_NAVIGATION = [
                 "label": _("Onsite purchases"),
                 "url_name": "dashboard:onsite-purchase",
             },
+            {
+                "label": _("Sales Report"),
+                "url_name": "dashboard:sales-report",
+            },
         ],
     },
     {
@@ -706,6 +712,12 @@ OSCAR_DASHBOARD_NAVIGATION = [
                 _url_kwargs: user.is_staff,
             },
         ],
+    },
+    {
+        "label": _("FAQ"),
+        "icon": "fas fa-question-circle",
+        "url_name": "dashboard-faq:faq-list",
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
     },
     {
         "label": _("Refunds"),

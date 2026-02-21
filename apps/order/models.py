@@ -143,4 +143,18 @@ class Order(AbstractOrder):
         return f"Discount: ${self.total_discount:.2f} ({self.discount_percentage:.1f}%)"
 
 
+class SalesPeriod(models.Model):
+    name = models.CharField(max_length=255)
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start"]
+
+    def __str__(self):
+        return self.name
+
+
 from oscar.apps.order.models import *

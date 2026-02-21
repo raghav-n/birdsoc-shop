@@ -1,0 +1,94 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sales Report" %}{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:order-list' %}">{% trans "Orders" %}</a></li>
+            <li class="breadcrumb-item active">{% trans "Sales Report" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+  {# Step 1: Detect periods from a date range #}
+  <div class="card mb-3">
+    <div class="card-header">
+      <h3>{% trans "1. Detect Periods" %}</h3>
+    </div>
+    <div class="card-body">
+      <p>{% trans "Enter a date range to auto-detect sales periods from order gaps (72 h+). Existing periods are preserved." %}</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="detect">
+        <div class="row g-3 align-items-end">
+          <div class="col-auto">
+            <label for="id_start_date" class="form-label">{% trans "Start date" %}</label>
+            {{ form.start_date }}
+          </div>
+          <div class="col-auto">
+            <label for="id_end_date" class="form-label">{% trans "End date" %}</label>
+            {{ form.end_date }}
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary">{% trans "Detect Periods" %}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Step 2: Saved periods — editable table #}
+  {% if periods %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="mb-0">{% trans "2. Saved Periods" %}</h3>
+      <span class="badge bg-secondary">{{ periods|length }} period{{ periods|length|pluralize }}</span>
+    </div>
+    <div class="card-body">
+      <form method="post" id="periods-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save" id="periods-action">
+        <table class="table table-striped align-middle">
+          <thead>
+            <tr>
+              <th>{% trans "Name" %}</th>
+              <th>{% trans "Start" %}</th>
+              <th>{% trans "End" %}</th>
+              <th class="text-center">{% trans "Delete" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in periods %}
+            <tr>
+              <td>
+                <input type="hidden" name="period_id" value="{{ p.id }}">
+                <input type="text" name="name_{{ p.id }}" value="{{ p.name }}" class="form-control form-control-sm">
+              </td>
+              <td>
+                <input type="datetime-local" name="start_{{ p.id }}" value="{{ p.start|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm">
+              </td>
+              <td>
+                <input type="datetime-local" name="end_{{ p.id }}" value="{{ p.end|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm">
+              </td>
+              <td class="text-center">
+                <input type="checkbox" name="delete" value="{{ p.id }}" class="form-check-input">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success">{% trans "Save Periods" %}</button>
+          <button type="submit" class="btn btn-outline-primary" onclick="document.getElementById('periods-action').value='export';">
+            {% trans "Export Report" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}

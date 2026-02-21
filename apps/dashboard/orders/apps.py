@@ -14,6 +14,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             VoucherCheckView,
             SiteOffersView,
             OrderStatsView,
+            SalesReportView,
         )
 
         new_urls = [
@@ -34,6 +35,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             path("voucher-check/", VoucherCheckView.as_view(), name="voucher-check"),
             path("site-offers/", SiteOffersView.as_view(), name="site-offers"),
             path("statistics/", OrderStatsView.as_view(), name="order-statistics"),
+            path("sales-report/", SalesReportView.as_view(), name="sales-report"),
         ]
 
         return self.post_process_urls(new_urls) + super().get_urls()

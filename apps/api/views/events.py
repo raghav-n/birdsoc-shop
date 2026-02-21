@@ -5,7 +5,6 @@ from oscar.core.loading import get_model
 from rest_framework import status
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from decimal import Decimal
 import json as _json
 import re
 
@@ -130,7 +129,14 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 {"detail": "quantity must be >= 1"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Duplicate email registration for same event should be allowed
+        # Duplicate email check: reject if this email is already registered for the same event
+        if EventParticipant.objects.filter(
+            event=event, participant__email__iexact=email
+        ).exists():
+            return Response(
+                {"detail": "This email is already registered for this event."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Create a fresh participant per registration (quantity is per-registration)
         participant = Participant._default_manager.create(
@@ -226,7 +232,6 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         # Paid flow: create EventRegistration and optionally attach payment proof
         from decimal import Decimal
         from django.core.files.base import ContentFile
-        from django.core.files.storage import default_storage
         from os.path import basename
 
         # amount already computed using tiers
