@@ -6,7 +6,7 @@ set -e
 
 ssh -L 5432:localhost:5432 birdsociety -Nf
 
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)/.."
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 
 cleanup() {
