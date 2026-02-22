@@ -5,6 +5,7 @@ from oscar.core.loading import get_model
 from rest_framework import status
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 import json as _json
 import re
 
@@ -23,9 +24,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     def list(self, request):
-        qs = OrganizedEvent._default_manager.filter(is_active=True).order_by(
-            "start_date"
-        )
+        qs = OrganizedEvent._default_manager.filter(
+            is_active=True, start_date__gte=timezone.now()
+        ).order_by("start_date")
         closed = get_global_registration_closed()
         data = [
             {
