@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useForm } from 'react-hook-form';
-import { CreditCard, Upload, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Upload, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { checkoutService } from '../services/checkout';
@@ -360,102 +360,6 @@ const PaymentLayout = styled.div`
   }
 `;
 
-const PaymentConfirmSection = styled.div`
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0;
-`;
-
-const CheckboxContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-`;
-
-const Checkbox = styled.input`
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-`;
-
-const CheckboxLabel = styled.label`
-  font-weight: 500;
-  color: var(--dark);
-  cursor: pointer;
-  user-select: none;
-`;
-
-const PollingStatus = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background-color: #e3f2fd;
-  border: 1px solid #2196f3;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  color: #1976d2;
-`;
-
-const LoadingSpinner = styled.div`
-  width: 16px;
-  height: 16px;
-  border: 2px solid #e3f2fd;
-  border-top: 2px solid #1976d2;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-`;
-
-const ModalTitle = styled.h3`
-  margin: 0 0 1rem 0;
-  color: var(--dark);
-`;
-
-const ModalText = styled.p`
-  margin: 0 0 1.5rem 0;
-  color: #666;
-  line-height: 1.5;
-`;
-
-const ModalButtons = styled.div`
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-`;
-
-const ModalButton = styled(Button)`
-  margin: 0;
-`;
 
 const Checkout = () => {
   const { cart, loading: cartLoading, getCartCount, clearCart } = useCart();
@@ -468,24 +372,10 @@ const Checkout = () => {
   const [selectedShippingMethod, setSelectedShippingMethod] = useState('');
   const [isSelectedMethodSelfCollect, setIsSelectedMethodSelfCollect] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
-  const [paymentProofUploaded, setPaymentProofUploaded] = useState(false);
-  const [tempKey, setTempKey] = useState('');
   const [orderReference, setOrderReference] = useState('');
   const [donation, setDonation] = useState(0);
   const [customDonation, setCustomDonation] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [hasPaid, setHasPaid] = useState(false);
-  const [isPollingPayment, setIsPollingPayment] = useState(false);
-  const [pollingTimeoutId, setPollingTimeoutId] = useState(null);
-  const [oneMinuteTimeoutId, setOneMinuteTimeoutId] = useState(null);
-  const [showManualConfirmation, setShowManualConfirmation] = useState(false);
-  
-  // Check environment variable for auto payment confirmation feature
-  const autoPaymentConfirmationEnabled = import.meta.env.VITE_AUTO_PAYMENT_CONFIRMATION !== 'false';
-  
-  // Debug log for environment variable
-  console.log('VITE_AUTO_PAYMENT_CONFIRMATION:', import.meta.env.VITE_AUTO_PAYMENT_CONFIRMATION);
-  console.log('autoPaymentConfirmationEnabled:', autoPaymentConfirmationEnabled);
 
   const {
     register,
@@ -532,15 +422,22 @@ const Checkout = () => {
     }
   }, [watchDonationType]);
 
-  // Generate order reference when reaching payment step
+  // Generate order reference and save pending checkout when reaching payment step
   useEffect(() => {
-    if (currentStep === 4 && !orderReference && cart?.id) {
-      // Generate proper MER- reference format like the backend
-      // Format: MER-{100000 + basket_id}
-      const properRef = `MER-${100000 + parseInt(cart.id)}`;
-      setOrderReference(properRef);
+    if (currentStep === 4 && cart?.id) {
+      if (!orderReference) {
+        const properRef = `MER-${100000 + parseInt(cart.id)}`;
+        setOrderReference(properRef);
+      }
+      // Save pending checkout so the order is recorded even if user
+      // makes payment but leaves before uploading proof
+      checkoutService.savePendingCheckout({
+        basket_id: cart.id,
+        shipping_method_code: selectedShippingMethod,
+        donation,
+      }).catch((err) => console.error('Failed to save pending checkout:', err));
     }
-  }, [currentStep, cart?.id, orderReference]);
+  }, [currentStep, cart?.id]);
 
   const loadShippingMethods = async () => {
     try {
@@ -610,75 +507,47 @@ const Checkout = () => {
         toast.error('Failed to save shipping address');
       }
     } else if (step === 4) {
-      // Payment step - upload proof or use "I've paid" confirmation
-      if (!paymentFile && (!hasPaid || !autoPaymentConfirmationEnabled)) {
-        toast.error(autoPaymentConfirmationEnabled 
-          ? 'Please upload payment proof or check "I\'ve made the payment"'
-          : 'Please upload payment proof'
-        );
+      // Payment step - upload proof and place order
+      if (!paymentFile) {
+        toast.error('Please upload payment proof');
         return;
       }
 
       setLoading(true);
       try {
-        if (paymentFile) {
-          // Traditional file upload flow
-          const formData = new FormData();
-          formData.append('payment_proof', paymentFile);
-          formData.append('basket_id', cart.id);
-          formData.append('donation', donation.toString());
+        // Upload proof
+        const formData = new FormData();
+        formData.append('payment_proof', paymentFile);
+        formData.append('basket_id', cart.id);
+        formData.append('donation', donation.toString());
 
-          const response = await checkoutService.uploadPayNowProof(formData);
-          setPaymentProofUploaded(true);
-          setTempKey(response.temp_key);
-          setOrderReference(response.reference);
-        } else if (hasPaid && autoPaymentConfirmationEnabled) {
-          // "I've paid" checkbox flow - use existing order reference
-          // We'll set tempKey to indicate this is a payment confirmation without proof upload
-          setTempKey(`confirmed-${orderReference}`);
-        }
-        
-        setCurrentStep(5);
-        toast.success(paymentFile ? 'Payment proof uploaded successfully' : 'Payment confirmation recorded');
+        const response = await checkoutService.uploadPayNowProof(formData);
+        setOrderReference(response.reference);
+
+        // Place order immediately
+        const orderData = {
+          basket_id: cart.id,
+          temp_key: response.temp_key,
+          shipping_method_code: selectedShippingMethod,
+          donation: donation,
+        };
+
+        const order = await checkoutService.placeOrder(orderData);
+        clearCart();
+        toast.success('Order placed successfully!');
+        navigate('/order-success', {
+          replace: true,
+          state: {
+            orderNumber: order.number,
+            orderTotal: totalWithDonation,
+          },
+        });
       } catch (error) {
         console.error('Payment step failed:', error);
-        toast.error(error.response?.data?.detail || 'Failed to process payment step');
+        toast.error(error.response?.data?.detail || 'Failed to process payment');
       } finally {
         setLoading(false);
       }
-    }
-  };
-
-  const handlePlaceOrder = async () => {
-    setLoading(true);
-    try {
-      const orderData = {
-        basket_id: cart.id,
-        temp_key: tempKey,
-        shipping_method_code: selectedShippingMethod,
-        donation: donation
-      };
-
-      const order = await checkoutService.placeOrder(orderData);
-      
-      // Clear cart after successful order
-      clearCart();
-      
-      toast.success('Order placed successfully!');
-      
-      // Redirect to success page with order info
-      navigate('/order-success', { 
-        replace: true,
-        state: {
-          orderNumber: order.number,
-          orderTotal: totalWithDonation
-        }
-      });
-    } catch (error) {
-      console.error('Order placement failed:', error);
-      toast.error(error.response?.data?.detail || 'Failed to place order');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -710,113 +579,6 @@ const Checkout = () => {
     setValue('donationType', 'custom');
   };
 
-  const startPaymentPolling = () => {
-    // Wait a bit if order reference was just generated
-    setTimeout(() => {
-      if (!orderReference) {
-        toast.error('Order reference not available');
-        return;
-      }
-
-      setIsPollingPayment(true);
-      
-      // Set up 1-minute timeout
-      const oneMinTimeout = setTimeout(() => {
-        stopPaymentPolling();
-        setShowManualConfirmation(true);
-      }, 60000); // 1 minute
-      
-      setOneMinuteTimeoutId(oneMinTimeout);
-
-      // Start polling every 5 seconds
-      const pollPayment = async () => {
-        try {
-          const result = await checkoutService.checkPayNowEmail(orderReference);
-          if (result.confirmed) {
-            stopPaymentPolling();
-            toast.success('Payment confirmed! Proceeding to place order...');
-            // Automatically proceed to place order
-            setTimeout(() => {
-              handlePlaceOrder();
-            }, 1000);
-            return;
-          }
-          
-          // Schedule next poll - check if we're still supposed to be polling
-          const timeoutId = setTimeout(() => {
-            // Check if polling should continue before making next call
-            if (document.querySelector('#hasPaid')?.checked) {
-              pollPayment();
-            }
-          }, 5000);
-          setPollingTimeoutId(timeoutId);
-        } catch (error) {
-          console.error('Error checking payment:', error);
-          // Continue polling even if there's an error
-          const timeoutId = setTimeout(() => {
-            // Check if polling should continue before making next call
-            if (document.querySelector('#hasPaid')?.checked) {
-              pollPayment();
-            }
-          }, 5000);
-          setPollingTimeoutId(timeoutId);
-        }
-      };
-
-      // Start first poll immediately
-      pollPayment();
-    }, 100); // Small delay to ensure state is updated
-  };
-
-  const stopPaymentPolling = () => {
-    setIsPollingPayment(false);
-    if (pollingTimeoutId) {
-      clearTimeout(pollingTimeoutId);
-      setPollingTimeoutId(null);
-    }
-    if (oneMinuteTimeoutId) {
-      clearTimeout(oneMinuteTimeoutId);
-      setOneMinuteTimeoutId(null);
-    }
-  };
-
-  const handleHasPaidChange = (checked) => {
-    setHasPaid(checked);
-    if (checked && autoPaymentConfirmationEnabled) {
-      // Generate order reference if we don't have one
-      if (!orderReference) {
-        // Generate proper MER- reference format like the backend
-        // Format: MER-{100000 + basket_id}
-        const properRef = `MER-${100000 + parseInt(cart.id)}`;
-        setOrderReference(properRef);
-      }
-      startPaymentPolling();
-    } else {
-      stopPaymentPolling();
-      setShowManualConfirmation(false);
-    }
-  };
-
-  const handleManualConfirm = () => {
-    toast.success('Thank you for confirming. We will verify your payment manually within 1 business day.');
-    setShowManualConfirmation(false);
-    setHasPaid(false);
-    // Proceed to place order since they confirmed
-    handlePlaceOrder();
-  };
-
-  const handleManualCancel = () => {
-    setShowManualConfirmation(false);
-    setHasPaid(false);
-    stopPaymentPolling();
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopPaymentPolling();
-    };
-  }, []);
 
   if (cartLoading) {
     return (
@@ -846,7 +608,7 @@ const Checkout = () => {
   };
 
   const getMaxSteps = () => {
-    return isSelectedMethodSelfCollect ? 3 : 4;
+    return isSelectedMethodSelfCollect ? 2 : 3;
   };
 
   return (
@@ -1133,33 +895,6 @@ const Checkout = () => {
                   />
                 </PaymentLayout>
 
-                {autoPaymentConfirmationEnabled && (
-                  <PaymentConfirmSection>
-                    <CheckboxContainer>
-                      <Checkbox
-                        type="checkbox"
-                        id="hasPaid"
-                        checked={hasPaid}
-                        onChange={(e) => handleHasPaidChange(e.target.checked)}
-                      />
-                      <CheckboxLabel htmlFor="hasPaid">
-                        I've made the payment
-                      </CheckboxLabel>
-                    </CheckboxContainer>
-                    
-                    {isPollingPayment && (
-                      <PollingStatus>
-                        <LoadingSpinner />
-                        Checking for payment confirmation... This may take up to 1 minute.
-                      </PollingStatus>
-                    )}
-                    
-                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem', color: '#666' }}>
-                      Check this after making your PayNow payment to automatically verify it via email
-                    </p>
-                  </PaymentConfirmSection>
-                )}
-
                 <FileUploadArea
                   dragOver={dragOver}
                   hasFile={!!paymentFile}
@@ -1170,18 +905,12 @@ const Checkout = () => {
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleFileDrop}
                   onClick={() => document.getElementById('payment-file-input').click()}
-                  style={{ opacity: (hasPaid && autoPaymentConfirmationEnabled) ? 0.6 : 1 }}
                 >
                   <FileUploadIcon>
                     {paymentFile ? <CheckCircle color="var(--success)" /> : <Upload />}
                   </FileUploadIcon>
                   <FileUploadText>
                     {paymentFile ? 'Payment proof uploaded' : 'Click to upload or drag and drop payment proof'}
-                    {hasPaid && !paymentFile && autoPaymentConfirmationEnabled && (
-                      <span style={{ display: 'block', marginTop: '0.5rem', fontStyle: 'italic', color: '#666' }}>
-                        (Optional when using "I've paid" confirmation)
-                      </span>
-                    )}
                   </FileUploadText>
                   <FileUploadSubtext>
                     PNG, JPG up to 10MB
@@ -1204,47 +933,14 @@ const Checkout = () => {
 
                 {currentStep === 4 && (
                   <div style={{ marginTop: '1rem' }}>
-                    <Button 
+                    <Button
                       onClick={() => handleStepComplete(4)}
-                      disabled={(!paymentFile && (!hasPaid || !autoPaymentConfirmationEnabled)) || loading}
+                      disabled={!paymentFile || loading}
                     >
-                      {loading ? 'Uploading...' : 
-                       (hasPaid && autoPaymentConfirmationEnabled) ? 'Continue to Review' : 
-                       'Upload Payment Proof'}
+                      {loading ? 'Placing Order...' : 'Submit Payment Proof & Place Order'}
                     </Button>
                   </div>
                 )}
-              </StepContent>
-            )}
-          </Step>
-
-          {/* Step 5: Review & Place Order */}
-          <Step completed={false} disabled={currentStep < 5}>
-            <StepHeader>
-              <StepNumber>{getStepNumber(5)}</StepNumber>
-              <StepTitle>Review & Place Order</StepTitle>
-            </StepHeader>
-            
-            {currentStep >= 5 && (
-              <StepContent>
-                <Alert variant="success" style={{ marginBottom: '1rem' }}>
-                  {paymentFile ? 'Payment proof uploaded successfully!' : 'Payment confirmation recorded!'} Reference: {orderReference}
-                </Alert>
-
-                <p style={{ marginBottom: '1rem', color: '#666' }}>
-                  {paymentFile 
-                    ? 'Please review your order details and click "Place Order" to complete your purchase.'
-                    : 'Please review your order details. If payment confirmation was successful, you can proceed to place your order.'
-                  }
-                </p>
-
-                <Button 
-                  onClick={handlePlaceOrder}
-                  disabled={loading}
-                  size="large"
-                >
-                  {loading ? 'Placing Order...' : 'Place Order'}
-                </Button>
               </StepContent>
             )}
           </Step>
@@ -1325,32 +1021,6 @@ const Checkout = () => {
         </OrderSummary>
       </CheckoutGrid>
       
-      {/* Manual Confirmation Modal */}
-      {showManualConfirmation && (
-        <ModalOverlay>
-          <ModalContent>
-            <ModalTitle>Payment Confirmation</ModalTitle>
-            <ModalText>
-              We couldn't automatically detect your payment within 1 minute. 
-              Are you sure the payment went through? If yes, it might be a technical error on our side 
-              and we'll verify your payment manually within 1 business day.
-            </ModalText>
-            <ModalButtons>
-              <ModalButton 
-                variant="secondary" 
-                onClick={handleManualCancel}
-              >
-                No, I'll try again
-              </ModalButton>
-              <ModalButton 
-                onClick={handleManualConfirm}
-              >
-                Yes, I've paid
-              </ModalButton>
-            </ModalButtons>
-          </ModalContent>
-        </ModalOverlay>
-      )}
     </CheckoutContainer>
   );
 };

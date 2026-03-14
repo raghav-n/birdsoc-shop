@@ -15,14 +15,22 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from oscar.core.loading import get_model, get_class
 from apps.util.payments import confirm_paynow_payment, PaymentConfirmationError
+from apps.checkout.models import PendingCheckout
 
 JWT_SECRET = settings.JWT_SECRET
 
 Order = get_model("order", "Order")
+Basket = get_model("basket", "Basket")
+Source = get_model("payment", "Source")
+SourceType = get_model("payment", "SourceType")
+DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
 PaymentEvent = get_model("order", "PaymentEvent")
 PaymentEventQuantity = get_model("order", "PaymentEventQuantity")
 PaymentEventType = get_model("order", "PaymentEventType")
 InvalidOrderStatus = get_class("order.exceptions", "InvalidOrderStatus")
+OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
+OrderPlacementMixin = get_class("checkout.mixins", "OrderPlacementMixin")
+Selector = get_class("partner.strategy", "Selector")
 
 
 def handler500(request: HttpRequest, *args, **argv) -> HttpResponse:
@@ -64,6 +72,93 @@ def verify_jwt(token):
         return None  # Invalid token
 
 
+def _place_order_from_pending(pending, amount):
+    """Create an order from a PendingCheckout record.
+
+    Called when the payment webhook fires but no order has been placed yet
+    (user made payment then left before uploading proof / pressing submit).
+    The order is created *without* a payment proof image.
+
+    Returns ``{"order": <Order>, "error": None}`` on success, or
+    ``{"order": None, "error": "..."}`` on failure.
+    """
+    from django.core.cache import cache
+
+    try:
+        basket = Basket._default_manager.get(id=pending.basket_id)
+    except Basket.DoesNotExist:
+        return {"order": None, "error": "Basket no longer exists"}
+
+    basket.strategy = Selector().strategy()
+
+    if basket.is_empty:
+        return {"order": None, "error": "Basket is empty"}
+
+    # Resolve shipping method
+    qs = DynamicShippingMethod._default_manager.filter(
+        active=True, available_to_public=True
+    )
+    method = None
+    if pending.shipping_method_code:
+        method = qs.filter(code=pending.shipping_method_code).first()
+    if not method:
+        if settings.GLOBAL_SELF_COLLECTION_REQUIRED:
+            method = qs.filter(is_self_collect=True).first()
+        else:
+            method = qs.first()
+    if not method:
+        return {"order": None, "error": "No shipping method available"}
+
+    shipping_charge = method.calculate(basket)
+    order_total = OrderTotalCalculator().calculate(basket, shipping_charge)
+
+    donation = pending.donation or 0
+    reference = pending.reference
+    total_with_donation = (
+        order_total.incl_tax or order_total.excl_tax
+    ) + Decimal(donation)
+
+    # Create payment source (no proof file)
+    source_type, _ = SourceType._default_manager.get_or_create(name="PayNow")
+    payment_source = Source(
+        source_type=source_type,
+        reference=reference,
+        amount_debited=total_with_donation,
+    )
+
+    class _Placer(OrderPlacementMixin):
+        def __init__(self):
+            self.request = None
+
+    placer = _Placer()
+    placer.add_payment_source(payment_source)
+    placer.add_payment_event(
+        "paynow-processing", total_with_donation, reference=reference
+    )
+
+    try:
+        order_number = placer.generate_order_number(basket)
+        guest_email = pending.email or cache.get(f"guest-email:{basket.id}") or ""
+        order = placer.place_order(
+            order_number=order_number,
+            user=basket.owner,
+            basket=basket,
+            shipping_address=None,
+            shipping_method=method,
+            shipping_charge=shipping_charge,
+            order_total=order_total,
+            billing_address=None,
+            donation_amount=donation,
+            guest_email=guest_email,
+        )
+        basket.submit()
+        pending.delete()
+    except Exception as e:
+        return {"order": None, "error": f"Unable to place order: {e}"}
+
+    return {"order": order, "error": None}
+
+
 @csrf_exempt
 def verify_payment(request):
     if request.method != "POST":
@@ -91,7 +186,20 @@ def verify_payment(request):
     try:
         order = Order._default_manager.get(number=order_number)
     except Order.DoesNotExist:
-        return JsonResponse({"error": f"Order {order_number} not found"}, status=404)
+        # No placed order yet — check for a pending checkout
+        reference = f"{settings.ORDER_PREFIX}{order_number}"
+        try:
+            pending = PendingCheckout.objects.get(reference=reference)
+        except PendingCheckout.DoesNotExist:
+            return JsonResponse(
+                {"error": f"Order {order_number} not found"}, status=404
+            )
+
+        # Try to place the order from the pending checkout
+        result = _place_order_from_pending(pending, Decimal(amount))
+        if result["error"]:
+            return JsonResponse({"error": result["error"]}, status=400)
+        order = result["order"]
 
     # Store payment confirmation with the amount
     try:

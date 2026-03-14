@@ -35,11 +35,9 @@ export const checkoutService = {
     return response.data;
   },
 
-  // Poll Gmail for PayNow confirmation for the given order number
-  checkPayNowEmail: async (orderNumber) => {
-    const response = await api.get('/checkout/payment/paynow-email-check', {
-      params: { order: orderNumber },
-    });
+  // Save pending checkout intent (called when reaching payment step)
+  savePendingCheckout: async (data) => {
+    const response = await api.post('/checkout/pending', data);
     return response.data;
   },
 };

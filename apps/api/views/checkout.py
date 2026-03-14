@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework import permissions, status
 from oscar.core.loading import get_model, get_class
 from apps.api.serializers import OrderSerializer
+from apps.checkout.models import PendingCheckout
 
 
 Basket = get_model("basket", "Basket")
@@ -112,6 +113,56 @@ class CheckoutAddressView(APIView):
             )
         cache.set(f"shipping-address:{basket_id}", address, timeout=2 * 60 * 60)
         return Response({"saved": True})
+
+
+class SavePendingCheckoutView(APIView):
+    """Save checkout intent when the user reaches the payment step.
+
+    If the user makes a PayNow transfer but closes the browser before
+    uploading proof, this record survives so admins can follow up.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        basket_id = request.data.get("basket_id")
+        if not basket_id:
+            return Response(
+                {"detail": "basket_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            basket = Basket._default_manager.get(id=basket_id)
+        except Basket.DoesNotExist:
+            return Response(
+                {"detail": "Basket not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        reference = (
+            f"{settings.ORDER_PREFIX}{settings.BASE_ORDER_NUMBER + int(basket.id)}"
+        )
+        email = (
+            request.data.get("email")
+            or cache.get(f"guest-email:{basket.id}")
+            or ""
+        )
+        donation = request.data.get("donation", 0)
+        try:
+            donation = int(donation) if donation is not None else 0
+        except Exception:
+            donation = 0
+
+        PendingCheckout.objects.update_or_create(
+            basket_id=basket.id,
+            defaults={
+                "email": email,
+                "reference": reference,
+                "shipping_method_code": request.data.get("shipping_method_code", ""),
+                "donation": donation,
+            },
+        )
+
+        return Response({"saved": True, "reference": reference})
 
 
 class PlaceOrderView(APIView):
@@ -266,6 +317,8 @@ class PlaceOrderView(APIView):
                 request=request,
             )
             basket.submit()
+            # Clean up pending checkout record
+            PendingCheckout.objects.filter(basket_id=basket.id).delete()
         except Exception as e:
             return Response(
                 {"detail": f"Unable to place order: {e}"},
