@@ -19,6 +19,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = (
             Product._default_manager.exclude(structure="child")
+            .filter(is_public=True)
             .select_related("product_class")
             .prefetch_related("images", "stockrecords", "categories")
         )
@@ -32,10 +33,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 qs = qs.filter(categories__in=cat.get_descendants_and_self())
             except Category.DoesNotExist:
                 qs = qs.none()
-        is_public = self.request.query_params.get("is_public")
-        if is_public is not None:
-            v = str(is_public).lower() in ("true", "1", "yes")
-            qs = qs.filter(is_public=v)
         ordering = self.request.query_params.get("ordering")
         if ordering in {"title", "-title"}:
             qs = qs.order_by(ordering)
