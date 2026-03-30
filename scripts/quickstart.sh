@@ -37,6 +37,10 @@ pip install -q -r "$PROJECT_DIR/requirements.txt"
 echo "Running migrations..."
 python "$PROJECT_DIR/manage.py" migrate --run-syncdb
 
+echo "Creating superuser (admin/admin)..."
+DJANGO_SUPERUSER_PASSWORD=admin123 python "$PROJECT_DIR/manage.py" createsuperuser \
+    --noinput --username admin --email admin@birdsoc.com 2>/dev/null || true
+
 echo "Starting Django server on http://localhost:8000 ..."
 python "$PROJECT_DIR/manage.py" runserver 8000 &
 BACKEND_PID=$!
