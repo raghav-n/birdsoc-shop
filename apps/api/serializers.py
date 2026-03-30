@@ -25,10 +25,16 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     product_count = serializers.IntegerField(read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "full_name", "path", "product_count"]
+        fields = ["id", "name", "slug", "full_name", "path", "description", "image", "product_count"]
+
+    def get_image(self, obj: Category) -> str | None:
+        if obj.image:
+            return obj.image.url
+        return None
 
 
 class ProductImageSerializer(serializers.Serializer):
@@ -48,10 +54,52 @@ class ProductStockSerializer(serializers.Serializer):
     is_available = serializers.BooleanField()
 
 
+class ProductChildSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for child/variant products."""
+    price = serializers.SerializerMethodField()
+    stock = serializers.SerializerMethodField()
+    attributes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = ["id", "title", "price", "stock", "attributes"]
+
+    def _get_purchase_info(self, obj: Product):
+        request = self.context.get("request")
+        selector = Selector()
+        strategy = selector.strategy(request=request)
+        return strategy.fetch_for_product(obj)
+
+    def get_price(self, obj: Product) -> dict[str, Any] | None:
+        info = self._get_purchase_info(obj)
+        price = info.price
+        if not price:
+            return None
+        incl = price.incl_tax if price.incl_tax is not None else price.excl_tax
+        excl = price.excl_tax if price.excl_tax is not None else incl
+        return {"excl_tax": excl, "incl_tax": incl, "currency": price.currency}
+
+    def get_stock(self, obj: Product) -> dict[str, Any]:
+        info = self._get_purchase_info(obj)
+        sr: StockRecord | None = info.stockrecord
+        num = sr.num_in_stock if sr and sr.num_in_stock is not None else None
+        is_available = bool(info.availability.is_available_to_buy)
+        return {"num_in_stock": num, "is_available": is_available}
+
+    def get_attributes(self, obj: Product) -> list[dict[str, str]]:
+        return [
+            {"name": av.attribute.name, "code": av.attribute.code, "value": av.value_as_text}
+            for av in obj.attribute_values.select_related("attribute").all()
+        ]
+
+
 class ProductSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
     stock = serializers.SerializerMethodField()
+    category_slugs = serializers.SerializerMethodField()
+    structure = serializers.CharField(read_only=True)
+    children = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -62,10 +110,16 @@ class ProductSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "is_public",
+            "structure",
             "images",
             "price",
             "stock",
+            "category_slugs",
+            "children",
         ]
+
+    def get_category_slugs(self, obj: Product) -> list[str]:
+        return list(obj.categories.values_list("slug", flat=True))
 
     def get_images(self, obj: Product) -> list[dict[str, Any]]:
         results = []
@@ -108,6 +162,16 @@ class ProductSerializer(serializers.ModelSerializer):
         num = sr.num_in_stock if sr and sr.num_in_stock is not None else None
         is_available = bool(info.availability.is_available_to_buy)
         return {"num_in_stock": num, "is_available": is_available}
+
+    def get_children(self, obj: Product) -> list[dict]:
+        if obj.structure != "parent":
+            return []
+        children = obj.children.prefetch_related(
+            "attribute_values__attribute", "stockrecords"
+        ).all()
+        return ProductChildSerializer(
+            children, many=True, context=self.context
+        ).data
 
 
 class BasketLineSerializer(serializers.ModelSerializer):

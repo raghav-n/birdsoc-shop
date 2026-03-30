@@ -18,9 +18,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = (
-            Product._default_manager.all()
+            Product._default_manager.exclude(structure="child")
             .select_related("product_class")
-            .prefetch_related("images", "stockrecords")
+            .prefetch_related("images", "stockrecords", "categories")
         )
         q = self.request.query_params.get("q")
         if q:
