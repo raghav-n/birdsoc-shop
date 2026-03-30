@@ -363,7 +363,7 @@ const PaymentLayout = styled.div`
 
 const Checkout = () => {
   const { cart, loading: cartLoading, getCartCount, clearCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [currentStep, setCurrentStep] = useState(2);
@@ -401,6 +401,7 @@ const Checkout = () => {
   const watchDonationType = watch('donationType');
 
   useEffect(() => {
+    if (authLoading || cartLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -411,7 +412,7 @@ const Checkout = () => {
     }
 
     loadShippingMethods();
-  }, [cart, navigate, isAuthenticated]);
+  }, [cart, navigate, isAuthenticated, authLoading, cartLoading]);
 
   useEffect(() => {
     if (watchDonationType === 'custom') {

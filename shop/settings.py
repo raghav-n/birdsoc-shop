@@ -33,11 +33,6 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
-SHOP_OPEN = False
-TESTING = sys.argv[1:2] == ["test"]
-
-SHOP_OPEN = TESTING or SHOP_OPEN
-
 
 def traces_sampler(sampling_context):
     """Sets sampling rate for Sentry logging"""
@@ -67,6 +62,11 @@ DB_USER = os.environ.get("DB_USER", "")
 DB_PASS = os.environ.get("DB_PASS", "")
 MAILERSEND_KEY = os.environ.get("MAILERSEND_KEY", "")
 SESSION_ENVIRONMENT_PRODUCTION = os.environ.get("ENVIRONMENT", "False") == "True"
+
+SHOP_OPEN = False
+TESTING = sys.argv[1:2] == ["test"]
+
+SHOP_OPEN = TESTING or SHOP_OPEN or not SESSION_ENVIRONMENT_PRODUCTION
 
 TESTING = sys.argv[1:2] == ["test"]
 MIGRATING = sys.argv[1:2] == ["makemigrations"] or sys.argv[1:2] == ["migrate"]

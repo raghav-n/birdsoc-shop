@@ -50,38 +50,49 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Shared refresh state so concurrent 401s don't race
+let refreshPromise = null;
+
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-    
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
-      
+
       const refreshToken = tokenManager.getRefreshToken();
       if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+        // If a refresh is already in-flight, wait for it instead of starting another
+        if (!refreshPromise) {
+          refreshPromise = axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
             refresh: refreshToken,
+          }).then((response) => {
+            const { access } = response.data;
+            tokenManager.setTokens(access);
+            return access;
+          }).catch((refreshError) => {
+            tokenManager.clearTokens();
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }).finally(() => {
+            refreshPromise = null;
           });
-          
-          const { access } = response.data;
-          tokenManager.setTokens(access);
-          
-          // Retry original request with new token
+        }
+
+        try {
+          const access = await refreshPromise;
           original.headers.Authorization = `Bearer ${access}`;
           return api(original);
         } catch (refreshError) {
-          tokenManager.clearTokens();
-          window.location.href = '/login';
           return Promise.reject(refreshError);
         }
       } else {
         window.location.href = '/login';
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

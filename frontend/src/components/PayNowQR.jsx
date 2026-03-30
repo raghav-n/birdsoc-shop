@@ -19,9 +19,11 @@ const QRTitle = styled.h3`
   text-align: center;
 `;
 
-const QRCanvas = styled.canvas`
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+const QRCanvasWrapper = styled.div`
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
 `;
 
 const PaymentInfo = styled.div`
@@ -53,12 +55,14 @@ const UENNumber = styled.div`
 `;
 
 const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
-  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Generate a temporary reference if none provided
   const finalReferenceId = referenceId || `TEMP-${Date.now()}`;
 
   useEffect(() => {
+    const container = containerRef.current;
+
     const loadQR = () => {
       try {
         // Check if libraries are loaded
@@ -69,6 +73,11 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
 
         const totalAmount = parseFloat(amount) + parseFloat(donation);
 
+        // Create a fresh canvas to avoid stacked QR codes from concurrent renders
+        container.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        container.appendChild(canvas);
+
         const QRstring = new window.PaynowQR({
           uen: 'T23SS0038A',
           amount: totalAmount,
@@ -77,7 +86,7 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
         }).output();
 
         new window.QrCodeWithLogo({
-          canvas: canvasRef.current,
+          canvas: canvas,
           content: QRstring,
           width: 270,
           logo: {
@@ -123,6 +132,10 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
     };
 
     loadScripts();
+
+    return () => {
+      container.innerHTML = '';
+    };
   }, [amount, finalReferenceId, donation]);
 
   const totalAmount = parseFloat(amount) + parseFloat(donation);
@@ -130,7 +143,7 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
   return (
     <QRContainer>
       <QRTitle>PayNow QR Code</QRTitle>
-      <QRCanvas ref={canvasRef} />
+      <QRCanvasWrapper ref={containerRef} />
       <PaymentInfo>
         <div>
           <strong>Amount: ${totalAmount.toFixed(2)}</strong>

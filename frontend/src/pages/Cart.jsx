@@ -393,12 +393,6 @@ const Cart = () => {
               Continue Shopping
             </Button>
           </div>
-
-          {!isAuthenticated && (
-            <Alert variant="info" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
-              <Link to="/login" style={{ fontWeight: 500 }}>Sign in</Link> to save your cart and access faster checkout.
-            </Alert>
-          )}
         </CartSummary>
       </CartGrid>
     </CartContainer>
