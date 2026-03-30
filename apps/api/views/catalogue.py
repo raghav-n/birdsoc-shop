@@ -72,14 +72,14 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = Category._default_manager.all()
         # Annotate product counts where useful (rough headcount)
-        return qs.annotate(product_count=Count("product"))
+        return qs.annotate(product_count=Count("product")).order_by("name")
 
     @action(detail=False, methods=["get"])  # /categories/tree
     def tree(self, request):
         roots = (
             Category._default_manager.filter(depth=1)
             .annotate(product_count=Count("product"))
-            .order_by("path")
+            .order_by("name")
         )
         data = CategorySerializer(roots, many=True).data
         return Response(data)
