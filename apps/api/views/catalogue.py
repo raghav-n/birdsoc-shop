@@ -19,10 +19,14 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = (
             Product._default_manager.exclude(structure="child")
-            .filter(is_public=True)
             .select_related("product_class")
             .prefetch_related("images", "stockrecords", "categories")
         )
+        is_public = self.request.query_params.get("is_public")
+        if is_public is not None:
+            qs = qs.filter(is_public=str(is_public).lower() in ("true", "1", "yes"))
+        else:
+            qs = qs.filter(is_public=True)
         q = self.request.query_params.get("q")
         if q:
             qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
