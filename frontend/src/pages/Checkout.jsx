@@ -594,6 +594,9 @@ const Checkout = () => {
   }
 
   const cartCount = getCartCount();
+  const cartItems = cart?.lines || [];
+  const lineTotal = cartItems.reduce((sum, item) => sum + parseFloat(item.line_price_incl_tax || 0), 0);
+  const discounts = cart?.offer_discounts || [];
   const subtotal = cart?.total_excl_tax || 0;
   const selectedMethod = shippingMethods.find(method => method.code === selectedShippingMethod);
   const shippingCost = selectedMethod ? (selectedMethod.is_self_collect ? 0 : parseFloat(selectedMethod.price) || 0) : 0;
@@ -992,8 +995,15 @@ const Checkout = () => {
           <SummarySection>
             <SummaryRow>
               <span>Subtotal ({cartCount} items)</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{formatCurrency(lineTotal)}</span>
             </SummaryRow>
+
+            {discounts.map((discount, idx) => (
+              <SummaryRow key={idx}>
+                <span style={{ color: 'var(--success, #2e7d32)', fontSize: '0.9rem' }}>{discount.name}</span>
+                <span style={{ color: 'var(--success, #2e7d32)', fontWeight: 600, fontSize: '0.9rem' }}>-{formatCurrency(discount.amount)}</span>
+              </SummaryRow>
+            ))}
 
             <SummaryRow>
               <span>Shipping</span>

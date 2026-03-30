@@ -203,6 +203,17 @@ const VoucherInput = styled(Input)`
   flex: 1;
 `;
 
+const DiscountLabel = styled.span`
+  color: var(--success, #2e7d32);
+  font-size: 0.9rem;
+`;
+
+const DiscountAmount = styled.span`
+  color: var(--success, #2e7d32);
+  font-weight: 600;
+  font-size: 0.9rem;
+`;
+
 const EmptyCart = styled.div`
   text-align: center;
   padding: 3rem 1rem;
@@ -264,8 +275,9 @@ const Cart = () => {
 
   const cartItems = cart?.lines || [];
   const cartCount = getCartCount();
-  const subtotal = cart?.total_excl_tax || 0;
-  const total = cart?.total_incl_tax || subtotal;
+  const lineTotal = cartItems.reduce((sum, item) => sum + parseFloat(item.line_price_incl_tax || 0), 0);
+  const discounts = cart?.offer_discounts || [];
+  const total = cart?.total_incl_tax || lineTotal;
 
   if (cartCount === 0) {
     return (
@@ -342,11 +354,18 @@ const Cart = () => {
 
         <CartSummary>
           <SummaryTitle>Order Summary</SummaryTitle>
-          
+
           <SummaryRow>
             <span>Subtotal ({cartCount} items)</span>
-            <span>{formatCurrency(subtotal)}</span>
+            <span>{formatCurrency(lineTotal)}</span>
           </SummaryRow>
+
+          {discounts.map((discount, idx) => (
+            <SummaryRow key={idx}>
+              <DiscountLabel>{discount.name}</DiscountLabel>
+              <DiscountAmount>-{formatCurrency(discount.amount)}</DiscountAmount>
+            </SummaryRow>
+          ))}
 
           {cart?.total_incl_tax !== cart?.total_excl_tax && (
             <SummaryRow>

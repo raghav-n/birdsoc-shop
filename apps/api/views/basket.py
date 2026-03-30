@@ -16,6 +16,7 @@ Line = get_model("basket", "Line")
 Product = get_model("catalogue", "Product")
 Voucher = get_model("voucher", "Voucher")
 Selector = get_class("partner.strategy", "Selector")
+Applicator = get_class("offer.applicator", "Applicator")
 
 
 def _get_request_strategy(request):
@@ -23,6 +24,8 @@ def _get_request_strategy(request):
 
 
 def _serialize_basket(basket, request):
+    if not basket.is_empty:
+        Applicator().apply(basket, request.user, request)
     serializer = BasketSerializer(basket, context={"request": request})
     return serializer.data
 

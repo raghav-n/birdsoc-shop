@@ -225,6 +225,7 @@ class BasketSerializer(serializers.ModelSerializer):
     owner = UserSerializer(read_only=True)
     total_incl_tax = serializers.SerializerMethodField()
     total_excl_tax = serializers.SerializerMethodField()
+    offer_discounts = serializers.SerializerMethodField()
 
     class Meta:
         model = Basket
@@ -235,6 +236,7 @@ class BasketSerializer(serializers.ModelSerializer):
             "currency",
             "total_excl_tax",
             "total_incl_tax",
+            "offer_discounts",
             "lines",
         ]
 
@@ -250,6 +252,21 @@ class BasketSerializer(serializers.ModelSerializer):
     def get_total_excl_tax(self, obj: Basket):
         self._assign_strategy(obj)
         return getattr(obj, "total_excl_tax", None)
+
+    def get_offer_discounts(self, obj: Basket):
+        discounts = []
+        for discount in obj.offer_discounts:
+            discounts.append({
+                "name": discount["name"],
+                "amount": str(discount["discount"]),
+            })
+        for discount in obj.grouped_voucher_discounts:
+            discounts.append({
+                "name": discount["name"],
+                "amount": str(discount["discount"]),
+                "voucher_code": discount["voucher"].code if discount.get("voucher") else None,
+            })
+        return discounts
 
 
 class OrderSourceSerializer(serializers.ModelSerializer):
