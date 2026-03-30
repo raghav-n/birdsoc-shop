@@ -24,6 +24,8 @@ import FAQ from './pages/FAQ';
 import Refund from './pages/Refund';
 import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 
 const ScrollToTop = () => {
@@ -69,6 +71,8 @@ function App() {
                 <Route path="/order-success" element={<ShopOpenOnly><OrderSuccess /></ShopOpenOnly>} />
                 <Route path="/login" element={<ShopOpenOnly><Login /></ShopOpenOnly>} />
                 <Route path="/register" element={<ShopOpenOnly><Register /></ShopOpenOnly>} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/refund" element={<Refund />} />

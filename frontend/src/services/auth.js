@@ -27,7 +27,11 @@ export const authService = {
 
   // Password reset request
   requestPasswordReset: async (email) => {
-    const response = await api.post('/auth/password/reset/', { email });
+    const redirectBase = `${window.location.origin}/reset-password`;
+    const response = await api.post('/auth/password/reset/', {
+      email,
+      redirect_base_url: redirectBase,
+    });
     return response.data;
   },
 

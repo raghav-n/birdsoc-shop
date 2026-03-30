@@ -16,3 +16,4 @@ registration_closed_state.txt
 
 CLAUDE.md
 data/
+*.sqlite3
