@@ -114,6 +114,7 @@ class Command(BaseCommand):
                 "condition": condition,
                 "benefit": benefit,
                 "exclusive": bundle.get("exclusive", False),
+                "priority": bundle.get("priority", 10),
             },
         )
 

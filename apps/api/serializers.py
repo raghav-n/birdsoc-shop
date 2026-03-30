@@ -261,10 +261,11 @@ class BasketSerializer(serializers.ModelSerializer):
                 "amount": str(discount["discount"]),
             })
         for discount in obj.grouped_voucher_discounts:
+            voucher = discount["voucher"]
             discounts.append({
-                "name": discount["name"],
+                "name": voucher.name,
                 "amount": str(discount["discount"]),
-                "voucher_code": discount["voucher"].code if discount.get("voucher") else None,
+                "voucher_code": voucher.code,
             })
         return discounts
 

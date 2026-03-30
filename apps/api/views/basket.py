@@ -234,7 +234,7 @@ class BasketApplyVoucherView(APIView):
 
         basket.vouchers.add(voucher)
         basket.strategy = _get_request_strategy(request)
-        return Response(BasketSerializer(basket, context={"request": request}).data)
+        return Response(_serialize_basket(basket, request))
 
 
 class BasketMergeView(APIView):
