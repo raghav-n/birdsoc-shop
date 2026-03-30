@@ -78,6 +78,14 @@ const Price = styled.div`
   color: var(--link-text);
 `;
 
+const CrossedOutPrice = styled.span`
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #999;
+  text-decoration: line-through;
+  margin-left: 0.5rem;
+`;
+
 const StockInfo = styled.div`
   margin-bottom: 1rem;
 `;
@@ -181,7 +189,12 @@ const ProductCard = ({ product }) => {
           )}
 
           <PriceSection>
-            <Price>{formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}</Price>
+            <Price>
+              {formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}
+              {displayPrice?.crossed_out_price && (
+                <CrossedOutPrice>{formatCurrency(displayPrice.crossed_out_price, displayPrice.currency)}</CrossedOutPrice>
+              )}
+            </Price>
           </PriceSection>
 
           <StockInfo>

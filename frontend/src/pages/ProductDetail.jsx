@@ -119,6 +119,14 @@ const Price = styled.div`
   margin-bottom: 0.5rem;
 `;
 
+const CrossedOutPrice = styled.span`
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #999;
+  text-decoration: line-through;
+  margin-left: 0.75rem;
+`;
+
 const StockSection = styled.div`
   margin-bottom: 2rem;
 `;
@@ -421,6 +429,9 @@ const ProductDetail = () => {
           <PriceSection>
             <Price>
               {formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}
+              {displayPrice?.crossed_out_price && (
+                <CrossedOutPrice>{formatCurrency(displayPrice.crossed_out_price, displayPrice.currency)}</CrossedOutPrice>
+              )}
             </Price>
           </PriceSection>
 

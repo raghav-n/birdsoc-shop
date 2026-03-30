@@ -70,14 +70,20 @@ class ProductChildSerializer(serializers.ModelSerializer):
         strategy = selector.strategy(request=request)
         return strategy.fetch_for_product(obj)
 
-    def get_price(self, obj: Product) -> dict[str, Any] | None:
-        info = self._get_purchase_info(obj)
+    def _get_price_data(self, info):
         price = info.price
         if not price:
             return None
         incl = price.incl_tax if price.incl_tax is not None else price.excl_tax
         excl = price.excl_tax if price.excl_tax is not None else incl
-        return {"excl_tax": excl, "incl_tax": incl, "currency": price.currency}
+        sr = info.stockrecord
+        result = {"excl_tax": excl, "incl_tax": incl, "currency": price.currency}
+        if sr and getattr(sr, "crossed_out_price", None):
+            result["crossed_out_price"] = sr.crossed_out_price
+        return result
+
+    def get_price(self, obj: Product) -> dict[str, Any] | None:
+        return self._get_price_data(self._get_purchase_info(obj))
 
     def get_stock(self, obj: Product) -> dict[str, Any]:
         info = self._get_purchase_info(obj)
@@ -150,11 +156,15 @@ class ProductSerializer(serializers.ModelSerializer):
             return None
         incl = price.incl_tax if price.incl_tax is not None else price.excl_tax
         excl = price.excl_tax if price.excl_tax is not None else incl
-        return {
+        sr = info.stockrecord
+        result = {
             "excl_tax": excl,
             "incl_tax": incl,
             "currency": price.currency,
         }
+        if sr and getattr(sr, "crossed_out_price", None):
+            result["crossed_out_price"] = sr.crossed_out_price
+        return result
 
     def get_stock(self, obj: Product) -> dict[str, Any]:
         info = self._get_purchase_info(obj)
