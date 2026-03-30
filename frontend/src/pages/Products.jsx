@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { Search, Filter, SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { catalogueService } from '../services/catalogue';
-import { Input, Button, Grid, FormGroup, Label } from '../styles/GlobalStyles';
-import ProductCard from '../components/ProductCard';
+import { Input, Button, FormGroup, Label } from '../styles/GlobalStyles';
+import CollectionSection from '../components/CollectionSection';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import { sanitizeText } from '../utils/safeContent';
@@ -42,7 +42,7 @@ const FiltersHeader = styled.div`
 
 const FiltersGrid = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
+  grid-template-columns: 2fr 1fr auto;
   gap: 1rem;
   align-items: end;
 
@@ -83,53 +83,15 @@ const Select = styled.select`
   }
 `;
 
-const ResultsHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e1e1e1;
-`;
-
-const ResultsCount = styled.div`
-  color: #666;
-  font-size: 0.9rem;
-`;
-
-const Pagination = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 2rem;
-`;
-
-const PageButton = styled(Button)`
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  
-  ${props => props.active && `
-    background-color: var(--link-text);
-    color: white;
-  `}
-`;
-
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [sortBy, setSortBy] = useState(searchParams.get('ordering') || '');
 
-  const pageSize = 12;
-
-  // Debounced search function
   const debouncedSearch = debounce((query) => {
     const newParams = new URLSearchParams(searchParams);
     if (query) {
@@ -137,58 +99,77 @@ const Products = () => {
     } else {
       newParams.delete('q');
     }
-    newParams.delete('page'); // Reset to first page
     setSearchParams(newParams);
   }, 500);
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const params = {
-        page: currentPage,
-        page_size: pageSize,
-      };
-
+      const params = { page_size: 200 };
       const query = searchParams.get('q');
-      const category = searchParams.get('category');
-      const ordering = searchParams.get('ordering');
-
       if (query) params.q = query;
-      if (category) params.category = category;
-      if (ordering) params.ordering = ordering;
 
-      const response = await catalogueService.getProducts(params);
-      
-      setProducts(response.results || response);
-      setTotalCount(response.count || (response.results ? response.results.length : response.length));
+      const [productsRes, categoriesRes] = await Promise.all([
+        catalogueService.getProducts(params),
+        catalogueService.getCategories(true),
+      ]);
+
+      setProducts(productsRes.results || productsRes);
+      setCategories(categoriesRes.results || categoriesRes);
     } catch (err) {
       setError('Failed to load products');
-      console.error('Error fetching products:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const response = await catalogueService.getCategories(true);
-      setCategories(response.results || response);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-    }
-  };
-
   useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    const page = parseInt(searchParams.get('page')) || 1;
-    setCurrentPage(page);
-    fetchProducts();
+    fetchData();
   }, [searchParams]);
+
+  const collections = useMemo(() => {
+    const categoryFilter = searchParams.get('category');
+
+    const filtered = categoryFilter
+      ? categories.filter((c) => c.slug === categoryFilter)
+      : categories;
+
+    const grouped = filtered
+      .map((cat) => ({
+        ...cat,
+        products: products.filter(
+          (p) => p.category_slugs && p.category_slugs.includes(cat.slug)
+        ),
+      }))
+      .filter((col) => col.products.length > 0);
+
+    // Products not in any category
+    if (!categoryFilter) {
+      const categorised = new Set(
+        categories.flatMap((c) =>
+          products
+            .filter((p) => p.category_slugs && p.category_slugs.includes(c.slug))
+            .map((p) => p.id)
+        )
+      );
+      const uncategorised = products.filter((p) => !categorised.has(p.id));
+      if (uncategorised.length > 0) {
+        grouped.push({
+          id: 'uncategorised',
+          name: 'Other',
+          slug: 'other',
+          description: '',
+          image: null,
+          products: uncategorised,
+        });
+      }
+    }
+
+    return grouped;
+  }, [products, categories, searchParams]);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -199,61 +180,19 @@ const Products = () => {
   const handleCategoryChange = (e) => {
     const value = e.target.value;
     setSelectedCategory(value);
-    
     const newParams = new URLSearchParams(searchParams);
     if (value) {
       newParams.set('category', value);
     } else {
       newParams.delete('category');
     }
-    newParams.delete('page');
     setSearchParams(newParams);
-  };
-
-  const handleSortChange = (e) => {
-    const value = e.target.value;
-    setSortBy(value);
-    
-    const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set('ordering', value);
-    } else {
-      newParams.delete('ordering');
-    }
-    newParams.delete('page');
-    setSearchParams(newParams);
-  };
-
-  const handlePageChange = (page) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (page > 1) {
-      newParams.set('page', page.toString());
-    } else {
-      newParams.delete('page');
-    }
-    setSearchParams(newParams);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory('');
-    setSortBy('');
     setSearchParams({});
-  };
-
-  const totalPages = Math.ceil(totalCount / pageSize);
-
-  const getPaginationRange = () => {
-    const range = [];
-    const start = Math.max(1, currentPage - 2);
-    const end = Math.min(totalPages, currentPage + 2);
-
-    for (let i = start; i <= end; i++) {
-      range.push(i);
-    }
-
-    return range;
   };
 
   return (
@@ -291,13 +230,13 @@ const Products = () => {
           </FormGroup>
 
           <FormGroup style={{ margin: 0 }}>
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">Collection</Label>
             <Select
               id="category"
               value={selectedCategory}
               onChange={handleCategoryChange}
             >
-              <option value="">All Categories</option>
+              <option value="">All Collections</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.slug}>
                   {sanitizeText(category.name)}
@@ -305,83 +244,19 @@ const Products = () => {
               ))}
             </Select>
           </FormGroup>
-
-          <FormGroup style={{ margin: 0 }}>
-            <Label htmlFor="sort">Sort By</Label>
-            <Select
-              id="sort"
-              value={sortBy}
-              onChange={handleSortChange}
-            >
-              <option value="">Default</option>
-              <option value="title">Name A-Z</option>
-              <option value="-title">Name Z-A</option>
-              <option value="price">Price Low-High</option>
-              <option value="-price">Price High-Low</option>
-            </Select>
-          </FormGroup>
         </FiltersGrid>
       </FiltersSection>
 
       {loading && <Loading text="Loading products..." />}
 
-      {error && (
-        <Alert variant="error">
-          {error}
-        </Alert>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {!loading && !error && (
         <>
-          <ResultsHeader>
-            <ResultsCount>
-              {totalCount > 0 ? (
-                `Showing ${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} products`
-              ) : (
-                'No products found'
-              )}
-            </ResultsCount>
-          </ResultsHeader>
-
-          {products.length > 0 ? (
-            <>
-              <Grid minWidth="280px" gap="1.5rem">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </Grid>
-
-              {totalPages > 1 && (
-                <Pagination>
-                  <PageButton
-                    variant="secondary"
-                    disabled={currentPage === 1}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                  >
-                    Previous
-                  </PageButton>
-
-                  {getPaginationRange().map((page) => (
-                    <PageButton
-                      key={page}
-                      active={page === currentPage}
-                      variant={page === currentPage ? undefined : 'secondary'}
-                      onClick={() => handlePageChange(page)}
-                    >
-                      {page}
-                    </PageButton>
-                  ))}
-
-                  <PageButton
-                    variant="secondary"
-                    disabled={currentPage === totalPages}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                  >
-                    Next
-                  </PageButton>
-                </Pagination>
-              )}
-            </>
+          {collections.length > 0 ? (
+            collections.map((collection) => (
+              <CollectionSection key={collection.id} collection={collection} />
+            ))
           ) : (
             <Alert variant="info">
               No products found matching your criteria.

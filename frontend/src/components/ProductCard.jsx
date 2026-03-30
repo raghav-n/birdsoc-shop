@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Eye } from 'lucide-react';
@@ -99,16 +99,62 @@ const ImagePlaceholder = styled.div`
   font-size: 0.875rem;
 `;
 
+const VariantSelect = styled.select`
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid #e1e1e1;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: #f1f1f1;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: var(--link-text);
+    background-color: white;
+  }
+`;
+
+const getVariantLabel = (child, parentTitle) => {
+  if (child.attributes && child.attributes.length > 0) {
+    return child.attributes.map((a) => a.value).join(' / ');
+  }
+  return child.title.replace(parentTitle, '').replace(/^\s*[-–—]\s*/, '').trim() || child.title;
+};
+
+const pickDefaultChild = (children) => {
+  if (!children || children.length === 0) return null;
+  const mChild = children.find((c) => getVariantLabel(c, '').toUpperCase() === 'M');
+  return mChild || children[0];
+};
+
 const ProductCard = ({ product }) => {
   const { addToCart, shopOpen } = useCart();
+  const isParent = product.structure === 'parent' && product.children?.length > 0;
+
+  const [selectedChildId, setSelectedChildId] = useState(
+    isParent ? pickDefaultChild(product.children)?.id : null
+  );
+
+  const selectedChild = isParent
+    ? product.children.find((c) => c.id === selectedChildId)
+    : null;
+
+  // For display: use child's price/stock when a variant is selected, else the product's own
+  const displayPrice = selectedChild?.price || product.price;
+  const displayStock = selectedChild?.stock || product.stock;
+  const cartProductId = isParent ? selectedChildId : product.id;
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
-    await addToCart(product.id, 1);
+    e.stopPropagation();
+    if (!cartProductId) return;
+    await addToCart(cartProductId, 1);
   };
 
-  const stockStatus = getStockStatus(product);
-  const inStock = isProductInStock(product);
+  const stockStatus = getStockStatus({ stock: displayStock });
+  const inStock = isProductInStock({ stock: displayStock });
   const primaryImage = product.images?.[0];
 
   return (
@@ -116,8 +162,8 @@ const ProductCard = ({ product }) => {
       <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <ProductImage>
           {primaryImage ? (
-            <img 
-              src={getImageUrl(primaryImage.original)} 
+            <img
+              src={getImageUrl(primaryImage.original)}
               alt={sanitizeText(primaryImage.caption || product.title)}
             />
           ) : (
@@ -129,19 +175,19 @@ const ProductCard = ({ product }) => {
 
         <ProductInfo>
           <ProductTitle>{sanitizeText(product.title)}</ProductTitle>
-          
+
           {product.description && (
             <ProductDescription>{sanitizeText(product.description)}</ProductDescription>
           )}
 
           <PriceSection>
-            <Price>{formatCurrency(product.price?.incl_tax, product.price?.currency)}</Price>
+            <Price>{formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}</Price>
           </PriceSection>
 
           <StockInfo>
-            <Badge 
+            <Badge
               variant={
-                stockStatus === 'In Stock' ? 'success' : 
+                stockStatus === 'In Stock' ? 'success' :
                 stockStatus === 'Low Stock' ? 'warning' : 'danger'
               }
             >
@@ -151,12 +197,29 @@ const ProductCard = ({ product }) => {
         </ProductInfo>
       </Link>
 
+      {isParent && (
+        <VariantSelect
+          value={selectedChildId || ''}
+          onChange={(e) => {
+            e.stopPropagation();
+            setSelectedChildId(Number(e.target.value));
+          }}
+          onClick={(e) => e.preventDefault()}
+        >
+          {product.children.map((child) => (
+            <option key={child.id} value={child.id}>
+              {getVariantLabel(child, product.title)}
+            </option>
+          ))}
+        </VariantSelect>
+      )}
+
       <ProductActions>
         <Button as={Link} to={`/products/${product.id}`} variant="secondary" size="small">
           <Eye size={16} />
           View
         </Button>
-        
+
         {shopOpen && (
           <Button
             onClick={handleAddToCart}

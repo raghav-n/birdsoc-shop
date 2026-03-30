@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { catalogueService } from '../services/catalogue';
-import { Grid } from '../styles/GlobalStyles';
-import ProductCard from '../components/ProductCard';
+import CollectionSection from '../components/CollectionSection';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 
@@ -19,15 +18,20 @@ const Container = styled.div`
 
 const Home = () => {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await catalogueService.getProducts({ page_size: 100 });
-        setProducts(response.results || response);
+        const [productsRes, categoriesRes] = await Promise.all([
+          catalogueService.getProducts({ page_size: 200 }),
+          catalogueService.getCategories(true),
+        ]);
+        setProducts(productsRes.results || productsRes);
+        setCategories(categoriesRes.results || categoriesRes);
       } catch (err) {
         setError('Failed to load products');
         console.error('Error fetching products:', err);
@@ -36,8 +40,41 @@ const Home = () => {
       }
     };
 
-    fetchProducts();
+    fetchData();
   }, []);
+
+  const collections = useMemo(() => {
+    const grouped = categories
+      .map((cat) => ({
+        ...cat,
+        products: products.filter(
+          (p) => p.category_slugs && p.category_slugs.includes(cat.slug)
+        ),
+      }))
+      .filter((col) => col.products.length > 0);
+
+    // Products not in any category
+    const categorised = new Set(
+      categories.flatMap((c) =>
+        products
+          .filter((p) => p.category_slugs && p.category_slugs.includes(c.slug))
+          .map((p) => p.id)
+      )
+    );
+    const uncategorised = products.filter((p) => !categorised.has(p.id));
+    if (uncategorised.length > 0) {
+      grouped.push({
+        id: 'uncategorised',
+        name: 'Other',
+        slug: 'other',
+        description: '',
+        image: null,
+        products: uncategorised,
+      });
+    }
+
+    return grouped;
+  }, [products, categories]);
 
   return (
     <>
@@ -51,15 +88,13 @@ const Home = () => {
             </Alert>
           )}
 
-          {!loading && !error && products.length > 0 && (
-            <Grid minWidth="280px" gap="1.5rem">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </Grid>
+          {!loading && !error && collections.length > 0 && (
+            collections.map((collection) => (
+              <CollectionSection key={collection.id} collection={collection} />
+            ))
           )}
 
-          {!loading && !error && products.length === 0 && (
+          {!loading && !error && collections.length === 0 && (
             <Alert variant="info">
               No products available at the moment.
             </Alert>

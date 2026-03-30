@@ -224,6 +224,48 @@ const AttributeValue = styled.div`
   color: #666;
 `;
 
+const VariantLabel = styled.label`
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--dark);
+`;
+
+const VariantBadgesContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+`;
+
+const VariantBadge = styled.button`
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 2px solid ${props => props.$active ? 'var(--link-text)' : '#e1e1e1'};
+  background: ${props => props.$active ? 'var(--link-text)' : 'white'};
+  color: ${props => props.$active ? 'white' : 'var(--dark)'};
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: var(--link-text);
+  }
+`;
+
+const getVariantLabel = (child, parentTitle) => {
+  if (child.attributes && child.attributes.length > 0) {
+    return child.attributes.map((a) => a.value).join(' / ');
+  }
+  return child.title.replace(parentTitle, '').replace(/^\s*[-–—]\s*/, '').trim() || child.title;
+};
+
+const pickDefaultChild = (children) => {
+  if (!children || children.length === 0) return null;
+  const mChild = children.find((c) => getVariantLabel(c, '').toUpperCase() === 'M');
+  return mChild || children[0];
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
@@ -232,6 +274,7 @@ const ProductDetail = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [selectedChildId, setSelectedChildId] = useState(null);
   const { addToCart, shopOpen } = useCart();
 
   useEffect(() => {
@@ -241,6 +284,9 @@ const ProductDetail = () => {
         setError(null);
         const productData = await catalogueService.getProduct(id);
         setProduct(productData);
+        if (productData.structure === 'parent' && productData.children?.length > 0) {
+          setSelectedChildId(pickDefaultChild(productData.children)?.id);
+        }
       } catch (err) {
         setError('Failed to load product details');
         console.error('Error fetching product:', err);
@@ -253,15 +299,15 @@ const ProductDetail = () => {
   }, [id]);
 
   const handleAddToCart = async () => {
-    if (!product) return;
-    
+    if (!cartProductId) return;
+
     setAddingToCart(true);
-    await addToCart(product.id, quantity);
+    await addToCart(cartProductId, quantity);
     setAddingToCart(false);
   };
 
   const incrementQuantity = () => {
-    if (product && quantity < product.stock?.num_in_stock) {
+    if (product && quantity < displayStock?.num_in_stock) {
       setQuantity(quantity + 1);
     }
   };
@@ -302,8 +348,16 @@ const ProductDetail = () => {
     );
   }
 
-  const stockStatus = getStockStatus(product);
-  const inStock = isProductInStock(product);
+  const isParent = product.structure === 'parent' && product.children?.length > 0;
+  const selectedChild = isParent
+    ? product.children.find((c) => c.id === selectedChildId)
+    : null;
+  const displayPrice = selectedChild?.price || product.price;
+  const displayStock = selectedChild?.stock || product.stock;
+  const cartProductId = isParent ? selectedChildId : product.id;
+
+  const stockStatus = getStockStatus({ stock: displayStock });
+  const inStock = isProductInStock({ stock: displayStock });
   const images = product.images || [];
   const selectedImage = images[selectedImageIndex];
 
@@ -366,15 +420,35 @@ const ProductDetail = () => {
 
           <PriceSection>
             <Price>
-              {formatCurrency(product.price?.incl_tax, product.price?.currency)}
+              {formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}
             </Price>
           </PriceSection>
 
+          {isParent && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <VariantLabel>Size</VariantLabel>
+              <VariantBadgesContainer>
+                {product.children.map((child) => (
+                  <VariantBadge
+                    key={child.id}
+                    $active={child.id === selectedChildId}
+                    onClick={() => {
+                      setSelectedChildId(child.id);
+                      setQuantity(1);
+                    }}
+                  >
+                    {getVariantLabel(child, product.title)}
+                  </VariantBadge>
+                ))}
+              </VariantBadgesContainer>
+            </div>
+          )}
+
           <StockSection>
             <StockInfo>
-              <Badge 
+              <Badge
                 variant={
-                  stockStatus === 'In Stock' ? 'success' : 
+                  stockStatus === 'In Stock' ? 'success' :
                   stockStatus === 'Low Stock' ? 'warning' : 'danger'
                 }
               >
@@ -397,7 +471,7 @@ const ProductDetail = () => {
                   <QuantityDisplay>{quantity}</QuantityDisplay>
                   <QuantityButton
                     onClick={incrementQuantity}
-                    disabled={quantity >= product.stock?.num_in_stock}
+                    disabled={quantity >= displayStock?.num_in_stock}
                   >
                     <Plus size={16} />
                   </QuantityButton>
