@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { GlobalStyle } from './styles/GlobalStyles';
@@ -26,6 +26,12 @@ import Events from './pages/Events';
 import EventDetail from './pages/EventDetail';
 import NotFound from './pages/NotFound';
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  React.useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
+
 const ShopOpenOnly = ({ children }) => {
   const { shopOpen } = useShopConfig();
   if (!shopOpen) return <Navigate to="/" replace />;
@@ -46,6 +52,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <ScrollToTop />
         <GlobalStyle />
         <ShopConfigProvider>
         <AuthProvider>
