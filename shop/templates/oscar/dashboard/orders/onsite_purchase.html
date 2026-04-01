@@ -85,36 +85,36 @@
                                     </tr>
                                 {% endif %}
                             {% elif product.structure == 'parent' %}
+                                <tr>
+                                    <td class="product-info" colspan="3">
+                                        <div class="d-flex flex-column flex-lg-row align-items-center align-items-lg-start">
+                                            <div class="product-image mr-lg-3 mb-2 mb-lg-0">
+                                                {% with image=product.primary_image %}
+                                                    {% thumbnail image.original "100x100" crop="center" as thumb %}
+                                                        <img src="{{ thumb.url }}" alt="{{ product.title }}" class="thumbnail">
+                                                    {% endthumbnail %}
+                                                {% endwith %}
+                                            </div>
+                                            <div class="product-details">
+                                                <h5 class="product-title mb-0">{{ product.title }}</h5>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                                 {% for child in product.children.all %}
                                     {% if child.is_public and child.stockrecords.exists and child.stockrecords.first.num_in_stock > 0 %}
-                                        <tr class="product-row" data-price="{{ child.stockrecords.first.price_excl_tax }}">
-                                            <td class="product-info">
-                                                <div class="d-flex flex-column flex-lg-row align-items-center align-items-lg-start">
-                                                    <div class="product-image mr-lg-3 mb-2 mb-lg-0">
-                                                        {% with image=child.primary_image|default:product.primary_image %}
-                                                            {% thumbnail image.original "100x100" crop="center" as thumb %}
-                                                                <img src="{{ thumb.url }}" alt="{{ child.title }}" class="thumbnail">
-                                                            {% endthumbnail %}
-                                                        {% endwith %}
-                                                    </div>
-                                                    <div class="product-details">
-                                                        <h5 class="product-title mb-1">{{ product.title }}</h5>
-                                                        <p class="text-muted small mb-1">Variant: {{ child.title }}</p>
-                                                        {% if child.stockrecords.first.num_in_stock %}
-                                                            <span class="badge badge-success mb-2">{{ child.stockrecords.first.num_in_stock }} in stock</span>
-                                                        {% else %}
-                                                            <span class="badge badge-danger mb-2">Out of stock</span>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
+                                        <tr class="product-row variant-row" data-price="{{ child.stockrecords.first.price }}">
+                                            <td class="pl-5">
+                                                <span class="text-muted">{{ child.title }}</span>
+                                                <span class="badge badge-success ml-2">{{ child.stockrecords.first.num_in_stock }} in stock</span>
                                             </td>
-                                            <td>{{ child.stockrecords.first.price_excl_tax|currency }}</td>
+                                            <td>{{ child.stockrecords.first.price|currency }}</td>
                                             <td>
-                                                <input type="number" 
-                                                    name="quantity_{{ child.id }}" 
-                                                    id="quantity_{{ child.id }}" 
-                                                    class="form-control quantity-input" 
-                                                    min="0" 
+                                                <input type="number"
+                                                    name="quantity_{{ child.id }}"
+                                                    id="quantity_{{ child.id }}"
+                                                    class="form-control quantity-input float-right"
+                                                    min="0"
                                                     max="{{ child.stockrecords.first.num_in_stock|default:'0' }}"
                                                     value="{{ selected_products|default:''|dict_get:child.id|default:'0' }}"
                                                     {% if not child.stockrecords.first.num_in_stock %}disabled{% endif %}
@@ -685,6 +685,10 @@
 <style>
     .quantity-input {
         width: 80px;
+    }
+
+    .variant-row td {
+        border-top: 1px solid #eee;
     }
     
     .thumbnail {

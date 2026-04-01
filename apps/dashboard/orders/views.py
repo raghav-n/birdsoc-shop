@@ -29,6 +29,7 @@ from oscar.apps.dashboard.orders.views import (
     queryset_orders_for_user,
 )
 
+from apps.checkout.models import PendingCheckout
 from apps.order.models import SalesPeriod
 
 Product = get_model("catalogue", "Product")
@@ -224,7 +225,7 @@ class OnsitePurchaseView(TemplateView):
                             break
 
                 if has_available_children:
-                    available_products.append(product)
+                    available_products.append([product, None])
 
         # Sort products in the required order: keychains, stickers, hat, pin
         def get_product_sort_key(product_info):
@@ -1068,3 +1069,85 @@ class SalesReportView(View):
         )
         response["Content-Disposition"] = 'attachment; filename="sales_report.xlsx"'
         return response
+
+
+class PendingCheckoutDashboardView(View):
+    """Superuser-only dashboard view for managing pending checkouts."""
+
+    template_name = "oscar/dashboard/orders/pending_checkouts.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            messages.error(request, "You do not have permission to access this page.")
+            return redirect("dashboard:index")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        pending = PendingCheckout.objects.all().order_by("-created_at")
+
+        enriched = []
+        for pc in pending:
+            snapshot = pc.basket_snapshot or {}
+            basket_total = snapshot.get("total")
+            if basket_total is not None:
+                basket_total = Decimal(basket_total)
+                expected_total = basket_total + Decimal(pc.donation or 0)
+            else:
+                expected_total = None
+            enriched.append({
+                "obj": pc,
+                "lines": snapshot.get("lines", []),
+                "discounts": snapshot.get("discounts", []),
+                "shipping": snapshot.get("shipping"),
+                "basket_total": basket_total,
+                "expected_total": expected_total,
+            })
+
+        return render(request, self.template_name, {"pending_checkouts": enriched})
+
+    def post(self, request):
+        """Manually place an order from a pending checkout and confirm payment."""
+        from apps.util.views import _place_order_from_pending
+        from apps.util.payments import confirm_paynow_payment, PaymentConfirmationError
+
+        pending_id = request.POST.get("pending_id")
+        amount = request.POST.get("amount", "").strip()
+
+        if not pending_id or not amount:
+            messages.error(request, "Pending checkout ID and amount are required.")
+            return redirect("dashboard:pending-checkouts")
+
+        try:
+            pending = PendingCheckout.objects.get(id=pending_id)
+        except PendingCheckout.DoesNotExist:
+            messages.error(request, "Pending checkout not found.")
+            return redirect("dashboard:pending-checkouts")
+
+        try:
+            amount_decimal = Decimal(amount)
+        except Exception:
+            messages.error(request, "Invalid amount.")
+            return redirect("dashboard:pending-checkouts")
+
+        result = _place_order_from_pending(pending, amount_decimal)
+        if result["error"]:
+            messages.error(request, f"Failed to place order: {result['error']}")
+            return redirect("dashboard:pending-checkouts")
+
+        order = result["order"]
+
+        try:
+            confirm_paynow_payment(order, amount_decimal)
+            messages.success(
+                request,
+                f"Order {order.number} created and payment confirmed "
+                f"(SGD {amount_decimal}).",
+            )
+        except PaymentConfirmationError as e:
+            messages.warning(
+                request,
+                f"Order {order.number} created but payment confirmation "
+                f"failed: {e}. Please verify manually.",
+            )
+
+        return redirect("dashboard:order-detail", number=order.number)
