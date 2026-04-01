@@ -625,6 +625,11 @@ OSCAR_DASHBOARD_NAVIGATION = [
                 "label": _("Sales Report"),
                 "url_name": "dashboard:sales-report",
             },
+            {
+                "label": _("Pending Checkouts"),
+                "url_name": "dashboard:pending-checkouts",
+                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_superuser,
+            },
         ],
     },
     {

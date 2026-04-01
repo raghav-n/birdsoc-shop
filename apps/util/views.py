@@ -9,6 +9,7 @@ from sentry_sdk import last_event_id
 import json
 import jwt
 import datetime
+from django.core.mail import mail_admins
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -152,7 +153,7 @@ def _place_order_from_pending(pending, amount):
             guest_email=guest_email,
         )
         basket.submit()
-        pending.delete()
+        PendingCheckout.objects.filter(basket_id=pending.basket_id).delete()
     except Exception as e:
         return {"order": None, "error": f"Unable to place order: {e}"}
 
@@ -191,6 +192,22 @@ def verify_payment(request):
         try:
             pending = PendingCheckout.objects.get(reference=reference)
         except PendingCheckout.DoesNotExist:
+            try:
+                mail_admins(
+                    subject=f"Unmatched payment received: {order_number}",
+                    message=(
+                        f"A payment webhook was received that could not be matched "
+                        f"to any order or pending checkout.\n\n"
+                        f"Reference / order number: {order_number}\n"
+                        f"Amount: SGD {amount}\n\n"
+                        f"This may indicate the customer entered an incorrect "
+                        f"reference when making their PayNow transfer.\n\n"
+                        f"Please check the pending checkouts dashboard for "
+                        f"recent records that may correspond to this payment."
+                    ),
+                )
+            except Exception:
+                pass  # Don't let email failure block the webhook response
             return JsonResponse(
                 {"error": f"Order {order_number} not found"}, status=404
             )

@@ -10,11 +10,16 @@ class PendingCheckout(models.Model):
     Deleted automatically when the order is successfully placed.
     """
 
-    basket_id = models.PositiveIntegerField(unique=True)
+    basket_id = models.PositiveIntegerField()
     email = models.EmailField(blank=True, default="")
     reference = models.CharField(max_length=64)
     shipping_method_code = models.CharField(max_length=128, blank=True, default="")
     donation = models.PositiveIntegerField(default=0)
+    basket_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Frozen basket contents and total at time of checkout.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

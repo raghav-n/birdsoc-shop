@@ -432,10 +432,29 @@ const Checkout = () => {
       }
       // Save pending checkout so the order is recorded even if user
       // makes payment but leaves before uploading proof
+      const cartItems = cart?.lines || [];
+      const discountsList = cart?.offer_discounts || [];
+      const cartSubtotal = cart?.total_excl_tax || 0;
+      const method = shippingMethods.find(m => m.code === selectedShippingMethod);
+      const shipCost = method ? (method.is_self_collect ? 0 : parseFloat(method.price) || 0) : 0;
+
       checkoutService.savePendingCheckout({
         basket_id: cart.id,
         shipping_method_code: selectedShippingMethod,
         donation,
+        basket_snapshot: {
+          lines: cartItems.map(item => ({
+            title: item.product_title || item.description,
+            quantity: item.quantity,
+            price: item.line_price_incl_tax,
+          })),
+          discounts: discountsList.map(d => ({
+            name: d.name || d.description || 'Discount',
+            amount: d.amount || d.discount,
+          })),
+          shipping: String(shipCost),
+          total: String(cartSubtotal + shipCost),
+        },
       }).catch((err) => console.error('Failed to save pending checkout:', err));
     }
   }, [currentStep, cart?.id]);

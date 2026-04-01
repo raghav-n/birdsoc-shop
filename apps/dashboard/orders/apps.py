@@ -15,6 +15,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             SiteOffersView,
             OrderStatsView,
             SalesReportView,
+            PendingCheckoutDashboardView,
         )
 
         new_urls = [
@@ -36,6 +37,11 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             path("site-offers/", SiteOffersView.as_view(), name="site-offers"),
             path("statistics/", OrderStatsView.as_view(), name="order-statistics"),
             path("sales-report/", SalesReportView.as_view(), name="sales-report"),
+            path(
+                "pending-checkouts/",
+                PendingCheckoutDashboardView.as_view(),
+                name="pending-checkouts",
+            ),
         ]
 
         return self.post_process_urls(new_urls) + super().get_urls()

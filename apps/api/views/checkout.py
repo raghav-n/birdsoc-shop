@@ -152,14 +152,17 @@ class SavePendingCheckoutView(APIView):
         except Exception:
             donation = 0
 
-        PendingCheckout.objects.update_or_create(
+        # Store the basket snapshot as sent by the frontend (already has
+        # the final computed values including vouchers, offers, shipping).
+        basket_snapshot = request.data.get("basket_snapshot", {})
+
+        PendingCheckout.objects.create(
             basket_id=basket.id,
-            defaults={
-                "email": email,
-                "reference": reference,
-                "shipping_method_code": request.data.get("shipping_method_code", ""),
-                "donation": donation,
-            },
+            email=email,
+            reference=reference,
+            shipping_method_code=request.data.get("shipping_method_code", ""),
+            donation=donation,
+            basket_snapshot=basket_snapshot,
         )
 
         return Response({"saved": True, "reference": reference})
