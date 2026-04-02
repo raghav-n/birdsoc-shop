@@ -4,7 +4,7 @@ venv/
 docs/
 .idea/
 receipts/
-config/
+config/whitelist.txt
 refund_vouchers/
 
 **/__pycache__
