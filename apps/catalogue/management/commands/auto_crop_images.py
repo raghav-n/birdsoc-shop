@@ -17,31 +17,55 @@ class Command(BaseCommand):
             action="store_true",
             help="Re-run even if focal point has already been set (non-default values).",
         )
+        parser.add_argument(
+            "--instructions",
+            type=str,
+            default="",
+            metavar="TEXT",
+            help="Extra instructions appended to the Gemini prompt.",
+        )
+        parser.add_argument(
+            "--title-regex",
+            type=str,
+            default="",
+            metavar="REGEX",
+            help="Only process images whose product title matches this regex (case-insensitive).",
+        )
 
     def handle(self, *args, **options):
+        import re
         from apps.catalogue.auto_crop import suggest_crop
 
         ProductImage = get_model("catalogue", "ProductImage")
 
-        qs = ProductImage.objects.all()
+        qs = ProductImage.objects.select_related("product").all()
         if options["product"]:
             qs = qs.filter(product_id=options["product"])
 
-        if not options["overwrite"]:
-            # Skip images that have already been manually or automatically set
-            qs = qs.filter(focal_point_x=50, focal_point_y=50, zoom_level=1.0)
+        if options["title_regex"]:
+            pattern = re.compile(options["title_regex"], re.IGNORECASE)
+            qs = [img for img in qs if img.product and pattern.search(img.product.title or "")]
+        else:
+            qs = list(qs)
 
-        total = qs.count()
+        if not options["overwrite"]:
+            qs = [img for img in qs if img.focal_point_x == 50 and img.focal_point_y == 50 and img.zoom_level == 1.0]
+
+        extra = options["instructions"]
+        if extra:
+            self.stdout.write(f"Extra instructions: {extra}")
+
+        total = len(qs)
         if total == 0:
             self.stdout.write("No images to process.")
             return
 
         self.stdout.write(f"Processing {total} image(s)…")
-        ok = skipped = failed = 0
+        ok = failed = 0
 
-        for img in qs.iterator():
+        for img in qs:
             try:
-                result = suggest_crop(img.original.path)
+                result = suggest_crop(img.original.path, extra_instructions=extra)
                 ProductImage.objects.filter(pk=img.pk).update(**result)
                 self.stdout.write(
                     f"  [{img.pk}] product={img.product_id}  "
@@ -54,5 +78,5 @@ class Command(BaseCommand):
                 failed += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"\nDone. {ok} updated, {skipped} skipped, {failed} failed."
+            f"\nDone. {ok} updated, {failed} failed."
         ))

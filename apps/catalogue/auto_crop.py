@@ -82,7 +82,7 @@ def _bbox_to_crop(x_min, y_min, x_max, y_max):
     }
 
 
-def suggest_crop(image_path: str) -> dict:
+def suggest_crop(image_path: str, extra_instructions: str = "") -> dict:
     """Call Gemini Vision to get the subject bounding box, derive focal point + zoom."""
     model = _load_model()
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -95,11 +95,15 @@ def suggest_crop(image_path: str) -> dict:
     with open(image_path, "rb") as f:
         image_bytes = f.read()
 
+    prompt = _PROMPT
+    if extra_instructions:
+        prompt += f" Additional instructions: {extra_instructions}"
+
     response = client.models.generate_content(
         model=model,
         contents=[
             types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            types.Part.from_text(text=_PROMPT),
+            types.Part.from_text(text=prompt),
         ],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
