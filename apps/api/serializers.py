@@ -41,6 +41,9 @@ class ProductImageSerializer(serializers.Serializer):
     original = serializers.CharField()
     caption = serializers.CharField(allow_blank=True)
     display_order = serializers.IntegerField()
+    focal_point_x = serializers.IntegerField(default=50)
+    focal_point_y = serializers.IntegerField(default=50)
+    zoom_level = serializers.FloatField(default=1.0)
 
 
 class ProductPriceSerializer(serializers.Serializer):
@@ -139,6 +142,9 @@ class ProductSerializer(serializers.ModelSerializer):
                     "original": url,
                     "caption": img.caption or "",
                     "display_order": img.display_order or 0,
+                    "focal_point_x": img.focal_point_x,
+                    "focal_point_y": img.focal_point_y,
+                    "zoom_level": img.zoom_level,
                 }
             )
         return results

@@ -1,0 +1,34 @@
+{% load i18n %}
+<li class='sortable-handle'>
+    {% for field in form %}
+        {% if field.is_hidden %}
+            {{ field }}
+        {% elif "original" in field.id_for_label %}
+            <div>{{ field }}</div>
+            {% for error in field.errors %}
+                <ul class="error-block"><li>{{ error }}</li></ul>
+            {% endfor %}
+            <a href="#" class="btn btn-info btn-handle btn-reorder {% if not form.instance.id %}disabled{% endif %}" {% if not form.instance.id %}disabled{% endif %}>
+                <i class="fas fa-arrows-alt"></i> {% trans "Re-order" context "Change the sequence order" %}
+            </a>
+            {% if form.instance.id and form.instance.original %}
+            <button type="button" class="btn btn-sm btn-secondary ml-1 focal-point-open-btn"
+                    data-image-id="{{ form.instance.id }}"
+                    data-img-url="{{ form.instance.original.url }}"
+                    data-focal-x="{{ form.instance.focal_point_x }}"
+                    data-focal-y="{{ form.instance.focal_point_y }}"
+                    data-zoom="{{ form.instance.zoom_level }}">
+                <i class="fas fa-crop-alt"></i> {% trans "Set crop focus" %}
+            </button>
+            {% endif %}
+            <br>
+        {% else %}
+            {{ field.label_tag }}
+            {{ field }}
+            {% for error in field.errors %}
+                <ul class="error-block"><li>{{ error }}</li></ul>
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+    {{ form.non_field_errors }}
+</li>

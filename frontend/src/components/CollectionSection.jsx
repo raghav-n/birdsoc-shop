@@ -58,7 +58,7 @@ const CollectionSection = ({ collection }) => {
           <SectionDescription>{sanitizeText(collection.description)}</SectionDescription>
         )}
       </SectionHeader>
-      <Grid minWidth="280px" gap="1.5rem">
+      <Grid minWidth="160px" gap="1rem">
         {collection.products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Eye } from 'lucide-react';
-import { Card, Button, Badge } from '../styles/GlobalStyles';
-import { formatCurrency, getImageUrl, isProductInStock, getStockStatus } from '../utils/helpers';
+import { ShoppingCart } from 'lucide-react';
+import { Card, Button } from '../styles/GlobalStyles';
+import { formatCurrency, getImageUrl, isProductInStock } from '../utils/helpers';
 import { sanitizeText } from '../utils/safeContent';
 import { useCart } from '../context/CartContext';
 
@@ -14,32 +14,27 @@ const ProductCardContainer = styled(Card)`
   height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  border-radius: 6px;
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   }
 `;
 
 const ProductImage = styled.div`
   width: 100%;
-  height: 220px;
-  background-color: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  aspect-ratio: 1 / 1;
+  background-color: #f0f0f0;
   overflow: hidden;
-  margin-bottom: 1rem;
 
   img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     transition: transform 0.3s ease;
-  }
-
-  &:hover img {
-    transform: scale(1.05);
+    transform-origin: center center;
   }
 `;
 
@@ -47,33 +42,27 @@ const ProductInfo = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
+  padding: 0.65rem 0.75rem 0.5rem;
 `;
 
 const ProductTitle = styled.h3`
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: var(--dark);
-  line-height: 1.4;
-`;
-
-const ProductDescription = styled.p`
   font-size: 0.875rem;
-  color: #666;
-  margin-bottom: 1rem;
-  flex: 1;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: var(--dark);
+  line-height: 1.35;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
 
 const PriceSection = styled.div`
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 `;
 
 const Price = styled.div`
-  font-size: 1.25rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--link-text);
 `;
@@ -86,14 +75,14 @@ const CrossedOutPrice = styled.span`
   margin-left: 0.5rem;
 `;
 
-const StockInfo = styled.div`
-  margin-bottom: 1rem;
+const OutOfStockBadge = styled.div`
+  font-size: 0.75rem;
+  color: #999;
+  margin-bottom: 0.25rem;
 `;
 
 const ProductActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  margin-top: auto;
+  padding: 0 0.75rem 0.75rem;
 `;
 
 const ImagePlaceholder = styled.div`
@@ -108,13 +97,13 @@ const ImagePlaceholder = styled.div`
 `;
 
 const VariantSelect = styled.select`
-  width: 100%;
+  width: calc(100% - 1.5rem);
+  margin: 0 0.75rem 0.75rem;
   padding: 0.5rem;
   border: 2px solid #e1e1e1;
   border-radius: 4px;
   font-size: 0.875rem;
   background-color: #f1f1f1;
-  margin-bottom: 0.75rem;
   cursor: pointer;
 
   &:focus {
@@ -123,6 +112,27 @@ const VariantSelect = styled.select`
     background-color: white;
   }
 `;
+
+// Compute the CSS object-position values that center a focal point (fx%, fy%)
+// in a square crop, accounting for the image's actual aspect ratio.
+function focalPointToObjectPosition(fx, fy, naturalW, naturalH) {
+  const ratio = naturalW / naturalH;
+  let cssX, cssY;
+  if (ratio > 1) {
+    // Landscape: width overflows. Solve for cssX to center focal point.
+    cssX = Math.max(0, Math.min(100, (fx * ratio - 50) / (ratio - 1)));
+    cssY = fy;
+  } else if (ratio < 1) {
+    // Portrait: height overflows.
+    const inv = 1 / ratio;
+    cssX = fx;
+    cssY = Math.max(0, Math.min(100, (fy * inv - 50) / (inv - 1)));
+  } else {
+    cssX = fx;
+    cssY = fy;
+  }
+  return `${cssX}% ${cssY}%`;
+}
 
 const getVariantLabel = (child, parentTitle) => {
   if (child.attributes && child.attributes.length > 0) {
@@ -161,9 +171,19 @@ const ProductCard = ({ product }) => {
     await addToCart(cartProductId, 1);
   };
 
-  const stockStatus = getStockStatus({ stock: displayStock });
   const inStock = isProductInStock({ stock: displayStock });
   const primaryImage = product.images?.[0];
+  const fx = primaryImage?.focal_point_x ?? 50;
+  const fy = primaryImage?.focal_point_y ?? 50;
+  const zoom = primaryImage?.zoom_level ?? 1.0;
+  const [objectPosition, setObjectPosition] = useState(`${fx}% ${fy}%`);
+
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    if (naturalWidth && naturalHeight) {
+      setObjectPosition(focalPointToObjectPosition(fx, fy, naturalWidth, naturalHeight));
+    }
+  };
 
   return (
     <ProductCardContainer>
@@ -173,6 +193,8 @@ const ProductCard = ({ product }) => {
             <img
               src={getImageUrl(primaryImage.original)}
               alt={sanitizeText(primaryImage.caption || product.title)}
+              style={{ objectPosition, transform: `scale(${zoom})` }}
+              onLoad={handleImageLoad}
             />
           ) : (
             <ImagePlaceholder>
@@ -184,10 +206,6 @@ const ProductCard = ({ product }) => {
         <ProductInfo>
           <ProductTitle>{sanitizeText(product.title)}</ProductTitle>
 
-          {product.description && (
-            <ProductDescription>{sanitizeText(product.description)}</ProductDescription>
-          )}
-
           <PriceSection>
             <Price>
               {formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}
@@ -197,16 +215,7 @@ const ProductCard = ({ product }) => {
             </Price>
           </PriceSection>
 
-          <StockInfo>
-            <Badge
-              variant={
-                stockStatus === 'In Stock' ? 'success' :
-                stockStatus === 'Low Stock' ? 'warning' : 'danger'
-              }
-            >
-              {stockStatus}
-            </Badge>
-          </StockInfo>
+          {!inStock && <OutOfStockBadge>Out of stock</OutOfStockBadge>}
         </ProductInfo>
       </Link>
 
@@ -227,24 +236,19 @@ const ProductCard = ({ product }) => {
         </VariantSelect>
       )}
 
-      <ProductActions>
-        <Button as={Link} to={`/products/${product.id}`} variant="secondary" size="small">
-          <Eye size={16} />
-          View
-        </Button>
-
-        {shopOpen && (
+      {shopOpen && (
+        <ProductActions>
           <Button
             onClick={handleAddToCart}
             disabled={!inStock}
             size="small"
-            style={{ flex: 1 }}
+            fullWidth
           >
             <ShoppingCart size={16} />
             Add to Cart
           </Button>
-        )}
-      </ProductActions>
+        </ProductActions>
+      )}
     </ProductCardContainer>
   );
 };

@@ -41,6 +41,10 @@ urlpatterns = [
     path("", include(apps.get_app_config("home").urls[0])),
     apps.get_app_config("catalogue").get_home_url_pattern(),
     path(
+        "dashboard/catalogue/",
+        include("apps.dashboard.catalogue.urls"),
+    ),
+    path(
         "dashboard/refund/",
         include("apps.dashboard.refund.urls", namespace="dashboard-refund"),
     ),
