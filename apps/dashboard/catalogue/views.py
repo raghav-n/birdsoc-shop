@@ -55,7 +55,7 @@ def _build_rows():
     for sr in (
         StockRecord.objects
         .select_related("product", "partner")
-        .filter(product__structure="standalone", product__is_public=True)
+        .filter(product__structure="standalone")
     ):
         rows.append({
             "type": "standalone",

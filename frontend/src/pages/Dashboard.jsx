@@ -256,7 +256,6 @@ const Dashboard = () => {
           <NoCostNote>
             <AlertCircle size={16} />
             {missingCostCount} product{missingCostCount > 1 ? 's have' : ' has'} no cost price set.
-            Add cost prices via the Django admin under Partner › Stock records.
           </NoCostNote>
         )}
         <Card style={{ padding: 0, overflow: 'hidden' }}>
