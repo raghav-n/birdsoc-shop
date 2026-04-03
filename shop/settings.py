@@ -63,7 +63,7 @@ DB_PASS = os.environ.get("DB_PASS", "")
 MAILERSEND_KEY = os.environ.get("MAILERSEND_KEY", "")
 SESSION_ENVIRONMENT_PRODUCTION = os.environ.get("ENVIRONMENT", "False") == "True"
 
-SHOP_OPEN = False
+SHOP_OPEN = True
 TESTING = sys.argv[1:2] == ["test"]
 
 SHOP_OPEN = TESTING or SHOP_OPEN or not SESSION_ENVIRONMENT_PRODUCTION
