@@ -79,6 +79,9 @@
 {% block line_actions %}{% endblock %}
 
 {% block order_actions %}
+    <button type="button" class="btn btn-secondary mb-3" onclick="document.getElementById('resend-email-form').submit()">
+        <i class="fas fa-envelope"></i> {% trans "Resend confirmation email" %}
+    </button>
     <div class="card card-body bg-light">
         <h3><i class="fas fa-exclamation-triangle"></i> {% trans "Change order status" %}:</h3>
         {% if order_status_form.has_choices %}
@@ -274,3 +277,10 @@
         </tbody>
     </table>
 {% endblock order_lines %}
+
+{% block dashboard_content %}
+    {{ block.super }}
+    <form id="resend-email-form" method="post" action="{% url 'dashboard:order-resend-confirmation' number=order.number %}" style="display:none">
+        {% csrf_token %}
+    </form>
+{% endblock %}

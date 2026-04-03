@@ -7,7 +7,7 @@ from django import forms
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.utils.timezone import localtime
 from django.views import View
@@ -1150,4 +1150,17 @@ class PendingCheckoutDashboardView(View):
                 f"failed: {e}. Please verify manually.",
             )
 
+        return redirect("dashboard:order-detail", number=order.number)
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class ResendConfirmationEmailView(View):
+    def post(self, request, number):
+        order = get_object_or_404(Order, number=number)
+        try:
+            OrderDispatcher = get_class("order.utils", "OrderDispatcher")
+            OrderDispatcher().send_payment_confirmed_email_for_user(order, {"order": order})
+            messages.success(request, f"Confirmation email resent for order {order.number}.")
+        except Exception as e:
+            messages.error(request, f"Failed to send email: {e}")
         return redirect("dashboard:order-detail", number=order.number)

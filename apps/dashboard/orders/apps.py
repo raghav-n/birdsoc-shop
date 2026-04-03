@@ -16,6 +16,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             OrderStatsView,
             SalesReportView,
             PendingCheckoutDashboardView,
+            ResendConfirmationEmailView,
         )
 
         new_urls = [
@@ -41,6 +42,11 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 "pending-checkouts/",
                 PendingCheckoutDashboardView.as_view(),
                 name="pending-checkouts",
+            ),
+            path(
+                "<str:number>/resend-confirmation/",
+                ResendConfirmationEmailView.as_view(),
+                name="order-resend-confirmation",
             ),
         ]
 

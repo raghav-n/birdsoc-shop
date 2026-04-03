@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from oscar.core.loading import get_model, get_class
 
+OrderDispatcher = get_class("order.utils", "OrderDispatcher")
 
 Order = get_model("order", "Order")
 PaymentEvent = get_model("order", "PaymentEvent")
@@ -72,3 +73,11 @@ def confirm_paynow_payment(order: "Order", amount: Decimal) -> None:
 
     except InvalidOrderStatus as e:
         raise PaymentConfirmationError(f"Failed to confirm payment: {str(e)}") from e
+
+    try:
+        OrderDispatcher().send_payment_confirmed_email_for_user(order, {"order": order})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(
+            "Failed to send payment confirmation email for order %s: %s", order.number, e
+        )
