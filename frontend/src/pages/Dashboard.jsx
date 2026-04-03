@@ -22,19 +22,65 @@ const PageSubtitle = styled.p`
   margin-bottom: 1.25rem;
 `;
 
-const FilterRow = styled.div`
+const FiltersBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding: 1rem 1.25rem;
+  background: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+`;
+
+const FilterGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 2rem;
 `;
 
 const FilterLabel = styled.span`
   font-size: 0.85rem;
   font-weight: 600;
   color: #555;
-  margin-right: 0.25rem;
+  white-space: nowrap;
+`;
+
+const DateInput = styled.input`
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--dark);
+  &:focus {
+    outline: none;
+    border-color: var(--link-text);
+  }
+`;
+
+const ApplyButton = styled.button`
+  padding: 0.3rem 0.8rem;
+  background: var(--link-text);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover { opacity: 0.9; }
+`;
+
+const ClearButton = styled.button`
+  padding: 0.3rem 0.6rem;
+  background: none;
+  color: #999;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  &:hover { color: var(--dark); border-color: #bbb; }
 `;
 
 const PartnerBadge = styled.button`
@@ -211,16 +257,40 @@ const Dashboard = () => {
   const [sortKey, setSortKey] = useState('revenue');
   const [sortDir, setSortDir] = useState('desc');
   const [selectedPartners, setSelectedPartners] = useState(new Set());
+  const [startInput, setStartInput] = useState('');
+  const [endInput, setEndInput] = useState('');
+  const [appliedStart, setAppliedStart] = useState('');
+  const [appliedEnd, setAppliedEnd] = useState('');
 
-  useEffect(() => {
-    dashboardService.getAnalytics()
-      .then(setData)
+  const fetchData = (start, end) => {
+    setLoading(true);
+    setError(null);
+    dashboardService.getAnalytics({ start, end })
+      .then(d => { setData(d); setSelectedPartners(new Set()); })
       .catch(() => setError('Failed to load analytics data.'))
       .finally(() => setLoading(false));
-  }, []);
+  };
 
-  if (loading) return <Loading text="Loading dashboard..." />;
-  if (error) return <Container><p style={{ color: 'var(--danger)' }}>{error}</p></Container>;
+  useEffect(() => { fetchData('', ''); }, []);
+
+  const handleApply = () => {
+    setAppliedStart(startInput);
+    setAppliedEnd(endInput);
+    fetchData(startInput, endInput);
+  };
+
+  const handleClear = () => {
+    setStartInput('');
+    setEndInput('');
+    setAppliedStart('');
+    setAppliedEnd('');
+    fetchData('', '');
+  };
+
+  const isDateFiltered = !!(appliedStart || appliedEnd);
+
+  if (loading && !data) return <Loading text="Loading dashboard..." />;
+  if (error && !data) return <Container><p style={{ color: 'var(--danger)' }}>{error}</p></Container>;
 
   const { partners, by_product, by_month } = data;
   const isFiltered = selectedPartners.size > 0;
@@ -268,29 +338,49 @@ const Dashboard = () => {
   return (
     <Container>
       <PageTitle>Sales Dashboard</PageTitle>
-      <PageSubtitle>All-time revenue, cost, and profit across orders.</PageSubtitle>
+      <PageSubtitle>
+        {loading ? 'Updating…' : (isDateFiltered ? `${appliedStart || '…'} → ${appliedEnd || '…'}` : 'All-time revenue, cost, and profit across orders.')}
+      </PageSubtitle>
 
-      {/* Partner filter */}
-      {partners.length > 1 && (
-        <FilterRow>
-          <FilterLabel>Partner:</FilterLabel>
-          <PartnerBadge
-            $active={!isFiltered}
-            onClick={() => setSelectedPartners(new Set())}
-          >
-            All
-          </PartnerBadge>
-          {partners.map(name => (
-            <PartnerBadge
-              key={name}
-              $active={selectedPartners.has(name)}
-              onClick={() => togglePartner(name)}
-            >
-              {name}
+      {/* Filters bar */}
+      <FiltersBar>
+        <FilterGroup>
+          <FilterLabel>Date:</FilterLabel>
+          <DateInput
+            type="date"
+            value={startInput}
+            onChange={e => setStartInput(e.target.value)}
+            placeholder="From"
+          />
+          <span style={{ color: '#999', fontSize: '0.85rem' }}>to</span>
+          <DateInput
+            type="date"
+            value={endInput}
+            onChange={e => setEndInput(e.target.value)}
+            placeholder="To"
+          />
+          <ApplyButton onClick={handleApply}>Apply</ApplyButton>
+          {isDateFiltered && <ClearButton onClick={handleClear}>Clear</ClearButton>}
+        </FilterGroup>
+
+        {partners.length > 1 && (
+          <FilterGroup>
+            <FilterLabel>Partner:</FilterLabel>
+            <PartnerBadge $active={!isFiltered} onClick={() => setSelectedPartners(new Set())}>
+              All
             </PartnerBadge>
-          ))}
-        </FilterRow>
-      )}
+            {partners.map(name => (
+              <PartnerBadge
+                key={name}
+                $active={selectedPartners.has(name)}
+                onClick={() => togglePartner(name)}
+              >
+                {name}
+              </PartnerBadge>
+            ))}
+          </FilterGroup>
+        )}
+      </FiltersBar>
 
       {/* Summary cards */}
       <SummaryGrid>

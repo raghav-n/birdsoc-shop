@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
 
 from rest_framework import permissions
@@ -15,8 +16,20 @@ class AnalyticsDashboardView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
-        # Build product_id -> cost_price map from StockRecords
-        # (one per product; if multiple, take the first)
+        # Parse optional date range filters
+        start_str = request.query_params.get("start")
+        end_str = request.query_params.get("end")
+        start_date = None
+        end_date = None
+        try:
+            if start_str:
+                start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
+            if end_str:
+                end_date = datetime.strptime(end_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+        # Build product_id -> cost_price / partner_name maps from StockRecords
         cost_map = {}
         partner_map = {}
         for sr in StockRecord.objects.values("product_id", "cost_price", "partner__name"):
@@ -27,7 +40,13 @@ class AnalyticsDashboardView(APIView):
 
         total_revenue = Decimal("0")
         total_cost = Decimal("0")
-        total_orders = Order.objects.count()
+
+        order_qs = Order.objects
+        if start_date:
+            order_qs = order_qs.filter(date_placed__date__gte=start_date)
+        if end_date:
+            order_qs = order_qs.filter(date_placed__date__lte=end_date)
+        total_orders = order_qs.count()
 
         by_product = defaultdict(lambda: {
             "title": "",
@@ -43,7 +62,11 @@ class AnalyticsDashboardView(APIView):
             "cost": Decimal("0"),
         })
 
-        lines = OrderLine.objects.select_related("order", "product").all()
+        lines = OrderLine.objects.select_related("order", "product")
+        if start_date:
+            lines = lines.filter(order__date_placed__date__gte=start_date)
+        if end_date:
+            lines = lines.filter(order__date_placed__date__lte=end_date)
 
         for line in lines:
             pid = line.product_id
