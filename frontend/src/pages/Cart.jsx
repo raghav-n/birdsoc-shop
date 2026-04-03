@@ -15,15 +15,27 @@ const CartContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1rem;
+
+  @media (max-width: 600px) {
+    padding: 1rem 0.75rem;
+  }
 `;
 
 const CartHeader = styled.div`
   margin-bottom: 2rem;
+
+  @media (max-width: 600px) {
+    margin-bottom: 1rem;
+  }
 `;
 
 const CartTitle = styled.h1`
   font-size: 2rem;
   margin-bottom: 0.5rem;
+
+  @media (max-width: 600px) {
+    font-size: 1.4rem;
+  }
 `;
 
 const CartSubtitle = styled.p`
@@ -38,6 +50,7 @@ const CartGrid = styled.div`
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 `;
 
@@ -52,8 +65,9 @@ const CartItem = styled(Card)`
   padding: 1rem;
 
   @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-    text-align: center;
+    gap: 0.6rem;
+    padding: 0.6rem;
+    margin-bottom: 0.5rem;
   }
 `;
 
@@ -74,7 +88,10 @@ const ItemImage = styled.div`
   }
 
   @media (max-width: 600px) {
-    margin: 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    flex-shrink: 0;
   }
 `;
 
@@ -85,6 +102,12 @@ const ItemTitle = styled.h3`
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: var(--dark);
+
+  @media (max-width: 600px) {
+    font-size: 0.9rem;
+    margin-bottom: 0.2rem;
+    line-height: 1.2;
+  }
 `;
 
 const ItemPrice = styled.div`
@@ -92,6 +115,11 @@ const ItemPrice = styled.div`
   color: var(--link-text);
   font-weight: 600;
   margin-bottom: 0.5rem;
+
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+  }
 `;
 
 const ItemControls = styled.div`
@@ -101,7 +129,7 @@ const ItemControls = styled.div`
   align-items: flex-end;
 
   @media (max-width: 600px) {
-    align-items: center;
+    gap: 0.4rem;
   }
 `;
 
@@ -133,6 +161,11 @@ const QuantityButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  @media (max-width: 600px) {
+    width: 26px;
+    height: 26px;
+  }
 `;
 
 const QuantityDisplay = styled.div`
@@ -146,6 +179,12 @@ const QuantityDisplay = styled.div`
   font-weight: 500;
   background: white;
   font-size: 0.9rem;
+
+  @media (max-width: 600px) {
+    min-width: 28px;
+    height: 26px;
+    font-size: 0.8rem;
+  }
 `;
 
 const RemoveButton = styled.button`
@@ -159,6 +198,16 @@ const RemoveButton = styled.button`
 
   &:hover {
     background-color: rgba(204, 51, 13, 0.1);
+  }
+
+  @media (max-width: 600px) {
+    padding: 0.2rem;
+  }
+`;
+
+const MobileHide = styled.div`
+  @media (max-width: 600px) {
+    display: none;
   }
 `;
 
@@ -338,11 +387,11 @@ const Cart = () => {
               <ItemInfo>
                 <ItemTitle>{sanitizeText(item.product_title)}</ItemTitle>
                 <ItemPrice>
-                  {formatCurrency(item.unit_price_incl_tax)} each
+                  {formatCurrency(item.unit_price_incl_tax)}<MobileHide as="span"> each</MobileHide>
                 </ItemPrice>
-                <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                <MobileHide style={{ fontSize: '0.9rem', color: '#666' }}>
                   Subtotal: {formatCurrency(item.line_price_incl_tax)}
-                </div>
+                </MobileHide>
               </ItemInfo>
 
               <ItemControls>
