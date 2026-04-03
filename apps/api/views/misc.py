@@ -18,7 +18,7 @@ class ConfigView(APIView):
     def get(self, request):
         return Response(
             {
-                "shop_open": settings.SHOP_OPEN,
+                "shop_open": settings.SHOP_OPEN_PUBLIC,
                 "currency": settings.OSCAR_DEFAULT_CURRENCY,
                 "shop_name": settings.OSCAR_SHOP_NAME,
                 "static_base_url": getattr(settings, "OSCAR_STATIC_BASE_URL", ""),
