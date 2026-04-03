@@ -1,0 +1,83 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Banner Images" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans "Banner Images" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{% trans "Banner Images" %}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="table-header">
+        <a href="{% url 'dashboard-banner:banner-create' %}" class="btn btn-primary float-right">
+            <i class="fas fa-plus"></i> {% trans "Add Banner Image" %}
+        </a>
+        <h3>{% trans "Banner List" %}</h3>
+    </div>
+
+    {% if banners %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>{% trans "Preview" %}</th>
+                    <th>{% trans "Order" %}</th>
+                    <th>{% trans "Product" %}</th>
+                    <th>{% trans "Event" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for banner in banners %}
+                    <tr>
+                        <td>
+                            <img src="{{ banner.image.url }}" alt="Banner {{ banner.pk }}"
+                                 style="height: 60px; object-fit: cover; border-radius: 4px;">
+                        </td>
+                        <td>{{ banner.order }}</td>
+                        <td>
+                            {% if banner.show_on_product %}
+                                <span class="badge badge-success">{% trans "Yes" %}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{% trans "No" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if banner.show_on_event %}
+                                <span class="badge badge-success">{% trans "Yes" %}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{% trans "No" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'dashboard-banner:banner-update' pk=banner.pk %}" class="btn btn-primary btn-sm">
+                                    {% trans "Edit" %}
+                                </a>
+                                <a href="{% url 'dashboard-banner:banner-delete' pk=banner.pk %}" class="btn btn-danger btn-sm">
+                                    {% trans "Delete" %}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{% trans "No banner images found." %}</p>
+    {% endif %}
+
+    {% include 'oscar/dashboard/partials/pagination.html' %}
+{% endblock dashboard_content %}

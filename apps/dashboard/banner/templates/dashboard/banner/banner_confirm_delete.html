@@ -1,0 +1,40 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Delete Banner Image" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'dashboard-banner:banner-list' %}">{% trans "Banner Images" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans "Delete" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{% trans "Delete Banner Image" %}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="card mb-4">
+        <div class="card-body">
+            {% if object.image %}
+                <img src="{{ object.image.url }}" alt="Banner to delete"
+                     style="max-height: 200px; max-width: 100%; object-fit: cover; border-radius: 4px; margin-bottom: 1rem;">
+            {% endif %}
+            <p>{% trans "Are you sure you want to delete this banner image? This action cannot be undone." %}</p>
+
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">{% trans "Yes, delete" %}</button>
+                <a href="{% url 'dashboard-banner:banner-list' %}" class="btn btn-secondary ml-2">{% trans "Cancel" %}</a>
+            </form>
+        </div>
+    </div>
+{% endblock dashboard_content %}

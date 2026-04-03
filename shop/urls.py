@@ -61,6 +61,10 @@ urlpatterns = [
         include("apps.dashboard.faq.urls", namespace="dashboard-faq"),
     ),
     path(
+        "dashboard/banner/",
+        include("apps.dashboard.banner.urls", namespace="dashboard-banner"),
+    ),
+    path(
         "contact/",
         ContactFormView.as_view(form_class=ContactForm),
         name="django_contact_form",

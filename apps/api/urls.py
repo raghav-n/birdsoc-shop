@@ -40,6 +40,7 @@ from apps.api.views.checkout import (
 )
 from apps.api.views.payments import PayNowGmailCheckView
 from apps.api.views.forms import FormSubmissionView, FormSchemaView
+from apps.api.views.banners import BannerListView, TextBannerView
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -66,6 +67,8 @@ urlpatterns = [
     path("config", ConfigView.as_view(), name="config"),
     path("contact", ContactFormAPIView.as_view(), name="contact"),
     path("faq", FAQListView.as_view(), name="faq-list"),
+    path("banners", BannerListView.as_view(), name="banner-list"),
+    path("banners/text", TextBannerView.as_view(), name="banner-text"),
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
     path(
         "checkout/shipping-methods",

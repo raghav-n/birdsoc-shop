@@ -104,6 +104,9 @@ ALLOWED_HOSTS = [
     "shop.birdsociety.sg",
 ]
 
+if not SESSION_ENVIRONMENT_PRODUCTION:
+    ALLOWED_HOSTS += [".ngrok-free.app"]
+
 OSCAR_STATIC_BASE_URL = "https://shop.birdsociety.sg/"
 SOCIETY_HOME_PAGE = "https://birdsociety.sg/"
 
@@ -162,6 +165,8 @@ INSTALLED_APPS = [
     "apps.dashboard.form.apps.FormDashboardConfig",  # Forms dashboard
     "apps.faq.apps.FAQConfig",
     "apps.dashboard.faq.apps.FAQDashboardConfig",
+    "apps.banner.apps.BannerConfig",
+    "apps.dashboard.banner.apps.BannerDashboardConfig",
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",
     "apps.dashboard.orders.apps.OrdersDashboardConfig",
     "oscar.apps.analytics.apps.AnalyticsConfig",
@@ -738,6 +743,23 @@ OSCAR_DASHBOARD_NAVIGATION = [
         "label": _("Forms"),
         "icon": "fas fa-clipboard-list",
         "url_name": "dashboard-form:form-list",
+        "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+    },
+    {
+        "label": _("Banner"),
+        "icon": "fas fa-image",
+        "children": [
+            {
+                "label": _("Text"),
+                "url_name": "dashboard-banner:banner-text",
+                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+            },
+            {
+                "label": _("Images"),
+                "url_name": "dashboard-banner:banner-list",
+                "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
+            },
+        ],
         "access_fn": lambda user, _url_name, _url_args, _url_kwargs: user.is_staff,
     },
 ]
