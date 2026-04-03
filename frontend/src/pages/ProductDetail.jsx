@@ -10,6 +10,7 @@ import Alert from '../components/Alert';
 import SafeHtml from '../components/SafeHtml';
 import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency, getImageUrl, isProductInStock, getStockStatus } from '../utils/helpers';
+import { trackViewItem, trackAddToCart } from '../utils/analytics';
 
 const ProductContainer = styled.div`
   max-width: 1200px;
@@ -458,7 +459,11 @@ const ProductDetail = () => {
         const productData = await catalogueService.getProduct(id);
         setProduct(productData);
         if (productData.structure === 'parent' && productData.children?.length > 0) {
-          setSelectedChildId(pickDefaultChild(productData.children)?.id);
+          const defaultChild = pickDefaultChild(productData.children);
+          setSelectedChildId(defaultChild?.id);
+          trackViewItem(productData, defaultChild);
+        } else {
+          trackViewItem(productData);
         }
       } catch (err) {
         setError('Failed to load product details');
@@ -475,7 +480,10 @@ const ProductDetail = () => {
     if (!cartProductId) return;
 
     setAddingToCart(true);
-    await addToCart(cartProductId, quantity);
+    const result = await addToCart(cartProductId, quantity);
+    if (result?.success) {
+      trackAddToCart(product, selectedChild, quantity, displayPrice);
+    }
     setAddingToCart(false);
   };
 

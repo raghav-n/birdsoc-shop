@@ -9,6 +9,7 @@ import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency } from '../utils/helpers';
+import { trackRemoveFromCart } from '../utils/analytics';
 
 const CartContainer = styled.div`
   max-width: 1200px;
@@ -252,8 +253,9 @@ const Cart = () => {
     await updateCartLine(lineId, newQuantity);
   };
 
-  const handleRemoveItem = async (lineId) => {
-    await removeFromCart(lineId);
+  const handleRemoveItem = async (line) => {
+    trackRemoveFromCart(line);
+    await removeFromCart(line.id);
   };
 
   const handleVoucherSubmit = async (e) => {
@@ -359,7 +361,7 @@ const Cart = () => {
                   </QuantityButton>
                 </QuantityControls>
 
-                <RemoveButton onClick={() => handleRemoveItem(item.id)}>
+                <RemoveButton onClick={() => handleRemoveItem(item)}>
                   <Trash2 size={16} />
                 </RemoveButton>
               </ItemControls>

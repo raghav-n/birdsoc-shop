@@ -13,6 +13,7 @@ import PayNowQR from '../components/PayNowQR';
 import SafeHtml from '../components/SafeHtml';
 import { sanitizeText } from '../utils/safeContent';
 import { formatCurrency } from '../utils/helpers';
+import { trackBeginCheckout, trackPurchase } from '../utils/analytics';
 import toast from 'react-hot-toast';
 
 const CheckoutContainer = styled.div`
@@ -412,6 +413,7 @@ const Checkout = () => {
     }
 
     loadShippingMethods();
+    trackBeginCheckout(cart);
   }, [cart, navigate, isAuthenticated, authLoading, cartLoading]);
 
   useEffect(() => {
@@ -563,6 +565,7 @@ const Checkout = () => {
         };
 
         const order = await checkoutService.placeOrder(orderData);
+        trackPurchase(order.number, totalWithDonation, cartItems, shippingCost);
         clearCart();
         toast.success('Order placed successfully!');
         navigate('/order-success', {

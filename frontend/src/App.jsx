@@ -27,10 +27,17 @@ import EventDetail from './pages/EventDetail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
+import { trackPageView } from './utils/analytics';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   React.useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+};
+
+const PageViewTracker = () => {
+  const { pathname } = useLocation();
+  React.useEffect(() => { trackPageView(pathname); }, [pathname]);
   return null;
 };
 
@@ -55,6 +62,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <ScrollToTop />
+        <PageViewTracker />
         <GlobalStyle />
         <ShopConfigProvider>
         <AuthProvider>
