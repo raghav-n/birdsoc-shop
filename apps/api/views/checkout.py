@@ -21,6 +21,7 @@ DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
 OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
 OrderPlacementMixin = get_class("checkout.mixins", "OrderPlacementMixin")
 Selector = get_class("partner.strategy", "Selector")
+Applicator = get_class("offer.applicator", "Applicator")
 
 
 class PayNowProofUploadView(APIView):
@@ -185,8 +186,9 @@ class PlaceOrderView(APIView):
                 {"detail": "Basket not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        # Assign pricing strategy for accurate totals
+        # Assign pricing strategy and apply offers/vouchers for accurate totals
         basket.strategy = Selector().strategy(request=request)
+        Applicator().apply(basket, request.user, request)
 
         if basket.is_empty:
             return Response(
@@ -219,14 +221,10 @@ class PlaceOrderView(APIView):
                 donation = cached.get("donation", 0)
         else:
             upload = request.FILES.get("payment_proof")
-            if not upload:
-                return Response(
-                    {"detail": "Provide either temp_key or payment_proof"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            ext = os.path.splitext(upload.name)[1]
-            temp_name = f"payments/temp/{uuid.uuid4()}{ext}"
-            payment_file_path = default_storage.save(temp_name, upload)
+            if upload:
+                ext = os.path.splitext(upload.name)[1]
+                temp_name = f"payments/temp/{uuid.uuid4()}{ext}"
+                payment_file_path = default_storage.save(temp_name, upload)
             reference = (
                 f"{settings.ORDER_PREFIX}{settings.BASE_ORDER_NUMBER + int(basket.id)}"
             )
@@ -262,32 +260,12 @@ class PlaceOrderView(APIView):
             basket, shipping_charge
         )
 
-        # Prepare payment source with PayNow reference and proof
-        source_type, _ = SourceType._default_manager.get_or_create(name="PayNow")
-        order_payment_source = Source(source_type=source_type)
-        order_payment_source.reference = reference
-
-        # Attach payment proof file
-        try:
-            filename = os.path.basename(payment_file_path)
-            with default_storage.open(payment_file_path, "rb") as fh:
-                content = fh.read()
-            order_payment_source.payment_proof.save(
-                filename, ContentFile(content), save=False
-            )
-        except Exception:
-            return Response(
-                {"detail": "Unable to read payment proof"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         # Compute amount debited
         if donation is None:
             donation = 0
         total_with_donation = (order_total.incl_tax or order_total.excl_tax) + Decimal(
             donation
         )
-        order_payment_source.amount_debited = total_with_donation
 
         # Place order using OrderPlacementMixin
         class ApiOrderPlacer(OrderPlacementMixin):
@@ -295,10 +273,34 @@ class PlaceOrderView(APIView):
                 self.request = request
 
         placer = ApiOrderPlacer(request)
-        placer.add_payment_source(order_payment_source)
-        placer.add_payment_event(
-            "paynow-processing", total_with_donation, reference=reference
-        )
+
+        if payment_file_path:
+            # Prepare payment source with PayNow reference and proof
+            source_type, _ = SourceType._default_manager.get_or_create(name="PayNow")
+            order_payment_source = Source(source_type=source_type)
+            order_payment_source.reference = reference
+            try:
+                filename = os.path.basename(payment_file_path)
+                with default_storage.open(payment_file_path, "rb") as fh:
+                    content = fh.read()
+                order_payment_source.payment_proof.save(
+                    filename, ContentFile(content), save=False
+                )
+            except Exception:
+                return Response(
+                    {"detail": "Unable to read payment proof"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            order_payment_source.amount_debited = total_with_donation
+            placer.add_payment_source(order_payment_source)
+            placer.add_payment_event(
+                "paynow-processing", total_with_donation, reference=reference
+            )
+        elif total_with_donation > 0:
+            return Response(
+                {"detail": "Payment proof is required for non-zero orders"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             order_number = placer.generate_order_number(basket)

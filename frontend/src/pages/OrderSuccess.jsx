@@ -152,19 +152,10 @@ const OrderSuccess = () => {
           
           <StepsList>
             <Step>
-              <strong>1. Order Confirmation:</strong> You'll receive an email confirmation within a few minutes.
+              <strong>1. Order Confirmation:</strong> We'll verify your payment and send you an order confirmation email.
             </Step>
             <Step>
-              <strong>2. Payment Verification:</strong> We'll verify your PayNow payment proof.
-            </Step>
-            <Step>
-              <strong>3. Order Processing:</strong> Once verified, we'll prepare your items for shipping.
-            </Step>
-            <Step>
-              <strong>4. Shipping:</strong> You'll receive a tracking number when your order ships.
-            </Step>
-            <Step>
-              <strong>5. Delivery:</strong> Estimated delivery is 3-5 business days.
+              <strong>2. Collection:</strong> Collect your order. Details are available in our <Link to="/faq">FAQ</Link> page.
             </Step>
           </StepsList>
         </NextSteps>

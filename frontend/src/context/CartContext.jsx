@@ -156,7 +156,7 @@ export const CartProvider = ({ children }) => {
   // Clear cart (typically after successful order)
   const clearCart = () => {
     setCart(null);
-    tokenManager.removeCartId();
+    tokenManager.clearCartId();
   };
 
   // Initialize cart when component mounts or auth state changes

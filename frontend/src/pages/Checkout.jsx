@@ -527,29 +527,39 @@ const Checkout = () => {
         toast.error('Failed to save shipping address');
       }
     } else if (step === 4) {
-      // Payment step - upload proof and place order
-      if (!paymentFile) {
+      const _subtotal = cart?.total_excl_tax || 0;
+      const _method = shippingMethods.find(m => m.code === selectedShippingMethod);
+      const _shippingCost = _method ? (_method.is_self_collect ? 0 : parseFloat(_method.price) || 0) : 0;
+      const isFreeOrder = _subtotal + _shippingCost === 0;
+      const needsPayment = !isFreeOrder || donation > 0;
+
+      if (needsPayment && !paymentFile) {
         toast.error('Please upload payment proof');
         return;
       }
 
       setLoading(true);
       try {
-        // Upload proof
-        const formData = new FormData();
-        formData.append('payment_proof', paymentFile);
-        formData.append('basket_id', cart.id);
-        formData.append('donation', donation.toString());
+        let tempKey = null;
 
-        const response = await checkoutService.uploadPayNowProof(formData);
-        setOrderReference(response.reference);
+        if (needsPayment) {
+          // Upload proof
+          const formData = new FormData();
+          formData.append('payment_proof', paymentFile);
+          formData.append('basket_id', cart.id);
+          formData.append('donation', donation.toString());
 
-        // Place order immediately
+          const response = await checkoutService.uploadPayNowProof(formData);
+          setOrderReference(response.reference);
+          tempKey = response.temp_key;
+        }
+
+        // Place order
         const orderData = {
           basket_id: cart.id,
-          temp_key: response.temp_key,
           shipping_method_code: selectedShippingMethod,
           donation: donation,
+          ...(tempKey ? { temp_key: tempKey } : {}),
         };
 
         const order = await checkoutService.placeOrder(orderData);
@@ -828,142 +838,162 @@ const Checkout = () => {
             
             {currentStep >= 4 && (
               <StepContent>
-                <Alert variant="info" style={{ marginBottom: '1rem' }}>
-                  For now, we only accept payment via PayNow – either via QR code or UEN number.
-                </Alert>
+                {(() => {
+                  const isFreeOrder = subtotal + shippingCost === 0;
+                  const needsPayment = !isFreeOrder || donation > 0;
+                  return (
+                    <>
+                      {needsPayment && (
+                        <Alert variant="info" style={{ marginBottom: '1rem' }}>
+                          For now, we only accept payment via PayNow – either via QR code or UEN number.
+                        </Alert>
+                      )}
 
-                <PaymentLayout>
-                  <DonationSection>
-                    <SafeHtml
-                      html="<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
-                      tag="h4"
-                      style={{
-                        margin: '0 0 1rem 0',
-                        fontSize: '1.125rem',
-                        color: 'var(--dark)'
-                      }}
-                    />
-                    <SafeHtml
-                      html="<span style='color: #17a2b8; font-weight: 600;'>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
-                      tag="p"
-                      style={{
-                        margin: '0 0 1rem 0',
-                        fontSize: '0.9rem'
-                      }}
-                    />
-                    <DonationOptions>
-                      <DonationOption
-                        type="button"
-                        selected={donation === 0}
-                        onClick={() => {
-                          setDonation(0);
-                          setValue('donationType', '0');
-                          setCustomDonation('');
-                        }}
-                      >
-                        $0
-                      </DonationOption>
-                      <DonationOption
-                        type="button"
-                        selected={donation === 5}
-                        onClick={() => {
-                          setDonation(5);
-                          setValue('donationType', '5');
-                          setCustomDonation('');
-                        }}
-                      >
-                        $5
-                      </DonationOption>
-                      <DonationOption
-                        type="button"
-                        selected={donation === 10}
-                        onClick={() => {
-                          setDonation(10);
-                          setValue('donationType', '10');
-                          setCustomDonation('');
-                        }}
-                      >
-                        $10
-                      </DonationOption>
-                      <DonationOption
-                        type="button"
-                        selected={donation === 20}
-                        onClick={() => {
-                          setDonation(20);
-                          setValue('donationType', '20');
-                          setCustomDonation('');
-                        }}
-                      >
-                        $20
-                      </DonationOption>
-                    </DonationOptions>
+                      <PaymentLayout>
+                        <DonationSection>
+                          <SafeHtml
+                            html="<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
+                            tag="h4"
+                            style={{
+                              margin: '0 0 1rem 0',
+                              fontSize: '1.125rem',
+                              color: 'var(--dark)'
+                            }}
+                          />
+                          <SafeHtml
+                            html="<span style='color: #17a2b8; font-weight: 600;'>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
+                            tag="p"
+                            style={{
+                              margin: '0 0 1rem 0',
+                              fontSize: '0.9rem'
+                            }}
+                          />
+                          <DonationOptions>
+                            <DonationOption
+                              type="button"
+                              selected={donation === 0}
+                              onClick={() => {
+                                setDonation(0);
+                                setValue('donationType', '0');
+                                setCustomDonation('');
+                              }}
+                            >
+                              $0
+                            </DonationOption>
+                            <DonationOption
+                              type="button"
+                              selected={donation === 5}
+                              onClick={() => {
+                                setDonation(5);
+                                setValue('donationType', '5');
+                                setCustomDonation('');
+                              }}
+                            >
+                              $5
+                            </DonationOption>
+                            <DonationOption
+                              type="button"
+                              selected={donation === 10}
+                              onClick={() => {
+                                setDonation(10);
+                                setValue('donationType', '10');
+                                setCustomDonation('');
+                              }}
+                            >
+                              $10
+                            </DonationOption>
+                            <DonationOption
+                              type="button"
+                              selected={donation === 20}
+                              onClick={() => {
+                                setDonation(20);
+                                setValue('donationType', '20');
+                                setCustomDonation('');
+                              }}
+                            >
+                              $20
+                            </DonationOption>
+                          </DonationOptions>
 
-                    <FormGroup style={{ margin: 0 }}>
-                      <Label htmlFor="customDonation">Custom amount</Label>
-                      <Input
-                        id="customDonation"
-                        type="number"
-                        min="0"
-                        placeholder="Enter custom amount"
-                        value={customDonation}
-                        onChange={handleDonationAmountChange}
-                      />
-                    </FormGroup>
-                  </DonationSection>
+                          <FormGroup style={{ margin: 0 }}>
+                            <Label htmlFor="customDonation">Custom amount</Label>
+                            <Input
+                              id="customDonation"
+                              type="number"
+                              min="0"
+                              placeholder="Enter custom amount"
+                              value={customDonation}
+                              onChange={handleDonationAmountChange}
+                            />
+                          </FormGroup>
+                        </DonationSection>
 
-                  <PayNowQR
-                    amount={subtotal + shippingCost}
-                    referenceId={orderReference}
-                    donation={donation}
-                  />
-                </PaymentLayout>
+                        {needsPayment && (
+                          <PayNowQR
+                            amount={subtotal + shippingCost}
+                            referenceId={orderReference}
+                            donation={donation}
+                          />
+                        )}
+                      </PaymentLayout>
 
-                <FileUploadArea
-                  dragOver={dragOver}
-                  hasFile={!!paymentFile}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(true);
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleFileDrop}
-                  onClick={() => document.getElementById('payment-file-input').click()}
-                >
-                  <FileUploadIcon>
-                    {paymentFile ? <CheckCircle color="var(--success)" /> : <Upload />}
-                  </FileUploadIcon>
-                  <FileUploadText>
-                    {paymentFile ? 'Payment proof uploaded' : 'Click to upload or drag and drop payment proof'}
-                  </FileUploadText>
-                  <FileUploadSubtext>
-                    PNG, JPG up to 10MB
-                  </FileUploadSubtext>
-                </FileUploadArea>
+                      {needsPayment && (
+                        <>
+                          <FileUploadArea
+                            dragOver={dragOver}
+                            hasFile={!!paymentFile}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setDragOver(true);
+                            }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={handleFileDrop}
+                            onClick={() => document.getElementById('payment-file-input').click()}
+                          >
+                            <FileUploadIcon>
+                              {paymentFile ? <CheckCircle color="var(--success)" /> : <Upload />}
+                            </FileUploadIcon>
+                            <FileUploadText>
+                              {paymentFile ? 'Payment proof uploaded' : 'Click to upload or drag and drop payment proof'}
+                            </FileUploadText>
+                            <FileUploadSubtext>
+                              PNG, JPG up to 10MB
+                            </FileUploadSubtext>
+                          </FileUploadArea>
 
-                <HiddenFileInput
-                  id="payment-file-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileInputChange}
-                />
+                          <HiddenFileInput
+                            id="payment-file-input"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileInputChange}
+                          />
 
-                {paymentFile && (
-                  <SelectedFile>
-                    <CheckCircle size={16} color="var(--success)" />
-                    <span>{sanitizeText(paymentFile.name)}</span>
-                  </SelectedFile>
-                )}
+                          {paymentFile && (
+                            <SelectedFile>
+                              <CheckCircle size={16} color="var(--success)" />
+                              <span>{sanitizeText(paymentFile.name)}</span>
+                            </SelectedFile>
+                          )}
+                        </>
+                      )}
 
-                {currentStep === 4 && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <Button
-                      onClick={() => handleStepComplete(4)}
-                      disabled={!paymentFile || loading}
-                    >
-                      {loading ? 'Placing Order...' : 'Submit Payment Proof & Place Order'}
-                    </Button>
-                  </div>
-                )}
+                      {currentStep === 4 && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <Button
+                            onClick={() => handleStepComplete(4)}
+                            disabled={(needsPayment && !paymentFile) || loading}
+                          >
+                            {loading
+                              ? 'Placing Order...'
+                              : needsPayment
+                              ? 'Submit Payment Proof & Place Order'
+                              : 'Place Order'}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </StepContent>
             )}
           </Step>

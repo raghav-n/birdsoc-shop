@@ -376,7 +376,7 @@ const OrderDetail = () => {
           </Section>
 
           {/* Shipping Information */}
-          <Section>
+          {/* <Section>
             <SectionTitle>
               <Truck size={20} />
               Shipping Information
@@ -423,7 +423,7 @@ const OrderDetail = () => {
                 }
               </InfoValue>
             </InfoRow>
-          </Section>
+          </Section> */}
         </OrderContent>
 
         <OrderSidebar>

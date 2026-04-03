@@ -3,6 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.tokens import default_token_generator
@@ -70,6 +71,12 @@ class MeView(APIView):
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     # Use email instead of username
     username_field = "email"
+
+    def validate(self, attrs):
+        try:
+            return super().validate(attrs)
+        except Exception:
+            raise AuthenticationFailed("Incorrect email or password.")
 
 
 class EmailTokenObtainPairView(TokenObtainPairView):
