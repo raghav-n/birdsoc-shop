@@ -454,7 +454,7 @@ const Checkout = () => {
         },
       }).catch((err) => console.error('Failed to save pending checkout:', err));
     }
-  }, [currentStep, cart?.id]);
+  }, [currentStep, cart?.id, donation]);
 
   const loadShippingMethods = async () => {
     try {
