@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { ShoppingCart, Menu, X, Search, LogOut } from 'lucide-react';
+import { ShoppingCart, Menu, X, Search, LogOut, BarChart2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { Button } from '../styles/GlobalStyles';
@@ -240,6 +240,7 @@ const Header = () => {
           <NavLinks>
             <NavLink to="/products">Products</NavLink>
             <NavLink to="/events">Events</NavLink>
+            {user?.is_staff && <NavLink to="/analytics">Dashboard</NavLink>}
           </NavLinks>
 
           <UserActions>
@@ -301,6 +302,11 @@ const Header = () => {
           
           {isAuthenticated ? (
             <>
+              {user?.is_staff && (
+                <NavLink to="/analytics" onClick={closeMobileMenu} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <BarChart2 size={16} /> Dashboard
+                </NavLink>
+              )}
               <Button onClick={handleLogout} variant="secondary" fullWidth>
                 Logout
               </Button>

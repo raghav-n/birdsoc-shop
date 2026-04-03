@@ -1,6 +1,12 @@
 from django import forms
 from oscar.apps.dashboard.catalogue.forms import ProductForm as CoreProductForm
 from oscar.apps.dashboard.catalogue.forms import ProductImageForm as CoreProductImageForm
+from oscar.apps.dashboard.catalogue.forms import StockRecordForm as CoreStockRecordForm
+
+
+class StockRecordForm(CoreStockRecordForm):
+    class Meta(CoreStockRecordForm.Meta):
+        fields = CoreStockRecordForm.Meta.fields + ["cost_price"]
 
 
 class ProductForm(CoreProductForm):

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { GlobalStyle } from './styles/GlobalStyles';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ShopConfigProvider, useShopConfig } from './context/ShopConfigContext';
 import Layout from './components/Layout';
@@ -27,6 +27,7 @@ import EventDetail from './pages/EventDetail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
+import Dashboard from './pages/Dashboard';
 import { trackPageView } from './utils/analytics';
 
 const ScrollToTop = () => {
@@ -44,6 +45,13 @@ const PageViewTracker = () => {
 const ShopOpenOnly = ({ children }) => {
   const { shopOpen } = useShopConfig();
   if (!shopOpen) return <Navigate to="/" replace />;
+  return children;
+};
+
+const StaffOnly = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user?.is_staff) return <Navigate to="/" replace />;
   return children;
 };
 
@@ -86,6 +94,7 @@ function App() {
                 <Route path="/refund" element={<Refund />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="/analytics" element={<StaffOnly><Dashboard /></StaffOnly>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
