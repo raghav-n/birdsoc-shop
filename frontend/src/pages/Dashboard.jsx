@@ -19,7 +19,38 @@ const PageTitle = styled.h1`
 
 const PageSubtitle = styled.p`
   color: #666;
+  margin-bottom: 1.25rem;
+`;
+
+const FilterRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
+`;
+
+const FilterLabel = styled.span`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+  margin-right: 0.25rem;
+`;
+
+const PartnerBadge = styled.button`
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 2px solid ${props => props.$active ? 'var(--link-text)' : '#ddd'};
+  background: ${props => props.$active ? 'var(--link-text)' : 'white'};
+  color: ${props => props.$active ? 'white' : '#555'};
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  &:hover {
+    border-color: var(--link-text);
+    color: ${props => props.$active ? 'white' : 'var(--link-text)'};
+  }
 `;
 
 const SummaryGrid = styled.div`
@@ -99,7 +130,6 @@ const Th = styled.th`
   white-space: nowrap;
   cursor: ${props => props.$sortable ? 'pointer' : 'default'};
   user-select: none;
-
   &:hover {
     color: ${props => props.$sortable ? 'var(--link-text)' : '#555'};
   }
@@ -159,6 +189,12 @@ const NoCostNote = styled.div`
   margin-bottom: 1rem;
 `;
 
+const MonthlyNote = styled.div`
+  font-size: 0.8rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+`;
+
 const formatSGD = (val) => {
   if (val == null) return '—';
   return `$${parseFloat(val).toFixed(2)}`;
@@ -166,12 +202,15 @@ const formatSGD = (val) => {
 
 const SORT_KEYS = ['revenue', 'cost', 'profit', 'margin', 'units_sold'];
 
+const sum = (arr, key) => arr.reduce((acc, x) => acc + parseFloat(x[key] ?? 0), 0);
+
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortKey, setSortKey] = useState('revenue');
   const [sortDir, setSortDir] = useState('desc');
+  const [selectedPartners, setSelectedPartners] = useState(new Set());
 
   useEffect(() => {
     dashboardService.getAnalytics()
@@ -183,9 +222,30 @@ const Dashboard = () => {
   if (loading) return <Loading text="Loading dashboard..." />;
   if (error) return <Container><p style={{ color: 'var(--danger)' }}>{error}</p></Container>;
 
-  const { summary, by_product, by_month } = data;
-  const hasAnyCost = by_product.some(p => p.cost != null);
-  const missingCostCount = by_product.filter(p => p.cost == null).length;
+  const { partners, by_product, by_month } = data;
+  const isFiltered = selectedPartners.size > 0;
+
+  const togglePartner = (name) => {
+    setSelectedPartners(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
+
+  const filteredProducts = isFiltered
+    ? by_product.filter(p => selectedPartners.has(p.partner))
+    : by_product;
+
+  // Recompute summary from filtered products
+  const filtRevenue = sum(filteredProducts, 'revenue');
+  const filtCost = sum(filteredProducts.filter(p => p.cost != null), 'cost');
+  const filtProfit = filtRevenue - filtCost;
+  const filtMargin = filtRevenue > 0 ? (filtProfit / filtRevenue * 100) : 0;
+  const filtOrders = isFiltered ? '—' : data.summary.total_orders;
+
+  const hasAnyCost = filteredProducts.some(p => p.cost != null);
+  const missingCostCount = filteredProducts.filter(p => p.cost == null).length;
 
   const handleSort = (key) => {
     if (!SORT_KEYS.includes(key)) return;
@@ -197,7 +257,7 @@ const Dashboard = () => {
     }
   };
 
-  const sortedProducts = [...by_product].sort((a, b) => {
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
     const av = parseFloat(a[sortKey] ?? -Infinity);
     const bv = parseFloat(b[sortKey] ?? -Infinity);
     return sortDir === 'desc' ? bv - av : av - bv;
@@ -210,18 +270,41 @@ const Dashboard = () => {
       <PageTitle>Sales Dashboard</PageTitle>
       <PageSubtitle>All-time revenue, cost, and profit across orders.</PageSubtitle>
 
+      {/* Partner filter */}
+      {partners.length > 1 && (
+        <FilterRow>
+          <FilterLabel>Partner:</FilterLabel>
+          <PartnerBadge
+            $active={!isFiltered}
+            onClick={() => setSelectedPartners(new Set())}
+          >
+            All
+          </PartnerBadge>
+          {partners.map(name => (
+            <PartnerBadge
+              key={name}
+              $active={selectedPartners.has(name)}
+              onClick={() => togglePartner(name)}
+            >
+              {name}
+            </PartnerBadge>
+          ))}
+        </FilterRow>
+      )}
+
       {/* Summary cards */}
       <SummaryGrid>
         <StatCard>
           <StatIcon $bg="#f0f4ff" $color="var(--link-text)"><ShoppingBag size={20} /></StatIcon>
           <StatLabel>Total Orders</StatLabel>
-          <StatValue>{summary.total_orders}</StatValue>
+          <StatValue>{filtOrders}</StatValue>
+          {isFiltered && <StatSub>n/a when filtering by partner</StatSub>}
         </StatCard>
 
         <StatCard>
           <StatIcon $bg="#f0fdf4" $color="#16a34a"><DollarSign size={20} /></StatIcon>
           <StatLabel>Total Revenue</StatLabel>
-          <StatValue>{formatSGD(summary.total_revenue)}</StatValue>
+          <StatValue>{formatSGD(filtRevenue)}</StatValue>
           <StatSub>SGD, incl. tax</StatSub>
         </StatCard>
 
@@ -229,7 +312,7 @@ const Dashboard = () => {
           <StatIcon $bg="#fff7ed" $color="#d97706"><TrendingDown size={20} /></StatIcon>
           <StatLabel>Total Cost</StatLabel>
           <StatValue $color={hasAnyCost ? 'var(--dark)' : '#bbb'}>
-            {hasAnyCost ? formatSGD(summary.total_cost) : '—'}
+            {hasAnyCost ? formatSGD(filtCost) : '—'}
           </StatValue>
           {!hasAnyCost && <StatSub>Enter cost prices to see this</StatSub>}
         </StatCard>
@@ -237,13 +320,13 @@ const Dashboard = () => {
         <StatCard>
           <StatIcon $bg="#f0fdf4" $color="#16a34a"><TrendingUp size={20} /></StatIcon>
           <StatLabel>Total Profit</StatLabel>
-          <StatValue $color={hasAnyCost ? (parseFloat(summary.total_profit) >= 0 ? '#16a34a' : '#dc2626') : '#bbb'}>
-            {hasAnyCost ? formatSGD(summary.total_profit) : '—'}
+          <StatValue $color={hasAnyCost ? (filtProfit >= 0 ? '#16a34a' : '#dc2626') : '#bbb'}>
+            {hasAnyCost ? formatSGD(filtProfit) : '—'}
           </StatValue>
           {hasAnyCost && (
             <StatSub>
               <BarChart2 size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
-              {summary.profit_margin}% margin
+              {filtMargin.toFixed(1)}% margin
             </StatSub>
           )}
         </StatCard>
@@ -264,6 +347,7 @@ const Dashboard = () => {
               <thead>
                 <tr>
                   <Th>Product</Th>
+                  {!isFiltered && <Th>Partner</Th>}
                   <Th $right $sortable onClick={() => handleSort('units_sold')}>Units{sortIndicator('units_sold')}</Th>
                   <Th $right $sortable onClick={() => handleSort('revenue')}>Revenue{sortIndicator('revenue')}</Th>
                   <Th $right $sortable onClick={() => handleSort('cost')}>Cost{sortIndicator('cost')}</Th>
@@ -278,6 +362,7 @@ const Dashboard = () => {
                   return (
                     <Tr key={p.product_id}>
                       <Td>{p.title}</Td>
+                      {!isFiltered && <Td $muted>{p.partner}</Td>}
                       <Td $right>{p.units_sold}</Td>
                       <Td $right $bold>{formatSGD(p.revenue)}</Td>
                       <Td $right>{p.cost != null ? formatSGD(p.cost) : <NoCostBadge>no cost</NoCostBadge>}</Td>
@@ -308,6 +393,9 @@ const Dashboard = () => {
       {/* By month */}
       <Section>
         <SectionTitle>By Month</SectionTitle>
+        {isFiltered && (
+          <MonthlyNote>Monthly totals are across all partners.</MonthlyNote>
+        )}
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           <Table>
             <StyledTable>
@@ -323,15 +411,14 @@ const Dashboard = () => {
               <tbody>
                 {[...by_month].reverse().map(m => {
                   const profit = parseFloat(m.profit);
-                  const hasCost = hasAnyCost;
                   return (
                     <Tr key={m.month}>
                       <Td $bold>{m.month}</Td>
                       <Td $right>{m.orders}</Td>
                       <Td $right $bold>{formatSGD(m.revenue)}</Td>
-                      <Td $right $muted={!hasCost}>{hasCost ? formatSGD(m.cost) : '—'}</Td>
-                      <Td $right $positive={hasCost && profit >= 0} $negative={hasCost && profit < 0}>
-                        {hasCost ? formatSGD(m.profit) : '—'}
+                      <Td $right $muted={!hasAnyCost}>{hasAnyCost ? formatSGD(m.cost) : '—'}</Td>
+                      <Td $right $positive={hasAnyCost && profit >= 0} $negative={hasAnyCost && profit < 0}>
+                        {hasAnyCost ? formatSGD(m.profit) : '—'}
                       </Td>
                     </Tr>
                   );

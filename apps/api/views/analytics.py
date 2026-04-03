@@ -18,9 +18,12 @@ class AnalyticsDashboardView(APIView):
         # Build product_id -> cost_price map from StockRecords
         # (one per product; if multiple, take the first)
         cost_map = {}
-        for sr in StockRecord.objects.values("product_id", "cost_price"):
+        partner_map = {}
+        for sr in StockRecord.objects.values("product_id", "cost_price", "partner__name"):
             if sr["product_id"] not in cost_map:
                 cost_map[sr["product_id"]] = sr["cost_price"] or Decimal("0")
+            if sr["product_id"] not in partner_map:
+                partner_map[sr["product_id"]] = sr["partner__name"] or ""
 
         total_revenue = Decimal("0")
         total_cost = Decimal("0")
@@ -28,6 +31,7 @@ class AnalyticsDashboardView(APIView):
 
         by_product = defaultdict(lambda: {
             "title": "",
+            "partner": "",
             "units_sold": 0,
             "revenue": Decimal("0"),
             "cost": Decimal("0"),
@@ -55,6 +59,7 @@ class AnalyticsDashboardView(APIView):
             total_cost += line_cost
 
             by_product[pid]["title"] = title
+            by_product[pid]["partner"] = partner_map.get(pid, "")
             by_product[pid]["units_sold"] += line.quantity
             by_product[pid]["revenue"] += line_revenue
             by_product[pid]["cost"] += line_cost
@@ -74,6 +79,7 @@ class AnalyticsDashboardView(APIView):
             products_list.append({
                 "product_id": pid,
                 "title": data["title"],
+                "partner": data["partner"],
                 "units_sold": data["units_sold"],
                 "revenue": str(data["revenue"].quantize(Decimal("0.01"))),
                 "cost": str(data["cost"].quantize(Decimal("0.01"))) if data["has_cost"] else None,
@@ -93,7 +99,10 @@ class AnalyticsDashboardView(APIView):
                 "profit": str(profit.quantize(Decimal("0.01"))),
             })
 
+        partners = sorted({p["partner"] for p in products_list if p["partner"]})
+
         return Response({
+            "partners": partners,
             "summary": {
                 "total_orders": total_orders,
                 "total_revenue": str(total_revenue.quantize(Decimal("0.01"))),
