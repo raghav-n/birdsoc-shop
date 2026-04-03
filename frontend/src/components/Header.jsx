@@ -71,7 +71,18 @@ const NavLink = styled(Link)`
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
-  
+
+  &:hover {
+    color: var(--link-text);
+  }
+`;
+
+const ExternalNavLink = styled.a`
+  color: var(--header-text);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+
   &:hover {
     color: var(--link-text);
   }
@@ -241,6 +252,7 @@ const Header = () => {
             <NavLink to="/products">Products</NavLink>
             <NavLink to="/events">Events</NavLink>
             {user?.is_staff && <NavLink to="/analytics">Dashboard</NavLink>}
+            <ExternalNavLink href="https://birdsociety.sg" target="_blank" rel="noopener noreferrer">BirdSoc SG</ExternalNavLink>
           </NavLinks>
 
           <UserActions>
