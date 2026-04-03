@@ -547,7 +547,6 @@ const Checkout = () => {
           formData.append('donation', donation.toString());
 
           const response = await checkoutService.uploadPayNowProof(formData);
-          setOrderReference(response.reference);
           tempKey = response.temp_key;
         }
 
