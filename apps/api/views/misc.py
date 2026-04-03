@@ -19,6 +19,7 @@ class ConfigView(APIView):
         return Response(
             {
                 "shop_open": settings.SHOP_OPEN_PUBLIC,
+                "shop_open_internal": settings.SHOP_OPEN,
                 "currency": settings.OSCAR_DEFAULT_CURRENCY,
                 "shop_name": settings.OSCAR_SHOP_NAME,
                 "static_base_url": getattr(settings, "OSCAR_STATIC_BASE_URL", ""),

@@ -23,7 +23,7 @@ export const ShopConfigProvider = ({ children }) => {
       } catch (error) {
         console.error('Failed to fetch shop config:', error);
         // Default to open if config fetch fails
-        setConfig({ shop_open: true });
+        setConfig({ shop_open_internal: true });
       } finally {
         setLoading(false);
       }
@@ -31,7 +31,7 @@ export const ShopConfigProvider = ({ children }) => {
     fetchConfig();
   }, []);
 
-  const shopOpen = config?.shop_open ?? true;
+  const shopOpen = config?.shop_open_internal ?? true;
 
   return (
     <ShopConfigContext.Provider value={{ config, shopOpen, loading }}>
