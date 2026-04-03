@@ -327,10 +327,10 @@ const Cart = () => {
           {cartItems.map((item) => (
             <CartItem key={item.id}>
               <ItemImage>
-                {/* Note: You might want to add product image URL to the basket line response */}
-                <div style={{ color: '#666', fontSize: '0.8rem' }}>
-                  No Image
-                </div>
+                {item.product_image
+                  ? <img src={item.product_image} alt={sanitizeText(item.product_title)} />
+                  : <div style={{ color: '#666', fontSize: '0.8rem' }}>No Image</div>
+                }
               </ItemImage>
 
               <ItemInfo>

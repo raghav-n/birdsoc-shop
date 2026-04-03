@@ -137,9 +137,18 @@ class ProductSerializer(serializers.ModelSerializer):
                 url = img.original.url
             except Exception:
                 url = ""
+            thumbnail_url = None
+            if url:
+                try:
+                    from sorl.thumbnail import get_thumbnail
+                    thumb = get_thumbnail(img.original, "648", quality=85)
+                    thumbnail_url = thumb.url
+                except Exception:
+                    thumbnail_url = url
             results.append(
                 {
                     "original": url,
+                    "thumbnail": thumbnail_url,
                     "caption": img.caption or "",
                     "display_order": img.display_order or 0,
                     "focal_point_x": img.focal_point_x,
@@ -192,6 +201,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class BasketLineSerializer(serializers.ModelSerializer):
     product_title = serializers.CharField(source="product.title", read_only=True)
+    product_image = serializers.SerializerMethodField()
     unit_price_incl_tax = serializers.SerializerMethodField()
     line_price_incl_tax = serializers.SerializerMethodField()
 
@@ -201,11 +211,30 @@ class BasketLineSerializer(serializers.ModelSerializer):
             "id",
             "product_id",
             "product_title",
+            "product_image",
             "quantity",
             "unit_price_incl_tax",
             "line_price_incl_tax",
         ]
         read_only_fields = ["unit_price_incl_tax", "line_price_incl_tax"]
+
+    def get_product_image(self, obj: Line) -> str | None:
+        product = obj.product
+        # Child products usually don't have their own images; fall back to parent
+        target = product.parent if getattr(product, "parent_id", None) else product
+        img = target.images.order_by("display_order", "id").first()
+        if not img:
+            return None
+        try:
+            original = img.original
+            try:
+                from sorl.thumbnail import get_thumbnail
+                thumb = get_thumbnail(original, "320", quality=85)
+                return thumb.url
+            except Exception:
+                return original.url
+        except Exception:
+            return None
 
     def get_unit_price_incl_tax(self, obj: Line):
         if obj.unit_price_incl_tax is not None:

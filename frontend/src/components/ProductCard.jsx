@@ -191,7 +191,11 @@ const ProductCard = ({ product }) => {
         <ProductImage>
           {primaryImage ? (
             <img
-              src={getImageUrl(primaryImage.original)}
+              src={getImageUrl(primaryImage.thumbnail || primaryImage.original)}
+              srcSet={primaryImage.thumbnail && primaryImage.original
+                ? `${getImageUrl(primaryImage.thumbnail)} 648w, ${getImageUrl(primaryImage.original)} 1200w`
+                : undefined}
+              sizes="162px"
               alt={sanitizeText(primaryImage.caption || product.title)}
               style={{ objectPosition, transform: `scale(${zoom})` }}
               onLoad={handleImageLoad}
