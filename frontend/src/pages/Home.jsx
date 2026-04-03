@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { catalogueService } from '../services/catalogue';
 import CollectionSection from '../components/CollectionSection';
+import BannerGrid from '../components/BannerGrid';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 
@@ -80,6 +81,8 @@ const Home = () => {
     <>
       <Section>
         <Container>
+          <BannerGrid />
+
           {loading && <Loading text="Loading products..." />}
 
           {error && (

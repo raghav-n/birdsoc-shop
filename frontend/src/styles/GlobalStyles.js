@@ -18,6 +18,10 @@ export const GlobalStyle = createGlobalStyle`
     --info: #5c8f94;
   }
 
+  html {
+    overflow-x: hidden;
+  }
+
   * {
     box-sizing: border-box;
   }

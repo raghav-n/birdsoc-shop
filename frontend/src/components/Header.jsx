@@ -40,6 +40,20 @@ const RightSection = styled.div`
   display: flex;
   align-items: center;
   gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    gap: 0.5rem;
+  }
+`;
+
+const DesktopOnly = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const NavLinks = styled.div`
@@ -69,9 +83,9 @@ const SearchForm = styled.form`
   gap: 0.5rem;
   flex: 1;
   max-width: 400px;
-  
+
   @media (max-width: 768px) {
-    max-width: 200px;
+    display: none;
   }
 `;
 
@@ -237,20 +251,20 @@ const Header = () => {
             )}
 
             {isAuthenticated ? (
-              <>
+              <DesktopOnly>
                 <IconButton onClick={handleLogout}>
                   <LogOut size={18} />
                 </IconButton>
-              </>
+              </DesktopOnly>
             ) : shopOpen ? (
-              <>
+              <DesktopOnly>
                 <Button as={Link} to="/login" size="small" variant="secondary">
                   Login
                 </Button>
                 <Button as={Link} to="/register" size="small">
                   Register
                 </Button>
-              </>
+              </DesktopOnly>
             ) : null}
 
             <MobileMenu>

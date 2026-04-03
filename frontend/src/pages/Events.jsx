@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { Card, Badge, Button } from '../styles/GlobalStyles';
 import { eventService } from '../services/misc';
+import BannerGrid from '../components/BannerGrid';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import { Calendar, MapPin, Users } from 'lucide-react';
@@ -123,6 +124,8 @@ const Events = () => {
 
   return (
     <EventsContainer>
+      <BannerGrid type="event" />
+
       <EventsHeader>
         <EventsTitle>Events</EventsTitle>
         <EventsSubtitle>Upcoming events from Bird Society of Singapore</EventsSubtitle>

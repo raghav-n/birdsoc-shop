@@ -41,6 +41,18 @@ export const refundService = {
   },
 };
 
+export const bannerService = {
+  getBanners: async (type = null) => {
+    const params = type ? { type } : {};
+    const response = await api.get('/banners', { params });
+    return response.data;
+  },
+  getTextBanner: async () => {
+    const response = await api.get('/banners/text');
+    return response.data;
+  },
+};
+
 export const eventService = {
   // Get events
   getEvents: async () => {

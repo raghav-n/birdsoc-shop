@@ -5,6 +5,7 @@ import { Search, SlidersHorizontal } from 'lucide-react';
 import { catalogueService } from '../services/catalogue';
 import { Input, Button, FormGroup, Label } from '../styles/GlobalStyles';
 import CollectionSection from '../components/CollectionSection';
+import BannerGrid from '../components/BannerGrid';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import { sanitizeText } from '../utils/safeContent';
@@ -200,6 +201,8 @@ const Products = () => {
       <Header>
         <Title>Products</Title>
       </Header>
+
+      <BannerGrid type="product" />
 
       <FiltersSection>
         <FiltersHeader>

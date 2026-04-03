@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Header from './Header';
 import Footer from './Footer';
 import { useShopConfig } from '../context/ShopConfigContext';
+import { bannerService } from '../services/misc';
 
 const LayoutContainer = styled.div`
   min-height: 100vh;
@@ -25,12 +26,42 @@ const ClosedBanner = styled.div`
   font-size: 0.95rem;
 `;
 
+const TextBannerBar = styled.div`
+  background-color: var(--dark);
+  color: #fff;
+  text-align: center;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  img, video {
+    max-width: 100%;
+  }
+`;
+
 const Layout = ({ children }) => {
   const { shopOpen } = useShopConfig();
+  const [textBanner, setTextBanner] = useState(null);
+
+  useEffect(() => {
+    bannerService.getTextBanner().then((data) => {
+      if (data.is_active && data.text) setTextBanner(data.text);
+    }).catch(() => {});
+  }, []);
 
   return (
     <LayoutContainer>
       <Header />
+      {textBanner && (
+        <TextBannerBar dangerouslySetInnerHTML={{ __html: textBanner }} />
+      )}
       {!shopOpen && (
         <ClosedBanner>
           Our shop is currently closed. You can browse products, but purchases are unavailable right now.
