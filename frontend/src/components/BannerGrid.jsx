@@ -43,7 +43,14 @@ const BannerGrid = ({ type = null }) => {
     <Grid>
       {banners.map((banner) => (
         <BannerItem key={banner.id}>
-          <BannerImg src={banner.image} alt="" />
+          <BannerImg
+            src={banner.thumbnail || banner.image}
+            srcSet={banner.thumbnail && banner.image
+              ? `${banner.thumbnail} 900w, ${banner.image} 1800w`
+              : undefined}
+            sizes="(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw"
+            alt=""
+          />
         </BannerItem>
       ))}
     </Grid>

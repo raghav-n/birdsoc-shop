@@ -15,16 +15,26 @@ class BannerListView(APIView):
             qs = qs.filter(show_on_product=True)
         elif banner_type == "event":
             qs = qs.filter(show_on_event=True)
-        data = [
-            {
-                "id": b.id,
-                "image": request.build_absolute_uri(b.image.url),
-                "show_on_product": b.show_on_product,
-                "show_on_event": b.show_on_event,
-                "order": b.order,
-            }
-            for b in qs
-        ]
+        data = []
+        for b in qs:
+            original_url = request.build_absolute_uri(b.image.url)
+            thumbnail_url = None
+            try:
+                from sorl.thumbnail import get_thumbnail
+                thumb = get_thumbnail(b.image, "900", quality=85)
+                thumbnail_url = request.build_absolute_uri(thumb.url)
+            except Exception:
+                thumbnail_url = original_url
+            data.append(
+                {
+                    "id": b.id,
+                    "image": original_url,
+                    "thumbnail": thumbnail_url,
+                    "show_on_product": b.show_on_product,
+                    "show_on_event": b.show_on_event,
+                    "order": b.order,
+                }
+            )
         return Response(data)
 
 
