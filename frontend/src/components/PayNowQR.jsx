@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { Download } from 'lucide-react';
 import styled from 'styled-components';
 
 const QRContainer = styled.div`
@@ -23,6 +24,26 @@ const QRCanvasWrapper = styled.div`
   canvas {
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const SaveButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--link-text);
+    color: var(--link-text);
+    background: rgba(0, 0, 0, 0.02);
   }
 `;
 
@@ -140,6 +161,15 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
 
   const totalAmount = parseFloat(amount) + parseFloat(donation);
 
+  const handleSave = useCallback(() => {
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `paynow-${finalReferenceId}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, [finalReferenceId]);
+
   return (
     <QRContainer>
       <QRTitle>PayNow QR Code</QRTitle>
@@ -161,6 +191,10 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
           Scan this QR code with your banking app to make payment via PayNow
         </div>
       </PaymentInfo>
+      <SaveButton onClick={handleSave}>
+        <Download size={14} />
+        Save QR Code
+      </SaveButton>
     </QRContainer>
   );
 };
