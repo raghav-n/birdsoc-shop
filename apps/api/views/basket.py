@@ -222,10 +222,15 @@ class BasketApplyVoucherView(APIView):
                 {"detail": "Invalid voucher code"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Vouchers require an authenticated user (Oscar enforces this)
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "Please log in to apply a voucher", "requires_login": True},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         # Check availability
-        available, message = voucher.is_available_to_user(
-            user=request.user if request.user.is_authenticated else None
-        )
+        available, message = voucher.is_available_to_user(user=request.user)
         if not available:
             return Response(
                 {"detail": message or "Voucher unavailable"},

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
@@ -238,6 +238,15 @@ const Cart = () => {
   const [voucherCode, setVoucherCode] = useState('');
   const [applyingVoucher, setApplyingVoucher] = useState(false);
 
+  // Auto-apply a pending voucher after login redirect
+  useEffect(() => {
+    if (!isAuthenticated || !cart) return;
+    const pending = localStorage.getItem('pendingVoucherCode');
+    if (!pending) return;
+    localStorage.removeItem('pendingVoucherCode');
+    applyVoucher(pending);
+  }, [isAuthenticated, cart]);
+
   const handleQuantityChange = async (lineId, newQuantity) => {
     if (newQuantity < 1) return;
     await updateCartLine(lineId, newQuantity);
@@ -250,7 +259,13 @@ const Cart = () => {
   const handleVoucherSubmit = async (e) => {
     e.preventDefault();
     if (!voucherCode.trim()) return;
-    
+
+    if (!isAuthenticated) {
+      localStorage.setItem('pendingVoucherCode', voucherCode.trim());
+      navigate('/login', { state: { from: { pathname: '/cart' } } });
+      return;
+    }
+
     setApplyingVoucher(true);
     await applyVoucher(voucherCode);
     setApplyingVoucher(false);
@@ -277,7 +292,7 @@ const Cart = () => {
   const cartCount = getCartCount();
   const lineTotal = cartItems.reduce((sum, item) => sum + parseFloat(item.line_price_incl_tax || 0), 0);
   const discounts = cart?.offer_discounts || [];
-  const total = cart?.total_incl_tax || lineTotal;
+  const total = cart?.total_incl_tax ?? lineTotal;
 
   if (cartCount === 0) {
     return (

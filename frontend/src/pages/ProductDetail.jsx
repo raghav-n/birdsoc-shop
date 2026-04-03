@@ -204,6 +204,7 @@ const ProductTitle = styled.h1`
   font-weight: 700;
   margin-bottom: 1rem;
   color: var(--dark);
+  line-height: 1.15;
 `;
 
 const ProductDescription = styled.div`
