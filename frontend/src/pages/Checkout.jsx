@@ -373,10 +373,10 @@ const Checkout = () => {
   const [selectedShippingMethod, setSelectedShippingMethod] = useState('');
   const [isSelectedMethodSelfCollect, setIsSelectedMethodSelfCollect] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
-  const [orderReference, setOrderReference] = useState('');
+  const orderReference = cart?.id ? `MER-${100000 + parseInt(cart.id)}` : '';
   const [donation, setDonation] = useState(0);
   const [customDonation, setCustomDonation] = useState('');
-  const [dragOver, setDragOver] = useState(false);
+  const [dragOver, setDragOver] = useState(false);                    
 
   const {
     register,
@@ -425,15 +425,10 @@ const Checkout = () => {
     }
   }, [watchDonationType]);
 
-  // Generate order reference and save pending checkout when reaching payment step
+  // Save pending checkout when reaching payment step so the order is recorded
+  // even if the user makes payment but leaves before uploading proof
   useEffect(() => {
     if (currentStep === 4 && cart?.id) {
-      if (!orderReference) {
-        const properRef = `MER-${100000 + parseInt(cart.id)}`;
-        setOrderReference(properRef);
-      }
-      // Save pending checkout so the order is recorded even if user
-      // makes payment but leaves before uploading proof
       const cartItems = cart?.lines || [];
       const discountsList = cart?.offer_discounts || [];
       const cartSubtotal = cart?.total_excl_tax || 0;
