@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from rest_framework.test import APITestCase, APIClient
 from oscar.core.loading import get_model
 
@@ -90,3 +92,29 @@ class BasketExtraTests(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
+
+    def test_merge_uses_offer_aware_basket_serialization(self):
+        p = create_product(price=10)
+        guest_id = self.client.post("/api/v1/baskets").data["cart_id"]
+        self.client.post(
+            f"/api/v1/baskets/{guest_id}/lines",
+            {"product_id": p.id, "quantity": 1},
+            format="json",
+        )
+
+        client = APIClient()
+        auth_client(client)
+
+        with patch(
+            "apps.api.views.basket._serialize_basket",
+            return_value={"id": guest_id, "offer_discounts": [{"name": "Site Offer"}]},
+        ) as serialize_basket:
+            r = client.post(
+                "/api/v1/baskets/merge",
+                {"source_cart_id": guest_id},
+                format="json",
+            )
+
+        self.assertEqual(r.status_code, 200)
+        serialize_basket.assert_called_once()
+        self.assertEqual(r.data["offer_discounts"][0]["name"], "Site Offer")

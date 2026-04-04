@@ -299,4 +299,4 @@ class BasketMergeView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(BasketSerializer(target, context={"request": request}).data)
+        return Response(_serialize_basket(target, request))

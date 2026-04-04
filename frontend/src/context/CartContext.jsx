@@ -32,7 +32,8 @@ export const CartProvider = ({ children }) => {
         const guestCartId = tokenManager.getCartId();
         if (guestCartId) {
           try {
-            cartData = await basketService.mergeBaskets(guestCartId);
+            await basketService.mergeBaskets(guestCartId);
+            cartData = await basketService.getCurrentBasket();
           } catch (error) {
             // Merge failed (e.g. guest cart not found) — fall through to fetch normally
           }
