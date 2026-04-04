@@ -10,6 +10,8 @@ from oscar.core.loading import get_model
 Order = get_model("order", "Order")
 OrderLine = get_model("order", "Line")
 StockRecord = get_model("partner", "StockRecord")
+Product = get_model("catalogue", "Product")
+Category = get_model("catalogue", "Category")
 
 
 class AnalyticsDashboardView(APIView):
@@ -38,6 +40,29 @@ class AnalyticsDashboardView(APIView):
             if sr["product_id"] not in partner_map:
                 partner_map[sr["product_id"]] = sr["partner__name"] or ""
 
+        # Build maps to resolve child products to their parent
+        # parent_map: child_product_id -> parent_product_id
+        # title_map: product_id -> title
+        # category_map: product_id -> first category name
+        parent_map = {}
+        title_map = {}
+        category_map = {}
+
+        for p in Product.objects.filter(
+            structure__in=["standalone", "parent"]
+        ).prefetch_related("categories"):
+            title_map[p.id] = p.title
+            cats = list(p.categories.values_list("name", flat=True))
+            category_map[p.id] = cats[0] if cats else ""
+
+        for p in Product.objects.filter(structure="child").values("id", "parent_id"):
+            parent_map[p["id"]] = p["parent_id"]
+
+        # Ordered list of category names (same order as homepage/products page)
+        ordered_categories = list(
+            Category.objects.order_by("name").values_list("name", flat=True)
+        )
+
         total_revenue = Decimal("0")
         total_cost = Decimal("0")
 
@@ -51,6 +76,7 @@ class AnalyticsDashboardView(APIView):
         by_product = defaultdict(lambda: {
             "title": "",
             "partner": "",
+            "category": "",
             "units_sold": 0,
             "revenue": Decimal("0"),
             "cost": Decimal("0"),
@@ -69,20 +95,26 @@ class AnalyticsDashboardView(APIView):
             lines = lines.filter(order__date_placed__date__lte=end_date)
 
         for line in lines:
-            pid = line.product_id
-            has_cost = pid in cost_map and cost_map[pid] > 0
-            cost_price = cost_map.get(pid, Decimal("0"))
+            raw_pid = line.product_id
+            # Resolve child variants to their parent product for grouping
+            pid = parent_map.get(raw_pid, raw_pid)
+
+            # Cost/partner live on the child's stock record, so look up by raw_pid
+            has_cost = raw_pid in cost_map and cost_map[raw_pid] > 0
+            cost_price = cost_map.get(raw_pid, Decimal("0"))
             line_revenue = line.line_price_incl_tax or Decimal("0")
             line_cost = cost_price * line.quantity
 
-            title = line.title or (line.product.title if line.product else "Unknown")
+            title = title_map.get(pid) or line.title or (line.product.title if line.product else "Unknown")
+            category = category_map.get(pid, "")
             month = line.order.date_placed.strftime("%Y-%m")
 
             total_revenue += line_revenue
             total_cost += line_cost
 
             by_product[pid]["title"] = title
-            by_product[pid]["partner"] = partner_map.get(pid, "")
+            by_product[pid]["partner"] = partner_map.get(raw_pid, "") or partner_map.get(pid, "")
+            by_product[pid]["category"] = category
             by_product[pid]["units_sold"] += line.quantity
             by_product[pid]["revenue"] += line_revenue
             by_product[pid]["cost"] += line_cost
@@ -103,6 +135,7 @@ class AnalyticsDashboardView(APIView):
                 "product_id": pid,
                 "title": data["title"],
                 "partner": data["partner"],
+                "category": data["category"],
                 "units_sold": data["units_sold"],
                 "revenue": str(data["revenue"].quantize(Decimal("0.01"))),
                 "cost": str(data["cost"].quantize(Decimal("0.01"))) if data["has_cost"] else None,
@@ -126,6 +159,7 @@ class AnalyticsDashboardView(APIView):
 
         return Response({
             "partners": partners,
+            "categories": ordered_categories,
             "summary": {
                 "total_orders": total_orders,
                 "total_revenue": str(total_revenue.quantize(Decimal("0.01"))),

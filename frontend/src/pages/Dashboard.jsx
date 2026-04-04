@@ -83,6 +83,31 @@ const ClearButton = styled.button`
   &:hover { color: var(--dark); border-color: #bbb; }
 `;
 
+const PresetButton = styled.button`
+  padding: 0.3rem 0.7rem;
+  background: none;
+  color: var(--link-text);
+  border: 1px solid var(--link-text);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover { background: var(--link-text); color: white; }
+`;
+
+const CategoryHeader = styled.tr`
+  background: #f0f4ff;
+  td {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--link-text);
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #e0e8ff;
+  }
+`;
+
 const PartnerBadge = styled.button`
   padding: 0.3rem 0.75rem;
   border-radius: 999px;
@@ -257,10 +282,19 @@ const Dashboard = () => {
   const [sortKey, setSortKey] = useState('revenue');
   const [sortDir, setSortDir] = useState('desc');
   const [selectedPartners, setSelectedPartners] = useState(new Set());
-  const [startInput, setStartInput] = useState('');
-  const [endInput, setEndInput] = useState('');
-  const [appliedStart, setAppliedStart] = useState('');
-  const [appliedEnd, setAppliedEnd] = useState('');
+  const getThisMonthRange = () => {
+    const now = new Date();
+    const first = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const today = now.toISOString().slice(0, 10);
+    return { first, today };
+  };
+
+  const { first: defaultStart, today: defaultEnd } = getThisMonthRange();
+
+  const [startInput, setStartInput] = useState(defaultStart);
+  const [endInput, setEndInput] = useState(defaultEnd);
+  const [appliedStart, setAppliedStart] = useState(defaultStart);
+  const [appliedEnd, setAppliedEnd] = useState(defaultEnd);
 
   const fetchData = (start, end) => {
     setLoading(true);
@@ -271,7 +305,7 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchData('', ''); }, []);
+  useEffect(() => { fetchData(defaultStart, defaultEnd); }, []);
 
   const handleApply = () => {
     setAppliedStart(startInput);
@@ -280,11 +314,23 @@ const Dashboard = () => {
   };
 
   const handleClear = () => {
-    setStartInput('');
-    setEndInput('');
-    setAppliedStart('');
-    setAppliedEnd('');
-    fetchData('', '');
+    const { first, today } = getThisMonthRange();
+    setStartInput(first);
+    setEndInput(today);
+    setAppliedStart(first);
+    setAppliedEnd(today);
+    fetchData(first, today);
+  };
+
+  const handleCurrentMonth = () => {
+    const now = new Date();
+    const first = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const today = now.toISOString().slice(0, 10);
+    setStartInput(first);
+    setEndInput(today);
+    setAppliedStart(first);
+    setAppliedEnd(today);
+    fetchData(first, today);
   };
 
   const isDateFiltered = !!(appliedStart || appliedEnd);
@@ -292,7 +338,7 @@ const Dashboard = () => {
   if (loading && !data) return <Loading text="Loading dashboard..." />;
   if (error && !data) return <Container><p style={{ color: 'var(--danger)' }}>{error}</p></Container>;
 
-  const { partners, by_product, by_month } = data;
+  const { partners, categories: orderedCategories = [], by_product, by_month } = data;
   const isFiltered = selectedPartners.size > 0;
 
   const togglePartner = (name) => {
@@ -333,6 +379,27 @@ const Dashboard = () => {
     return sortDir === 'desc' ? bv - av : av - bv;
   });
 
+  // Group sorted products by category, preserving homepage category order
+  const groupedProducts = (() => {
+    const groups = [];
+    const seen = new Set();
+    const categoryOrder = [...orderedCategories, ''];  // '' = uncategorised last
+
+    for (const cat of categoryOrder) {
+      const items = sortedProducts.filter(p => p.category === cat);
+      if (items.length === 0) continue;
+      if (seen.has(cat)) continue;
+      seen.add(cat);
+      groups.push({ category: cat || 'Other', items });
+    }
+    // Any products whose category wasn't in orderedCategories
+    const remaining = sortedProducts.filter(p => !seen.has(p.category));
+    if (remaining.length > 0) {
+      groups.push({ category: 'Other', items: remaining });
+    }
+    return groups;
+  })();
+
   const sortIndicator = (key) => sortKey === key ? (sortDir === 'desc' ? ' ↓' : ' ↑') : '';
 
   return (
@@ -359,6 +426,7 @@ const Dashboard = () => {
             onChange={e => setEndInput(e.target.value)}
             placeholder="To"
           />
+          <PresetButton onClick={handleCurrentMonth}>This Month</PresetButton>
           <ApplyButton onClick={handleApply}>Apply</ApplyButton>
           {isDateFiltered && <ClearButton onClick={handleClear}>Clear</ClearButton>}
         </FilterGroup>
@@ -446,34 +514,41 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {sortedProducts.map(p => {
-                  const margin = p.margin;
-                  const profit = parseFloat(p.profit ?? 0);
-                  return (
-                    <Tr key={p.product_id}>
-                      <Td>{p.title}</Td>
-                      {!isFiltered && <Td $muted>{p.partner}</Td>}
-                      <Td $right>{p.units_sold}</Td>
-                      <Td $right $bold>{formatSGD(p.revenue)}</Td>
-                      <Td $right>{p.cost != null ? formatSGD(p.cost) : <NoCostBadge>no cost</NoCostBadge>}</Td>
-                      <Td $right $positive={p.profit != null && profit >= 0} $negative={p.profit != null && profit < 0}>
-                        {p.profit != null ? formatSGD(p.profit) : <NoCostBadge>—</NoCostBadge>}
-                      </Td>
-                      <Td $right>
-                        {margin != null ? (
-                          <MarginBar>
-                            <span style={{ color: margin >= 40 ? '#16a34a' : margin >= 20 ? '#d97706' : '#dc2626' }}>
-                              {margin}%
-                            </span>
-                            <BarTrack>
-                              <BarFill $pct={margin} />
-                            </BarTrack>
-                          </MarginBar>
-                        ) : <NoCostBadge>—</NoCostBadge>}
-                      </Td>
-                    </Tr>
-                  );
-                })}
+                {groupedProducts.map(({ category, items }) => (
+                  <React.Fragment key={category}>
+                    <CategoryHeader>
+                      <td colSpan={isFiltered ? 6 : 7}>{category}</td>
+                    </CategoryHeader>
+                    {items.map(p => {
+                      const margin = p.margin;
+                      const profit = parseFloat(p.profit ?? 0);
+                      return (
+                        <Tr key={p.product_id}>
+                          <Td>{p.title}</Td>
+                          {!isFiltered && <Td $muted>{p.partner}</Td>}
+                          <Td $right>{p.units_sold}</Td>
+                          <Td $right $bold>{formatSGD(p.revenue)}</Td>
+                          <Td $right>{p.cost != null ? formatSGD(p.cost) : <NoCostBadge>no cost</NoCostBadge>}</Td>
+                          <Td $right $positive={p.profit != null && profit >= 0} $negative={p.profit != null && profit < 0}>
+                            {p.profit != null ? formatSGD(p.profit) : <NoCostBadge>—</NoCostBadge>}
+                          </Td>
+                          <Td $right>
+                            {margin != null ? (
+                              <MarginBar>
+                                <span style={{ color: margin >= 40 ? '#16a34a' : margin >= 20 ? '#d97706' : '#dc2626' }}>
+                                  {margin}%
+                                </span>
+                                <BarTrack>
+                                  <BarFill $pct={margin} />
+                                </BarTrack>
+                              </MarginBar>
+                            ) : <NoCostBadge>—</NoCostBadge>}
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </tbody>
             </StyledTable>
           </Table>
