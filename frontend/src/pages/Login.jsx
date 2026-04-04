@@ -127,7 +127,7 @@ const Login = () => {
       <LoginCard>
         <LoginHeader>
           <LoginTitle>Sign In</LoginTitle>
-          <LoginSubtitle>Welcome back to BirdSoc Shop</LoginSubtitle>
+          <LoginSubtitle>Welcome back to BirdSoc SG Shop</LoginSubtitle>
         </LoginHeader>
 
         {errors.root && (

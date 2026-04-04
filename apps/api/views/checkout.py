@@ -21,6 +21,7 @@ DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
 OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
 OrderPlacementMixin = get_class("checkout.mixins", "OrderPlacementMixin")
 Selector = get_class("partner.strategy", "Selector")
+Applicator = get_class("offer.applicator", "Applicator")
 
 
 class PayNowProofUploadView(APIView):
@@ -185,11 +186,8 @@ class PlaceOrderView(APIView):
                 {"detail": "Basket not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        # Assign pricing strategy only; do not re-apply offers since the
-        # basket already has discounts calculated from the cart page.
-        # Re-applying via Applicator can strip valid discounts (e.g. vouchers)
-        # due to session/context differences in the API request.
         basket.strategy = Selector().strategy(request=request)
+        Applicator().apply(basket, request.user, request)
 
         if basket.is_empty:
             return Response(
