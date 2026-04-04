@@ -26,18 +26,30 @@ export const CartProvider = ({ children }) => {
     setLoading(true);
     try {
       let cartData;
-      
+
       if (isAuthenticated) {
-        // For authenticated users, try to get their basket
-        try {
-          cartData = await basketService.getCurrentBasket();
-        } catch (error) {
-          if (error.response?.status === 404) {
-            // No basket found, create one
-            cartData = await basketService.createBasket();
-            tokenManager.setCartId(cartData.cart_id);
-          } else {
-            throw error;
+        // If a guest cart exists, merge it into the user's basket
+        const guestCartId = tokenManager.getCartId();
+        if (guestCartId) {
+          try {
+            cartData = await basketService.mergeBaskets(guestCartId);
+          } catch (error) {
+            // Merge failed (e.g. guest cart not found) — fall through to fetch normally
+          }
+          tokenManager.clearCartId();
+        }
+
+        if (!cartData) {
+          // No guest cart or merge failed — fetch or create user's basket
+          try {
+            cartData = await basketService.getCurrentBasket();
+          } catch (error) {
+            if (error.response?.status === 404) {
+              cartData = await basketService.createBasket();
+              tokenManager.setCartId(cartData.cart_id);
+            } else {
+              throw error;
+            }
           }
         }
       } else {
