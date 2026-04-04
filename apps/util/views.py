@@ -189,9 +189,8 @@ def verify_payment(request):
     except Order.DoesNotExist:
         # No placed order yet — check for a pending checkout
         reference = f"{settings.ORDER_PREFIX}{order_number}"
-        try:
-            pending = PendingCheckout.objects.get(reference=reference)
-        except PendingCheckout.DoesNotExist:
+        pending = PendingCheckout.objects.filter(reference=reference).first()
+        if pending is None:
             try:
                 mail_admins(
                     subject=f"Unmatched payment received: {order_number}",
