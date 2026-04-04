@@ -57,7 +57,7 @@ class Order(AbstractOrder):
             "user_name": self.user.get_full_name(),
             "user_email": self.user.email,
             "year": self.date_placed.year,
-            "order_number": settings.ORDER_PREFIX + self.number,
+            "order_number": f"{settings.ORDER_PREFIX}{self.number}",
             "date": timezone.now().date().strftime("%d %b %Y"),
             "subtotal": self.total_before_discounts_excl_tax_with_donation,
             "gst": self.total_tax,
