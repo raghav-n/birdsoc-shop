@@ -46,7 +46,10 @@ export const CartProvider = ({ children }) => {
           } catch (error) {
             if (error.response?.status === 404) {
               cartData = await basketService.createBasket();
-              tokenManager.setCartId(cartData.cart_id);
+              // Do NOT store the cart ID for authenticated users — they are
+              // identified by their JWT. Storing it would cause the basket to
+              // be treated as a guest cart on the next initializeCart call,
+              // merging it into itself and marking it Merged.
             } else {
               throw error;
             }
