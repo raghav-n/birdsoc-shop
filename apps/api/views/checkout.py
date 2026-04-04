@@ -186,6 +186,18 @@ class PlaceOrderView(APIView):
                 {"detail": "Basket not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        # If the basket was already submitted (e.g. webhook auto-placed the
+        # order while the user was on the payment screen), return the existing
+        # order instead of trying to place a duplicate.
+        if basket.status == "Submitted":
+            existing_order = Order._default_manager.filter(basket=basket).first()
+            if existing_order:
+                return Response(
+                    OrderSerializer(existing_order).data, status=status.HTTP_200_OK
+                )
+            # Basket submitted but no order found — something went wrong upstream;
+            # fall through and let the normal placement attempt surface the error.
+
         basket.strategy = Selector().strategy(request=request)
         Applicator().apply(basket, request.user, request)
 
