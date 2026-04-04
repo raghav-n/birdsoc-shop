@@ -25,6 +25,20 @@ def _get_request_strategy(request):
 
 def _serialize_basket(basket, request):
     if not basket.is_empty:
+        # Remove lines whose product is no longer available (not public or out of stock)
+        for line in list(basket.all_lines()):
+            product = line.product
+            if product is None:
+                line.delete()
+                continue
+            # Resolve to parent for public check (child products don't have is_public)
+            root = product.parent if getattr(product, 'parent_id', None) else product
+            if not root.is_public:
+                line.delete()
+                continue
+            sr = product.stockrecords.first()
+            if sr is None or sr.net_stock_level <= 0:
+                line.delete()
         Applicator().apply(basket, request.user, request)
     serializer = BasketSerializer(basket, context={"request": request})
     return serializer.data
