@@ -96,6 +96,8 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  const isStaleBasket = (error) => error.response?.status === 410;
+
   // Add item to cart
   const addToCart = async (productId, quantity = 1, options = {}) => {
     if (!shopOpen) {
@@ -103,13 +105,29 @@ export const CartProvider = ({ children }) => {
       return { success: false, error: 'Shop is closed' };
     }
     if (!cart) return { success: false, error: 'Cart not initialized' };
-    
+
     try {
       await basketService.addToBasket(cart.id, productId, quantity, options);
       await refreshCart();
       toast.success('Item added to cart');
       return { success: true };
     } catch (error) {
+      if (isStaleBasket(error)) {
+        // Our basket was merged by Oscar middleware; get the fresh one and retry
+        await initializeCart();
+        try {
+          const freshCart = await basketService.getCurrentBasket();
+          const freshId = (freshCart.basket || freshCart).id;
+          await basketService.addToBasket(freshId, productId, quantity, options);
+          await refreshCart();
+          toast.success('Item added to cart');
+          return { success: true };
+        } catch (retryError) {
+          const message = retryError.response?.data?.detail || 'Failed to add item to cart';
+          toast.error(message);
+          return { success: false, error: message };
+        }
+      }
       const message = error.response?.data?.detail || 'Failed to add item to cart';
       toast.error(message);
       return { success: false, error: message };
@@ -119,12 +137,15 @@ export const CartProvider = ({ children }) => {
   // Update cart line
   const updateCartLine = async (lineId, quantity) => {
     if (!cart) return { success: false, error: 'Cart not initialized' };
-    
+
     try {
       await basketService.updateBasketLine(cart.id, lineId, quantity);
       await refreshCart();
       return { success: true };
     } catch (error) {
+      if (isStaleBasket(error)) {
+        await initializeCart();
+      }
       const message = error.response?.data?.detail || 'Failed to update cart';
       toast.error(message);
       return { success: false, error: message };
@@ -134,13 +155,16 @@ export const CartProvider = ({ children }) => {
   // Remove cart line
   const removeFromCart = async (lineId) => {
     if (!cart) return { success: false, error: 'Cart not initialized' };
-    
+
     try {
       await basketService.removeBasketLine(cart.id, lineId);
       await refreshCart();
       toast.success('Item removed from cart');
       return { success: true };
     } catch (error) {
+      if (isStaleBasket(error)) {
+        await initializeCart();
+      }
       const message = error.response?.data?.detail || 'Failed to remove item';
       toast.error(message);
       return { success: false, error: message };

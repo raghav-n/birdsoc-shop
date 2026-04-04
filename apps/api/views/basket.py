@@ -13,6 +13,10 @@ from apps.api.serializers import BasketSerializer, BasketLineSerializer
 
 Basket = get_model("basket", "Basket")
 Line = get_model("basket", "Line")
+
+
+class StaleBasketError(Exception):
+    pass
 Product = get_model("catalogue", "Product")
 Voucher = get_model("voucher", "Voucher")
 Selector = get_class("partner.strategy", "Selector")
@@ -118,6 +122,8 @@ class BasketLinesView(APIView):
             and basket.owner_id != request.user.id
         ):
             raise PermissionError("Forbidden")
+        if not basket.can_be_edited:
+            raise StaleBasketError("Basket is no longer active")
         basket.strategy = _get_request_strategy(request)
         return basket
 
@@ -126,6 +132,8 @@ class BasketLinesView(APIView):
             basket = self._get_basket(request, basket_id)
         except PermissionError:
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        except StaleBasketError:
+            return Response({"detail": "stale_basket"}, status=status.HTTP_410_GONE)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
@@ -167,6 +175,8 @@ class BasketLineDetailView(APIView):
             and line.basket.owner_id != request.user.id
         ):
             raise PermissionError("Forbidden")
+        if not line.basket.can_be_edited:
+            raise StaleBasketError("Basket is no longer active")
         line.basket.strategy = _get_request_strategy(request)
         return line
 
@@ -175,6 +185,8 @@ class BasketLineDetailView(APIView):
             line = self._get_line(request, basket_id, line_id)
         except PermissionError:
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        except StaleBasketError:
+            return Response({"detail": "stale_basket"}, status=status.HTTP_410_GONE)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
@@ -200,6 +212,8 @@ class BasketLineDetailView(APIView):
             line = self._get_line(request, basket_id, line_id)
         except PermissionError:
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        except StaleBasketError:
+            return Response({"detail": "stale_basket"}, status=status.HTTP_410_GONE)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
         basket = line.basket
