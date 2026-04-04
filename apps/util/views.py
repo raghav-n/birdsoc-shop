@@ -94,11 +94,20 @@ def _place_order_from_pending(pending, amount):
 
     if basket.is_empty:
         # Basket lines may have been deleted (e.g. stock hit 0 while user was on
-        # the payment screen). Try to restore them from the snapshot saved at
-        # checkout time.
+        # the payment screen), or the basket was merged into another basket.
+        # Try to restore lines from the snapshot saved at checkout time.
         snapshot = pending.basket_snapshot or {}
         snapshot_lines = snapshot.get("lines", [])
-        restored = 0
+
+        # Ensure the basket is Open so lines can be created on it
+        if basket.status != "Open":
+            basket.status = "Open"
+            basket.save(update_fields=["status"])
+
+        from oscar.core.loading import get_model as _get_model
+        Product = _get_model("catalogue", "Product")
+        StockRecord = _get_model("partner", "StockRecord")
+
         for entry in snapshot_lines:
             product_id = entry.get("product_id")
             stockrecord_id = entry.get("stockrecord_id")
@@ -106,9 +115,6 @@ def _place_order_from_pending(pending, amount):
             if not product_id or not stockrecord_id:
                 continue
             try:
-                from oscar.core.loading import get_model as _get_model
-                Product = _get_model("catalogue", "Product")
-                StockRecord = _get_model("partner", "StockRecord")
                 product = Product._default_manager.get(id=product_id)
                 stockrecord = StockRecord._default_manager.get(id=stockrecord_id)
                 basket.lines.create(
@@ -120,9 +126,9 @@ def _place_order_from_pending(pending, amount):
                     price_excl_tax=stockrecord.price,
                     price_incl_tax=stockrecord.price,
                 )
-                restored += 1
             except Exception:
                 continue
+
         # Invalidate the cached lines so the freshly-added ones are picked up
         basket._lines = None
         basket.strategy = Selector().strategy()
