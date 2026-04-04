@@ -135,6 +135,11 @@ def _place_order_from_pending(pending, amount):
         if basket.is_empty:
             return {"order": None, "error": "Basket is empty and could not be restored from snapshot"}
 
+    # Apply offers/discounts (bundles etc.) before calculating totals
+    from oscar.core.loading import get_class as _get_class
+    Applicator = _get_class("offer.applicator", "Applicator")
+    Applicator().apply(basket, basket.owner)
+
     # Resolve shipping method
     qs = DynamicShippingMethod._default_manager.filter(
         active=True, available_to_public=True
