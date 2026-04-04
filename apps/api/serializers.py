@@ -210,6 +210,7 @@ class BasketLineSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "product_id",
+            "stockrecord_id",
             "product_title",
             "product_image",
             "quantity",

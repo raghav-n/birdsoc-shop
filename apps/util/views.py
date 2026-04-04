@@ -93,7 +93,41 @@ def _place_order_from_pending(pending, amount):
     basket.strategy = Selector().strategy()
 
     if basket.is_empty:
-        return {"order": None, "error": "Basket is empty"}
+        # Basket lines may have been deleted (e.g. stock hit 0 while user was on
+        # the payment screen). Try to restore them from the snapshot saved at
+        # checkout time.
+        snapshot = pending.basket_snapshot or {}
+        snapshot_lines = snapshot.get("lines", [])
+        restored = 0
+        for entry in snapshot_lines:
+            product_id = entry.get("product_id")
+            stockrecord_id = entry.get("stockrecord_id")
+            quantity = entry.get("quantity", 1)
+            if not product_id or not stockrecord_id:
+                continue
+            try:
+                from oscar.core.loading import get_model as _get_model
+                Product = _get_model("catalogue", "Product")
+                StockRecord = _get_model("partner", "StockRecord")
+                product = Product._default_manager.get(id=product_id)
+                stockrecord = StockRecord._default_manager.get(id=stockrecord_id)
+                basket.lines.create(
+                    line_reference=f"{product_id}_{stockrecord_id}",
+                    product=product,
+                    stockrecord=stockrecord,
+                    quantity=quantity,
+                    price_currency=stockrecord.price_currency,
+                    price_excl_tax=stockrecord.price,
+                    price_incl_tax=stockrecord.price,
+                )
+                restored += 1
+            except Exception:
+                continue
+        # Invalidate the cached lines so the freshly-added ones are picked up
+        basket._lines = None
+        basket.strategy = Selector().strategy()
+        if basket.is_empty:
+            return {"order": None, "error": "Basket is empty and could not be restored from snapshot"}
 
     # Resolve shipping method
     qs = DynamicShippingMethod._default_manager.filter(

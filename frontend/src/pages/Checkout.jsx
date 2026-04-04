@@ -441,6 +441,8 @@ const Checkout = () => {
         donation,
         basket_snapshot: {
           lines: cartItems.map(item => ({
+            product_id: item.product_id,
+            stockrecord_id: item.stockrecord_id,
             title: item.product_title || item.description,
             quantity: item.quantity,
             price: item.line_price_incl_tax,
