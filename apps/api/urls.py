@@ -38,7 +38,7 @@ from apps.api.views.checkout import (
     CheckoutAddressView,
     SavePendingCheckoutView,
 )
-from apps.api.views.payments import PayNowGmailCheckView
+from apps.api.views.payments import PayNowGmailCheckView, PayNowGmailTestEmailView
 from apps.api.views.forms import FormSubmissionView, FormSchemaView
 from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.analytics import AnalyticsDashboardView
@@ -86,6 +86,11 @@ urlpatterns = [
         "checkout/payment/paynow-email-check",
         PayNowGmailCheckView.as_view(),
         name="checkout-paynow-email-check",
+    ),
+    path(
+        "checkout/payment/paynow-email-test",
+        PayNowGmailTestEmailView.as_view(),
+        name="checkout-paynow-email-test",
     ),
     path("checkout/place-order", PlaceOrderView.as_view(), name="checkout-place-order"),
     path(

@@ -63,6 +63,8 @@ DB_PASS = os.environ.get("DB_PASS", "")
 MAILERSEND_KEY = os.environ.get("MAILERSEND_KEY", "")
 SESSION_ENVIRONMENT_PRODUCTION = os.environ.get("ENVIRONMENT", "False") == "True"
 
+SALES_EMAIL = os.environ.get("SALES_EMAIL", "")
+
 SHOP_OPEN = True
 SHOP_OPEN_PUBLIC = True
 TESTING = sys.argv[1:2] == ["test"]
@@ -87,6 +89,7 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "")
 GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
 GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+GMAIL_TEST_RECIPIENT = os.environ.get("GMAIL_TEST_RECIPIENT", "")
 # Gmail search query used to find PayNow notifications
 GMAIL_POLL_QUERY = os.environ.get(
     "GMAIL_POLL_QUERY",
