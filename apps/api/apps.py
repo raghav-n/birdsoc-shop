@@ -5,4 +5,4 @@ class ApiConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.api"
     label = "api"
-    verbose_name = "BirdSoc Shop API"
+    verbose_name = "BirdSoc SG Shop API"

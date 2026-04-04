@@ -1,6 +1,6 @@
-# BirdSoc Shop Frontend
+# BirdSoc SG Shop Frontend
 
-A modern React frontend for the BirdSoc Shop e-commerce platform, built with Vite and styled-components.
+A modern React frontend for the BirdSoc SG Shop e-commerce platform, built with Vite and styled-components.
 
 ## Features
 
@@ -31,7 +31,7 @@ A modern React frontend for the BirdSoc Shop e-commerce platform, built with Vit
 
 - Node.js 16+ 
 - npm or yarn
-- BirdSoc Shop backend API running on http://localhost:8000
+- BirdSoc SG Shop backend API running on http://localhost:8000
 
 ### Installation
 
@@ -95,7 +95,7 @@ src/
 
 ## API Integration
 
-The frontend integrates with the BirdSoc Shop Django REST API. Key features include:
+The frontend integrates with the BirdSoc SG Shop Django REST API. Key features include:
 
 - **JWT Authentication** - Secure token-based authentication
 - **Guest Cart Support** - Shopping cart for non-authenticated users
@@ -104,7 +104,7 @@ The frontend integrates with the BirdSoc Shop Django REST API. Key features incl
 
 ## Styling
 
-The application maintains the original BirdSoc Shop design system:
+The application maintains the original BirdSoc SG Shop design system:
 
 - **Color Scheme**: 
   - Background: `#f8f4f9` (light purple-gray)
@@ -147,4 +147,4 @@ The app automatically proxies API requests to `http://localhost:8000` during dev
 
 ## License
 
-This project is part of the BirdSoc Shop platform.
+This project is part of the BirdSoc SG Shop platform.
