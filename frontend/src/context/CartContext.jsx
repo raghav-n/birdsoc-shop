@@ -17,8 +17,8 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const { shopOpen } = useShopConfig();
 
   // Initialize or fetch cart
@@ -200,8 +200,11 @@ export const CartProvider = ({ children }) => {
 
   // Initialize cart when component mounts or auth state changes
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
     initializeCart();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading]);
 
   const value = {
     cart,
