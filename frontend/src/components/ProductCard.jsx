@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { Card, Button } from '../styles/GlobalStyles';
 import { formatCurrency, getImageUrl, isProductInStock } from '../utils/helpers';
+import { trackAddToCart } from '../utils/analytics';
 import { sanitizeText } from '../utils/safeContent';
 import { useCart } from '../context/CartContext';
 
@@ -168,7 +169,10 @@ const ProductCard = ({ product }) => {
     e.preventDefault();
     e.stopPropagation();
     if (!cartProductId) return;
-    await addToCart(cartProductId, 1);
+    const result = await addToCart(cartProductId, 1);
+    if (result?.success) {
+      trackAddToCart(product, selectedChild, 1, displayPrice);
+    }
   };
 
   const inStock = isProductInStock({ stock: displayStock });
