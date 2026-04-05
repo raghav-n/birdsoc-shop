@@ -663,6 +663,7 @@ const ProductDetail = () => {
                   <VariantBadge
                     key={child.id}
                     $active={child.id === selectedChildId}
+                    aria-pressed={child.id === selectedChildId}
                     onClick={() => {
                       setSelectedChildId(child.id);
                       setQuantity(1);
@@ -694,6 +695,7 @@ const ProductDetail = () => {
                 <QuantityLabel>Quantity</QuantityLabel>
                 <QuantityControls>
                   <QuantityButton
+                    aria-label="Decrease quantity"
                     onClick={decrementQuantity}
                     disabled={quantity <= 1}
                   >
@@ -701,6 +703,7 @@ const ProductDetail = () => {
                   </QuantityButton>
                   <QuantityDisplay>{quantity}</QuantityDisplay>
                   <QuantityButton
+                    aria-label="Increase quantity"
                     onClick={incrementQuantity}
                     disabled={quantity >= displayStock?.num_in_stock}
                   >

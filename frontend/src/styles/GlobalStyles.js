@@ -92,7 +92,9 @@ export const GlobalStyle = createGlobalStyle`
   }
 `;
 
-export const Button = styled.button`
+export const Button = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['variant', 'size', 'fullWidth'].includes(prop),
+})`
   background-color: ${props => props.variant === 'secondary' ? 'transparent' : 'var(--link-text)'};
   color: ${props => props.variant === 'secondary' ? 'var(--link-text)' : 'white'};
   border: 2px solid var(--link-text);
@@ -270,7 +272,9 @@ export const Flex = styled.div`
   }
 `;
 
-export const Badge = styled.span`
+export const Badge = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== 'variant',
+})`
   background-color: var(--link-text);
   color: white;
   padding: 0.25rem 0.5rem;
