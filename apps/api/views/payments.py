@@ -95,8 +95,11 @@ class PayNowGmailCheckView(APIView):
         # Build Gmail service
         try:
             service = build_gmail_service()
-        except GmailClientError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        except GmailClientError:
+            return Response(
+                {"detail": "PayNow email verification is not configured."},
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
 
         # Search for a recent email for this order
         max_age = int(getattr(settings, "GMAIL_MAX_AGE_MINUTES", 60) or 60)
@@ -107,8 +110,11 @@ class PayNowGmailCheckView(APIView):
                 subject_query=getattr(settings, "GMAIL_POLL_QUERY", None),
                 max_age_minutes=max_age,
             )
-        except GmailClientError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+        except GmailClientError:
+            return Response(
+                {"detail": "PayNow email verification is currently unavailable."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         if not found:
             return Response({"confirmed": False, "found": False})
@@ -155,13 +161,13 @@ class PayNowGmailCheckView(APIView):
         # Confirm the order
         try:
             confirm_paynow_payment(order, amount)
-        except PaymentConfirmationError as e:
+        except PaymentConfirmationError:
             return Response(
                 {
                     "confirmed": False,
                     "found": True,
                     "amount": amount_str,
-                    "message": str(e),
+                    "message": "Payment confirmation failed.",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

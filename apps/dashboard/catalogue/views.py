@@ -154,11 +154,8 @@ class ProductImageAutoCropView(View):
         except ProductImage.DoesNotExist:
             return JsonResponse({"error": "Image not found"}, status=404)
 
-        try:
-            from apps.catalogue.auto_crop import suggest_crop
-            result = suggest_crop(img.original.path)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+        from apps.catalogue.auto_crop import suggest_crop
+        result = suggest_crop(img.original.path)
 
         ProductImage.objects.filter(pk=image_id).update(**result)
         return JsonResponse(result)

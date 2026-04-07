@@ -335,11 +335,6 @@ class PlaceOrderView(APIView):
             basket.submit()
             # Clean up pending checkout record
             PendingCheckout.objects.filter(basket_id=basket.id).delete()
-        except Exception as e:
-            return Response(
-                {"detail": f"Unable to place order: {e}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         finally:
             # Clean up temp file if any
             try:

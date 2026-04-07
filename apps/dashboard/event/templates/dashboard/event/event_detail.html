@@ -420,7 +420,7 @@
                         },
                         error: function(xhr) {
                             var errorMsg = 'An error occurred while removing the participant.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                            if (xhr.status < 500 && xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMsg = xhr.responseJSON.message;
                             }
                             alert(errorMsg);

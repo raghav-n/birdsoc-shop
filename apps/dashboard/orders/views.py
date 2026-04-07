@@ -23,6 +23,7 @@ from django.urls import reverse
 from oscar.apps.voucher.models import Voucher
 from decimal import Decimal
 from django.db.models import Count, Sum
+from sentry_sdk import capture_exception
 
 from oscar.apps.dashboard.orders.views import (
     OrderStatsView as BaseOrderStatsView,
@@ -94,12 +95,7 @@ class OrderCollectionView(View):
         except Order.DoesNotExist:
             return JsonResponse({"success": False, "message": "No matching order"})
 
-        try:
-            order.set_status(settings.COLLECTED_STATUS)
-        except Exception as e:
-            return JsonResponse(
-                {"success": False, "message": f"{e.__class__.__name__}: {e}"}
-            )
+        order.set_status(settings.COLLECTED_STATUS)
 
         return JsonResponse({"success": True})
 
@@ -533,9 +529,9 @@ class VoucherCheckView(View):
                 products_data = json.loads(request.POST.get("products"))
                 for item in products_data:
                     products[str(item["id"])] = int(item["quantity"])
-            except (ValueError, KeyError, TypeError) as e:
+            except (ValueError, KeyError, TypeError):
                 return JsonResponse(
-                    {"valid": False, "message": f"Invalid product data: {str(e)}"}
+                    {"valid": False, "message": "Invalid product data."}
                 )
 
         try:
@@ -564,11 +560,12 @@ class VoucherCheckView(View):
                 return JsonResponse(
                     {"valid": False, "message": f"Product {product_id} not found"}
                 )
-            except Exception as e:
+            except Exception as exc:
+                capture_exception(exc)
                 return JsonResponse(
                     {
                         "valid": False,
-                        "message": f"Error adding product {product_id}: {str(e)}",
+                        "message": "Unable to add one or more products.",
                     }
                 )
 
@@ -633,13 +630,14 @@ class VoucherCheckView(View):
                     "original_total": float(original_total),
                 }
             )
-        except Exception as e:
+        except Exception as exc:
             import traceback
 
-            print(f"Error applying voucher: {str(e)}")
+            capture_exception(exc)
+            print(f"Error applying voucher for code {code}")
             print(traceback.format_exc())
             return JsonResponse(
-                {"valid": False, "message": f"Error applying voucher: {str(e)}"}
+                {"valid": False, "message": "Unable to apply voucher."}
             )
 
 
@@ -1129,9 +1127,11 @@ class PendingCheckoutDashboardView(View):
             messages.error(request, "Invalid amount.")
             return redirect("dashboard:pending-checkouts")
 
-        result = _place_order_from_pending(pending, amount_decimal)
-        if result["error"]:
-            messages.error(request, f"Failed to place order: {result['error']}")
+        try:
+            result = _place_order_from_pending(pending, amount_decimal)
+        except Exception as exc:
+            capture_exception(exc)
+            messages.error(request, "Failed to place order.")
             return redirect("dashboard:pending-checkouts")
 
         order = result["order"]
@@ -1143,11 +1143,12 @@ class PendingCheckoutDashboardView(View):
                 f"Order {order.number} created and payment confirmed "
                 f"(SGD {amount_decimal}).",
             )
-        except PaymentConfirmationError as e:
+        except PaymentConfirmationError as exc:
+            capture_exception(exc)
             messages.warning(
                 request,
-                f"Order {order.number} created but payment confirmation "
-                f"failed: {e}. Please verify manually.",
+                f"Order {order.number} created but payment confirmation failed. "
+                f"Please verify manually.",
             )
 
         return redirect("dashboard:order-detail", number=order.number)
@@ -1161,6 +1162,7 @@ class ResendConfirmationEmailView(View):
             OrderDispatcher = get_class("order.utils", "OrderDispatcher")
             OrderDispatcher().send_payment_confirmed_email_for_user(order, {"order": order})
             messages.success(request, f"Confirmation email resent for order {order.number}.")
-        except Exception as e:
-            messages.error(request, f"Failed to send email: {e}")
+        except Exception as exc:
+            capture_exception(exc)
+            messages.error(request, "Failed to send confirmation email.")
         return redirect("dashboard:order-detail", number=order.number)

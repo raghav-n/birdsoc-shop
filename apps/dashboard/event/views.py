@@ -23,6 +23,7 @@ from django.http import HttpResponseRedirect
 from django.views.generic.edit import FormMixin
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
+from sentry_sdk import capture_exception
 
 from django import forms
 
@@ -316,15 +317,15 @@ class EventUpdateView(DashboardMixin, UpdateView):
                     try:
                         event.add_participant(participant)
                         created_count += 1
-                    except ValueError as e:
+                    except ValueError:
                         # Participant already registered for this event
                         # We'll consider this a successful import since the participant exists
                         pass
 
-                except Exception as e:
+                except Exception:
                     error_count += 1
                     errors.append(
-                        f"Error in row ({row.get('Email', 'Unknown')}): {str(e)}"
+                        f"Error in row ({row.get('Email', 'Unknown')})."
                     )
 
             # Show success/error messages
@@ -344,8 +345,9 @@ class EventUpdateView(DashboardMixin, UpdateView):
 
                 messages.error(request, error_message)
 
-        except Exception as e:
-            messages.error(request, f"Error processing CSV file: {str(e)}")
+        except Exception as exc:
+            capture_exception(exc)
+            messages.error(request, "Error processing CSV file.")
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -480,8 +482,8 @@ class EventParticipantAddView(DashboardMixin, SingleObjectMixin, FormView):
             messages.success(
                 self.request, f"Added {participant.full_name} to {event.title}"
             )
-        except ValueError as e:
-            messages.error(self.request, str(e))
+        except ValueError:
+            messages.error(self.request, "Unable to add participant to this event.")
 
         return redirect("event-dashboard:event-detail", pk=event.pk)
 
@@ -508,8 +510,8 @@ class EventParticipantCreateView(DashboardMixin, SingleObjectMixin, FormView):
                 self.request,
                 f"Created and added {participant.full_name} to {event.title}",
             )
-        except ValueError as e:
-            messages.error(self.request, str(e))
+        except ValueError:
+            messages.error(self.request, "Unable to add participant to this event.")
 
         return redirect("event-dashboard:event-detail", pk=event.pk)
 
@@ -521,28 +523,25 @@ class EventParticipantRemoveView(DashboardMixin, View):
         event = get_object_or_404(OrganizedEvent, pk=kwargs["event_pk"])
         participant = get_object_or_404(Participant, pk=kwargs["pk"])
 
-        try:
-            result = event.remove_participant(participant)
-            if result[0] > 0:  # If participants were removed
-                messages.success(
-                    request, f"Removed {participant.full_name} from {event.title}"
-                )
-                return JsonResponse(
-                    {
-                        "status": "success",
-                        "message": f"Removed {participant.full_name} from {event.title}",
-                    }
-                )
-            else:
-                return JsonResponse(
-                    {
-                        "status": "error",
-                        "message": f"{participant.full_name} was not registered for this event",
-                    },
-                    status=400,
-                )
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+        result = event.remove_participant(participant)
+        if result[0] > 0:  # If participants were removed
+            messages.success(
+                request, f"Removed {participant.full_name} from {event.title}"
+            )
+            return JsonResponse(
+                {
+                    "status": "success",
+                    "message": f"Removed {participant.full_name} from {event.title}",
+                }
+            )
+
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": f"{participant.full_name} was not registered for this event",
+            },
+            status=400,
+        )
 
 
 class BatchEmailForm(forms.Form):

@@ -56,8 +56,8 @@ class EventForm(forms.ModelForm):
 
             try:
                 cleaned["json_schema"] = json.loads(schema_val)
-            except Exception as e:
-                self.add_error("json_schema", f"Invalid JSON: {e}")
+            except Exception:
+                self.add_error("json_schema", "Invalid JSON.")
         elif isinstance(schema_val, (dict, list)):
             # OK
             pass
