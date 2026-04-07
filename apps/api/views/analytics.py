@@ -65,6 +65,7 @@ class AnalyticsDashboardView(APIView):
 
         total_revenue = Decimal("0")
         total_cost = Decimal("0")
+        total_donations = Decimal("0")
 
         order_qs = Order.objects
         if start_date:
@@ -72,6 +73,9 @@ class AnalyticsDashboardView(APIView):
         if end_date:
             order_qs = order_qs.filter(date_placed__date__lte=end_date)
         total_orders = order_qs.count()
+        total_donations = sum(
+            (order.donation_amount or Decimal("0")) for order in order_qs.only("donation_amount")
+        )
 
         by_product = defaultdict(lambda: {
             "title": "",
@@ -86,6 +90,7 @@ class AnalyticsDashboardView(APIView):
             "order_ids": set(),
             "revenue": Decimal("0"),
             "cost": Decimal("0"),
+            "donations": Decimal("0"),
         })
 
         lines = OrderLine.objects.select_related("order", "product")
@@ -124,8 +129,14 @@ class AnalyticsDashboardView(APIView):
             by_month[month]["revenue"] += line_revenue
             by_month[month]["cost"] += line_cost
 
+        for order in order_qs.only("id", "date_placed", "donation_amount"):
+            month = order.date_placed.strftime("%Y-%m")
+            by_month[month]["order_ids"].add(order.id)
+            by_month[month]["donations"] += order.donation_amount or Decimal("0")
+
         total_profit = total_revenue - total_cost
         profit_margin = float(total_profit / total_revenue * 100) if total_revenue else 0
+        total_collected = total_revenue + total_donations
 
         products_list = []
         for pid, data in by_product.items():
@@ -153,6 +164,8 @@ class AnalyticsDashboardView(APIView):
                 "revenue": str(data["revenue"].quantize(Decimal("0.01"))),
                 "cost": str(data["cost"].quantize(Decimal("0.01"))),
                 "profit": str(profit.quantize(Decimal("0.01"))),
+                "donations": str(data["donations"].quantize(Decimal("0.01"))),
+                "collected": str((data["revenue"] + data["donations"]).quantize(Decimal("0.01"))),
             })
 
         partners = sorted({p["partner"] for p in products_list if p["partner"]})
@@ -163,6 +176,8 @@ class AnalyticsDashboardView(APIView):
             "summary": {
                 "total_orders": total_orders,
                 "total_revenue": str(total_revenue.quantize(Decimal("0.01"))),
+                "total_donations": str(total_donations.quantize(Decimal("0.01"))),
+                "total_collected": str(total_collected.quantize(Decimal("0.01"))),
                 "total_cost": str(total_cost.quantize(Decimal("0.01"))),
                 "total_profit": str(total_profit.quantize(Decimal("0.01"))),
                 "profit_margin": round(profit_margin, 1),

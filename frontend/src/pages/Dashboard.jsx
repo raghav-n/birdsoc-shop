@@ -359,6 +359,9 @@ const Dashboard = () => {
   const filtProfit = filtRevenue - filtCost;
   const filtMargin = filtRevenue > 0 ? (filtProfit / filtRevenue * 100) : 0;
   const filtOrders = isFiltered ? '—' : data.summary.total_orders;
+  const filtDonations = isFiltered ? null : parseFloat(data.summary.total_donations ?? 0);
+  const filtCollected = isFiltered ? null : parseFloat(data.summary.total_collected ?? 0);
+  const filtProfitWithDonations = filtDonations == null ? null : filtProfit + filtDonations;
 
   const hasAnyCost = filteredProducts.some(p => p.cost != null);
   const missingCostCount = filteredProducts.filter(p => p.cost == null).length;
@@ -463,7 +466,9 @@ const Dashboard = () => {
           <StatIcon $bg="#f0fdf4" $color="#16a34a"><DollarSign size={20} /></StatIcon>
           <StatLabel>Total Revenue</StatLabel>
           <StatValue>{formatSGD(filtRevenue)}</StatValue>
-          <StatSub>SGD, incl. tax</StatSub>
+          <StatSub>
+            {isFiltered ? 'Merchandise only, incl. tax' : `With donations: ${formatSGD(filtCollected)}`}
+          </StatSub>
         </StatCard>
 
         <StatCard>
@@ -483,8 +488,14 @@ const Dashboard = () => {
           </StatValue>
           {hasAnyCost && (
             <StatSub>
-              <BarChart2 size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
-              {filtMargin.toFixed(1)}% margin
+              {isFiltered ? (
+                <>
+                  <BarChart2 size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />{' '}
+                  {filtMargin.toFixed(1)}% margin
+                </>
+              ) : (
+                <>With donations: {formatSGD(filtProfitWithDonations)}</>
+              )}
             </StatSub>
           )}
         </StatCard>
@@ -569,6 +580,8 @@ const Dashboard = () => {
                   <Th>Month</Th>
                   <Th $right>Orders</Th>
                   <Th $right>Revenue</Th>
+                  <Th $right>Donations</Th>
+                  <Th $right>Collected</Th>
                   <Th $right>Cost</Th>
                   <Th $right>Profit</Th>
                 </tr>
@@ -581,6 +594,8 @@ const Dashboard = () => {
                       <Td $bold>{m.month}</Td>
                       <Td $right>{m.orders}</Td>
                       <Td $right $bold>{formatSGD(m.revenue)}</Td>
+                      <Td $right>{formatSGD(m.donations)}</Td>
+                      <Td $right $bold>{formatSGD(m.collected)}</Td>
                       <Td $right $muted={!hasAnyCost}>{hasAnyCost ? formatSGD(m.cost) : '—'}</Td>
                       <Td $right $positive={hasAnyCost && profit >= 0} $negative={hasAnyCost && profit < 0}>
                         {hasAnyCost ? formatSGD(m.profit) : '—'}
