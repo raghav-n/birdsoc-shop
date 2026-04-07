@@ -74,7 +74,8 @@ class AnalyticsDashboardView(APIView):
             order_qs = order_qs.filter(date_placed__date__lte=end_date)
         total_orders = order_qs.count()
         total_donations = sum(
-            (order.donation_amount or Decimal("0")) for order in order_qs.only("donation_amount")
+            ((order.donation_amount or Decimal("0")) for order in order_qs.only("donation_amount")),
+            Decimal("0"),
         )
 
         by_product = defaultdict(lambda: {
