@@ -25,9 +25,12 @@ class Benefit(CoreAbstractBenefit):
             if not range.contains_product(product) or not self.can_apply_benefit(line):
                 continue
 
-            price = unit_price(offer, line) - Decimal(
-                line._discount_excl_tax / line.quantity
-            )
+            price = unit_price(offer, line)
+            if self.type != self.FIXED_PRICE:
+                # Fixed-price bundle offers can apply repeatedly to the same
+                # lines. Reusing the already-discounted price causes each
+                # subsequent bundle application to shrink incorrectly.
+                price -= Decimal(line._discount_excl_tax / line.quantity)
             if not price:
                 # Avoid zero price products
                 continue
