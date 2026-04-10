@@ -864,11 +864,17 @@ class SalesReportView(View):
 
     def get(self, request):
         form = OrderExportForm()
+        return render(request, self.template_name, self.get_context_data(form=form))
+
+    def get_context_data(self, form):
         periods = SalesPeriod.objects.all()
-        return render(request, self.template_name, {
+        period_rows, period_chart_data = self.build_period_rows(periods)
+        return {
             "form": form,
             "periods": periods,
-        })
+            "period_rows": period_rows,
+            "period_chart_data": period_chart_data,
+        }
 
     def post(self, request):
         action = request.POST.get("action", "")
@@ -883,11 +889,7 @@ class SalesReportView(View):
     def handle_detect(self, request):
         form = OrderExportForm(request.POST)
         if not form.is_valid():
-            periods = SalesPeriod.objects.all()
-            return render(request, self.template_name, {
-                "form": form,
-                "periods": periods,
-            })
+            return render(request, self.template_name, self.get_context_data(form=form))
 
         start_date = form.cleaned_data["start_date"]
         end_date = form.cleaned_data["end_date"]
@@ -989,6 +991,94 @@ class SalesReportView(View):
                 current["end"] = order.date_placed
         periods.append(current)
         return periods
+
+    @staticmethod
+    def build_period_rows(periods):
+        period_rows = []
+        period_chart_data = {}
+
+        for period in periods:
+            orders = list(
+                Order.objects.filter(
+                    date_placed__gte=period.start,
+                    date_placed__lte=period.end,
+                )
+                .exclude(status="Cancelled")
+                .order_by("date_placed")
+            )
+
+            revenue = Decimal("0.00")
+            donations = Decimal("0.00")
+            cumulative_orders = 0
+            cumulative_revenue = Decimal("0.00")
+            daily_totals = {}
+
+            for order in orders:
+                order_revenue = order.total_incl_tax_with_donation - order.donation_amount
+                revenue += order_revenue
+                donations += order.donation_amount
+
+                order_day = localtime(order.date_placed).strftime("%d %b %Y")
+                if order_day not in daily_totals:
+                    daily_totals[order_day] = {
+                        "orders": 0,
+                        "revenue": Decimal("0.00"),
+                    }
+                daily_totals[order_day]["orders"] += 1
+                daily_totals[order_day]["revenue"] += order_revenue
+
+            labels = []
+            cumulative_order_series = []
+            cumulative_revenue_series = []
+
+            for label, totals in daily_totals.items():
+                cumulative_orders += totals["orders"]
+                cumulative_revenue += totals["revenue"]
+                labels.append(label)
+                cumulative_order_series.append(cumulative_orders)
+                cumulative_revenue_series.append(float(cumulative_revenue))
+
+            order_count = len(orders)
+            avg_order_value = revenue / order_count if order_count else Decimal("0.00")
+
+            period_rows.append(
+                {
+                    "id": period.id,
+                    "name": period.name,
+                    "start": period.start,
+                    "end": period.end,
+                    "order_count": order_count,
+                    "revenue": revenue,
+                    "donations": donations,
+                    "avg_order_value": avg_order_value,
+                    "date_span": (
+                        f"{localtime(period.start).strftime('%d %b %Y %H:%M')} - "
+                        f"{localtime(period.end).strftime('%d %b %Y %H:%M')}"
+                    ),
+                }
+            )
+
+            period_chart_data[str(period.id)] = {
+                "id": period.id,
+                "name": period.name,
+                "date_span": (
+                    f"{localtime(period.start).strftime('%d %b %Y %H:%M')} - "
+                    f"{localtime(period.end).strftime('%d %b %Y %H:%M')}"
+                ),
+                "summary": {
+                    "orders": order_count,
+                    "revenue": float(revenue),
+                    "donations": float(donations),
+                    "avg_order_value": float(avg_order_value),
+                },
+                "chart": {
+                    "labels": labels,
+                    "orders": cumulative_order_series,
+                    "revenue": cumulative_revenue_series,
+                },
+            }
+
+        return period_rows, period_chart_data
 
     def generate_report(self, periods):
         """Generate multi-sheet Excel from saved SalesPeriod objects."""

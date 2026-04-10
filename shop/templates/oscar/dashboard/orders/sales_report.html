@@ -3,6 +3,70 @@
 
 {% block title %}{% trans "Sales Report" %}{% endblock %}
 
+{% block extrahead %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    .sales-period-row {
+      cursor: pointer;
+    }
+
+    .sales-period-row:hover {
+      background-color: rgba(0, 123, 255, 0.06);
+    }
+
+    .sales-period-row:focus {
+      outline: 2px solid rgba(0, 123, 255, 0.4);
+      outline-offset: -2px;
+    }
+
+    .sales-period-hint {
+      font-size: 0.875rem;
+    }
+
+    .sales-period-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .sales-period-stat {
+      border: 1px solid #e9ecef;
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      background: #f8fafc;
+    }
+
+    .sales-period-stat-label {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+
+    .sales-period-stat-value {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .chart-panel {
+      border: 1px solid #e9ecef;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      background: #fff;
+      height: 100%;
+    }
+
+    .chart-panel canvas {
+      width: 100% !important;
+      height: 280px !important;
+    }
+  </style>
+{% endblock %}
+
 {% block breadcrumbs %}
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -14,7 +78,6 @@
 {% endblock %}
 
 {% block content %}
-  {# Step 1: Detect periods from a date range #}
   <div class="card mb-3">
     <div class="card-header">
       <h3>{% trans "1. Detect Periods" %}</h3>
@@ -41,48 +104,60 @@
     </div>
   </div>
 
-  {# Step 2: Saved periods — editable table #}
   {% if periods %}
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <h3 class="mb-0">{% trans "2. Saved Periods" %}</h3>
-      <span class="badge bg-secondary">{{ periods|length }} period{{ periods|length|pluralize }}</span>
+      <div>
+        <h3 class="mb-0">{% trans "2. Saved Periods" %}</h3>
+        <div class="text-muted sales-period-hint mt-1">{% trans "Click a row to open cumulative orders and revenue charts for that period." %}</div>
+      </div>
+      <span class="badge badge-secondary">{{ periods|length }} period{{ periods|length|pluralize }}</span>
     </div>
     <div class="card-body">
       <form method="post" id="periods-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="save" id="periods-action">
-        <table class="table table-striped align-middle">
-          <thead>
-            <tr>
-              <th>{% trans "Name" %}</th>
-              <th>{% trans "Start" %}</th>
-              <th>{% trans "End" %}</th>
-              <th class="text-center">{% trans "Delete" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in periods %}
-            <tr>
-              <td>
-                <input type="hidden" name="period_id" value="{{ p.id }}">
-                <input type="text" name="name_{{ p.id }}" value="{{ p.name }}" class="form-control form-control-sm">
-              </td>
-              <td>
-                <input type="datetime-local" name="start_{{ p.id }}" value="{{ p.start|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm">
-              </td>
-              <td>
-                <input type="datetime-local" name="end_{{ p.id }}" value="{{ p.end|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm">
-              </td>
-              <td class="text-center">
-                <input type="checkbox" name="delete" value="{{ p.id }}" class="form-check-input">
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-success">{% trans "Save Periods" %}</button>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle">
+            <thead>
+              <tr>
+                <th>{% trans "Name" %}</th>
+                <th>{% trans "Start" %}</th>
+                <th>{% trans "End" %}</th>
+                <th class="text-right">{% trans "Orders" %}</th>
+                <th class="text-right">{% trans "Revenue" %}</th>
+                <th class="text-right">{% trans "Donations" %}</th>
+                <th class="text-right">{% trans "Avg Order Value" %}</th>
+                <th class="text-center">{% trans "Delete" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in period_rows %}
+              <tr class="sales-period-row" data-period-id="{{ row.id }}" tabindex="0">
+                <td>
+                  <input type="hidden" name="period_id" value="{{ row.id }}">
+                  <input type="text" name="name_{{ row.id }}" value="{{ row.name }}" class="form-control form-control-sm">
+                </td>
+                <td>
+                  <input type="datetime-local" name="start_{{ row.id }}" value="{{ row.start|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm">
+                </td>
+                <td>
+                  <input type="datetime-local" name="end_{{ row.id }}" value="{{ row.end|date:'Y-m-d\TH:i' }}" class="form-control form-control-sm">
+                </td>
+                <td class="text-right font-weight-semibold">{{ row.order_count }}</td>
+                <td class="text-right">${{ row.revenue|floatformat:2 }}</td>
+                <td class="text-right">${{ row.donations|floatformat:2 }}</td>
+                <td class="text-right">${{ row.avg_order_value|floatformat:2 }}</td>
+                <td class="text-center">
+                  <input type="checkbox" name="delete" value="{{ row.id }}" class="form-check-input">
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex">
+          <button type="submit" class="btn btn-success mr-2">{% trans "Save Periods" %}</button>
           <button type="submit" class="btn btn-outline-primary" onclick="document.getElementById('periods-action').value='export';">
             {% trans "Export Report" %}
           </button>
@@ -90,5 +165,196 @@
       </form>
     </div>
   </div>
+
+  <div class="modal fade" id="salesPeriodChartModal" tabindex="-1" role="dialog" aria-labelledby="salesPeriodChartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" id="salesPeriodChartModalLabel">{% trans "Sales Period Charts" %}</h5>
+            <div class="text-muted small" id="salesPeriodChartModalDates"></div>
+          </div>
+          <button type="button" class="close" data-dismiss="modal" aria-label="{% trans 'Close' %}">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="sales-period-summary mb-4">
+            <div class="sales-period-stat">
+              <span class="sales-period-stat-label">{% trans "Orders" %}</span>
+              <span class="sales-period-stat-value" id="salesPeriodOrdersValue">0</span>
+            </div>
+            <div class="sales-period-stat">
+              <span class="sales-period-stat-label">{% trans "Revenue" %}</span>
+              <span class="sales-period-stat-value" id="salesPeriodRevenueValue">$0.00</span>
+            </div>
+            <div class="sales-period-stat">
+              <span class="sales-period-stat-label">{% trans "Donations" %}</span>
+              <span class="sales-period-stat-value" id="salesPeriodDonationsValue">$0.00</span>
+            </div>
+            <div class="sales-period-stat">
+              <span class="sales-period-stat-label">{% trans "Avg Order Value" %}</span>
+              <span class="sales-period-stat-value" id="salesPeriodAovValue">$0.00</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-6 mb-3">
+              <div class="chart-panel">
+                <h6 class="mb-3">{% trans "Cumulative Orders" %}</h6>
+                <canvas id="salesPeriodOrdersChart"></canvas>
+              </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+              <div class="chart-panel">
+                <h6 class="mb-3">{% trans "Cumulative Revenue" %}</h6>
+                <canvas id="salesPeriodRevenueChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Close" %}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{ period_chart_data|json_script:"sales-period-chart-data" }}
   {% endif %}
+{% endblock %}
+
+{% block extrascripts %}
+  {{ block.super }}
+  <script>
+    (function () {
+      var dataElement = document.getElementById('sales-period-chart-data');
+      if (!dataElement) {
+        return;
+      }
+
+      var periodChartData = JSON.parse(dataElement.textContent);
+      var modal = $('#salesPeriodChartModal');
+      var currencyFormatter = new Intl.NumberFormat('en-SG', {
+        style: 'currency',
+        currency: 'SGD'
+      });
+
+      var ordersChart;
+      var revenueChart;
+
+      function destroyCharts() {
+        if (ordersChart) {
+          ordersChart.destroy();
+          ordersChart = null;
+        }
+        if (revenueChart) {
+          revenueChart.destroy();
+          revenueChart = null;
+        }
+      }
+
+      function buildChart(canvasId, label, labels, values, borderColor, backgroundColor, valueFormatter) {
+        return new Chart(document.getElementById(canvasId), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: label,
+              data: values,
+              borderColor: borderColor,
+              backgroundColor: backgroundColor,
+              fill: true,
+              tension: 0.25,
+              pointRadius: 3,
+              pointHoverRadius: 5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: valueFormatter
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return label + ': ' + valueFormatter(context.parsed.y);
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      function openCharts(periodId) {
+        var period = periodChartData[String(periodId)];
+        if (!period) {
+          return;
+        }
+
+        destroyCharts();
+
+        document.getElementById('salesPeriodChartModalLabel').textContent = period.name;
+        document.getElementById('salesPeriodChartModalDates').textContent = period.date_span;
+        document.getElementById('salesPeriodOrdersValue').textContent = period.summary.orders;
+        document.getElementById('salesPeriodRevenueValue').textContent = currencyFormatter.format(period.summary.revenue);
+        document.getElementById('salesPeriodDonationsValue').textContent = currencyFormatter.format(period.summary.donations);
+        document.getElementById('salesPeriodAovValue').textContent = currencyFormatter.format(period.summary.avg_order_value);
+
+        ordersChart = buildChart(
+          'salesPeriodOrdersChart',
+          'Cumulative Orders',
+          period.chart.labels,
+          period.chart.orders,
+          '#0d6efd',
+          'rgba(13, 110, 253, 0.15)',
+          function (value) { return Number(value).toFixed(0); }
+        );
+
+        revenueChart = buildChart(
+          'salesPeriodRevenueChart',
+          'Cumulative Revenue',
+          period.chart.labels,
+          period.chart.revenue,
+          '#198754',
+          'rgba(25, 135, 84, 0.16)',
+          function (value) { return currencyFormatter.format(value); }
+        );
+
+        modal.modal('show');
+      }
+
+      document.querySelectorAll('.sales-period-row').forEach(function (row) {
+        row.addEventListener('click', function (event) {
+          if (event.target.closest('input, button, a, label')) {
+            return;
+          }
+          openCharts(row.dataset.periodId);
+        });
+
+        row.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openCharts(row.dataset.periodId);
+          }
+        });
+      });
+
+      modal.on('hidden.bs.modal', destroyCharts);
+    })();
+  </script>
 {% endblock %}
