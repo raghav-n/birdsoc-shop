@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    environment: test
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
@@ -32,6 +33,11 @@ jobs:
       env:
         SECRET_KEY: ci-test-secret-key
         JWT_SECRET: ci-test-jwt-secret
+        GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+        GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+        GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+        SALES_EMAIL: ${{ vars.SALES_EMAIL }}
+
       run: |
         python manage.py test apps.api.tests -v 2
 
