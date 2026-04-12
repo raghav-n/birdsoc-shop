@@ -225,7 +225,7 @@ class PayNowGmailTestEmailView(APIView):
         if not to_email or not from_email:
             return Response(
                 {
-                    "detail": "Set SALES_EMAIL and optionally GMAIL_TEST_RECIPIENT to send test emails."
+                    "detail": "Set DEFAULT_FROM_EMAIL and either SALES_EMAIL or GMAIL_TEST_RECIPIENT to send test emails."
                 },
                 status=status.HTTP_501_NOT_IMPLEMENTED,
             )
