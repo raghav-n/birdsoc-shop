@@ -325,6 +325,7 @@ class OrderLineLiteSerializer(serializers.Serializer):
     upc = serializers.CharField()
     title = serializers.CharField()
     quantity = serializers.IntegerField()
+    product_image = serializers.CharField(allow_null=True)
     unit_price_incl_tax = serializers.DecimalField(max_digits=12, decimal_places=2)
     line_price_incl_tax = serializers.DecimalField(max_digits=12, decimal_places=2)
     line_price_before_discounts_incl_tax = serializers.DecimalField(
@@ -379,12 +380,30 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_lines(self, obj: Order):
         results = []
         for l in obj.lines.select_related("product").all():
+            product_image = None
+            product = l.product
+            if product is not None:
+                target = product.parent if getattr(product, "parent_id", None) else product
+                img = target.images.order_by("display_order", "id").first()
+                if img:
+                    try:
+                        original = img.original
+                        try:
+                            from sorl.thumbnail import get_thumbnail
+
+                            thumb = get_thumbnail(original, "320", quality=85)
+                            product_image = thumb.url
+                        except Exception:
+                            product_image = original.url
+                    except Exception:
+                        product_image = None
             results.append(
                 {
                     "id": l.id,
                     "upc": l.upc or (l.product.upc if l.product_id else None),
                     "title": l.title or (l.description or ""),
                     "quantity": l.quantity,
+                    "product_image": product_image,
                     "unit_price_incl_tax": l.unit_price_incl_tax,
                     "line_price_incl_tax": l.line_price_incl_tax,
                     "line_price_before_discounts_incl_tax": (

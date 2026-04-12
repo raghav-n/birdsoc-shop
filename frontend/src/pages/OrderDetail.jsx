@@ -383,9 +383,16 @@ const OrderDetail = () => {
             {orderLines.map((line) => (
               <OrderItem key={line.id}>
                 <ItemImage>
-                  <div style={{ color: '#666', fontSize: '0.7rem' }}>
-                    No Image
-                  </div>
+                  {line.product_image ? (
+                    <img
+                      src={line.product_image}
+                      alt={sanitizeText(line.title)}
+                    />
+                  ) : (
+                    <div style={{ color: '#666', fontSize: '0.7rem' }}>
+                      No Image
+                    </div>
+                  )}
                 </ItemImage>
 
                 <ItemInfo>

@@ -116,5 +116,6 @@ class OrdersExtraTests(APITestCase):
         self.assertEqual(len(data["basket_discounts"]), 1)
         self.assertEqual(data["basket_discounts"][0]["name"][:7], "20% Off")
         self.assertEqual(Decimal(str(data["basket_discounts"][0]["amount"])), Decimal("4.00"))
+        self.assertIsNone(data["lines"][0]["product_image"])
         self.assertEqual(Decimal(str(data["lines"][0]["line_price_before_discounts_incl_tax"])), Decimal("20.00"))
         self.assertEqual(Decimal(str(data["lines"][0]["line_price_incl_tax"])), Decimal("16.00"))
