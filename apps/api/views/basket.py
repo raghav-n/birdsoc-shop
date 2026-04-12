@@ -6,6 +6,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
+from sentry_sdk import capture_exception
 from oscar.core.loading import get_model, get_class
 
 from apps.api.serializers import BasketSerializer, BasketLineSerializer
@@ -134,8 +135,8 @@ class BasketLinesView(APIView):
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
         except StaleBasketError:
             return Response({"detail": "stale_basket"}, status=status.HTTP_410_GONE)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError:
+            return Response({"detail": "Basket not found"}, status=status.HTTP_404_NOT_FOUND)
 
         product_id = request.data.get("product_id")
         quantity = int(request.data.get("quantity", 1))
@@ -150,13 +151,7 @@ class BasketLinesView(APIView):
                 {"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        try:
-            basket.add_product(product, quantity=quantity, options=[])
-        except Exception as e:
-            return Response(
-                {"detail": f"Cannot add to basket: {e}"},
-                status=status.HTTP_409_CONFLICT,
-            )
+        basket.add_product(product, quantity=quantity, options=[])
 
         serializer = BasketSerializer(basket, context={"request": request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -187,8 +182,8 @@ class BasketLineDetailView(APIView):
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
         except StaleBasketError:
             return Response({"detail": "stale_basket"}, status=status.HTTP_410_GONE)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError:
+            return Response({"detail": "Line not found"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             qty = int(request.data.get("quantity"))
@@ -214,8 +209,8 @@ class BasketLineDetailView(APIView):
             return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
         except StaleBasketError:
             return Response({"detail": "stale_basket"}, status=status.HTTP_410_GONE)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError:
+            return Response({"detail": "Line not found"}, status=status.HTTP_404_NOT_FOUND)
         basket = line.basket
         line.delete()
         serializer = BasketSerializer(basket, context={"request": request})
@@ -293,9 +288,10 @@ class BasketMergeView(APIView):
         target.strategy = _get_request_strategy(request)
         try:
             target.merge(source)
-        except Exception as e:
+        except Exception as exc:
+            capture_exception(exc)
             return Response(
-                {"detail": f"Unable to merge baskets: {e}"},
+                {"detail": "Unable to merge baskets."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import patch
+
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from django.utils import timezone
+from oscar.core.loading import get_model
 from rest_framework.test import APITestCase
 
 from apps.api.tests.utils import create_product, create_shipping_method
+
+PendingCheckout = get_model("checkout", "PendingCheckout")
+Order = get_model("order", "Order")
 
 
 class CheckoutExtraTests(APITestCase):
@@ -107,3 +116,211 @@ class CheckoutExtraTests(APITestCase):
         expected = total_incl_tax + D("5")
         amounts = [D(str(s["amount_debited"])) for s in r.data["sources"]]
         self.assertTrue(any(a == expected for a in amounts))
+
+    @patch("apps.api.views.payments.find_paynow_email_for_order")
+    @patch("apps.api.views.payments.build_gmail_service")
+    def test_paynow_email_check_places_pending_checkout_and_confirms_payment(
+        self, mock_build_gmail_service, mock_find_paynow_email_for_order
+    ):
+        method = create_shipping_method(price=0, is_self_collect=True)
+        basket_id = self._basket_with_line(price=25)
+        order_number = str(settings.BASE_ORDER_NUMBER + int(basket_id))
+        PendingCheckout.objects.create(
+            basket_id=basket_id,
+            email="guest@example.com",
+            reference=f"{settings.ORDER_PREFIX}{order_number}",
+            shipping_method_code=method.code,
+            donation=5,
+            basket_snapshot={},
+        )
+
+        mock_build_gmail_service.return_value = object()
+        mock_find_paynow_email_for_order.return_value = {
+            "amount": "30.00",
+            "received_at": timezone.now(),
+            "from_email": "alerts@example.com",
+        }
+
+        response = self.client.get(
+            "/api/v1/checkout/payment/paynow-email-check",
+            {"order": order_number},
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data["confirmed"])
+        self.assertTrue(response.data["found"])
+        self.assertEqual(response.data["sender"], "alerts@example.com")
+
+        order = Order._default_manager.get(number=order_number)
+        self.assertEqual(order.status, settings.PAYMENT_AUTO_CONFIRMED_STATUS)
+        self.assertEqual(order.total_incl_tax_with_donation, Decimal("30.00"))
+        self.assertTrue(
+            order.payment_events.filter(event_type__code="paynow-auto-verified").exists()
+        )
+        self.assertFalse(
+            PendingCheckout.objects.filter(
+                reference=f"{settings.ORDER_PREFIX}{order_number}"
+            ).exists()
+        )
+
+    @override_settings(GMAIL_ALLOWED_FROM_ADDRESSES="allowed@example.com")
+    def test_paynow_email_check_ignores_message_from_unapproved_sender(self):
+        from apps.util.gmail_client import find_paynow_email_for_order
+
+        class FakeMessagesResource:
+            def list(self, **kwargs):
+                self._last_call = ("list", kwargs)
+                return self
+
+            def get(self, **kwargs):
+                self._last_call = ("get", kwargs)
+                return self
+
+            def execute(self):
+                action, kwargs = self._last_call
+                if action == "list":
+                    return {"messages": [{"id": "msg-1"}]}
+                if action == "get":
+                    return {
+                        "internalDate": str(int(timezone.now().timestamp() * 1000)),
+                        "payload": {
+                            "headers": [
+                                {
+                                    "name": "From",
+                                    "value": "Spoofed Sender <spoofed@example.com>",
+                                }
+                            ],
+                            "mimeType": "text/plain",
+                            "body": {
+                                "data": (
+                                    "RGVhciBWYWx1ZWQgQ3VzdG9tZXIKClMkMzAuMDAgaGFzIGJlZW4g"
+                                    "jcmVkaXRlZCBpbnRvIHlvdXIgUGF5Tm93IGxpbmtlZCBBL0MgZW5k"
+                                    "aW5nIDgwMjQgKHJlZi1PVEhSLU1FUi0xMDAwMDEpCg=="
+                                )
+                            },
+                        },
+                    }
+                raise AssertionError("Unexpected fake Gmail API call")
+
+        class FakeUsersResource:
+            def __init__(self):
+                self._messages = FakeMessagesResource()
+
+            def messages(self):
+                return self._messages
+
+        class FakeService:
+            def users(self):
+                return FakeUsersResource()
+
+        result = find_paynow_email_for_order(FakeService(), order_number="100001")
+        self.assertIsNone(result)
+
+    @override_settings(
+        GMAIL_ALLOWED_FROM_ADDRESSES="allowed@example.com",
+        DEFAULT_FROM_EMAIL="spoofed@example.com",
+    )
+    def test_paynow_email_check_allows_default_from_email_even_if_not_allowlisted(self):
+        from apps.util.gmail_client import find_paynow_email_for_order
+
+        class FakeMessagesResource:
+            def list(self, **kwargs):
+                self._last_call = ("list", kwargs)
+                return self
+
+            def get(self, **kwargs):
+                self._last_call = ("get", kwargs)
+                return self
+
+            def execute(self):
+                action, kwargs = self._last_call
+                if action == "list":
+                    return {"messages": [{"id": "msg-1"}]}
+                if action == "get":
+                    return {
+                        "internalDate": str(int(timezone.now().timestamp() * 1000)),
+                        "payload": {
+                            "headers": [
+                                {
+                                    "name": "From",
+                                    "value": "Spoofed Sender <spoofed@example.com>",
+                                }
+                            ],
+                            "mimeType": "text/plain",
+                            "body": {
+                                "data": (
+                                    "RGVhciBWYWx1ZWQgQ3VzdG9tZXIKClMkMzAuMDAgaGFzIGJlZW4g"
+                                    "Y3JlZGl0ZWQgaW50byB5b3VyIFBheU5vdyBsaW5rZWQgQS9DIGVu"
+                                    "ZGluZyA4MDI0IChyZWYtT1RIUi1NRVItMTAwMDAxKQo="
+                                )
+                            },
+                        },
+                    }
+                raise AssertionError("Unexpected fake Gmail API call")
+
+        class FakeUsersResource:
+            def __init__(self):
+                self._messages = FakeMessagesResource()
+
+            def messages(self):
+                return self._messages
+
+        class FakeService:
+            def users(self):
+                return FakeUsersResource()
+
+        result = find_paynow_email_for_order(
+            FakeService(),
+            order_number="100001",
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["from_email"], "spoofed@example.com")
+
+    @patch("apps.api.views.payments.send_mail")
+    @patch("apps.api.views.payments.build_gmail_service")
+    def test_localhost_paynow_test_email_uses_pending_checkout_total(
+        self, mock_build_gmail_service, mock_send_mail
+    ):
+        method = create_shipping_method(price=0, is_self_collect=True)
+        basket_id = self._basket_with_line(price=25)
+        order_number = str(settings.BASE_ORDER_NUMBER + int(basket_id))
+        PendingCheckout.objects.create(
+            basket_id=basket_id,
+            email="guest@example.com",
+            reference=f"{settings.ORDER_PREFIX}{order_number}",
+            shipping_method_code=method.code,
+            donation=5,
+            basket_snapshot={"total": "25.00"},
+        )
+
+        response = self.client.post(
+            "/api/v1/checkout/payment/paynow-email-test",
+            {"order": order_number},
+            format="json",
+            HTTP_HOST="localhost:8000",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data["sent"])
+        self.assertEqual(response.data["amount"], "30.00")
+        self.assertEqual(mock_send_mail.call_count, 1)
+
+        _, kwargs = mock_send_mail.call_args
+        self.assertEqual(
+            kwargs["subject"],
+            "PayNow Alert - You have received a payment via PayNow",
+        )
+        self.assertIn("ref-OTHR-MER-", kwargs["message"])
+        self.assertIn(order_number, kwargs["message"])
+        self.assertIn("S$30.00", kwargs["message"])
+
+    @patch("apps.api.views.payments.send_mail")
+    def test_paynow_test_email_is_not_available_off_localhost(self, mock_send_mail):
+        response = self.client.post(
+            "/api/v1/checkout/payment/paynow-email-test",
+            {"order": "100001"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403, response.data)
+        mock_send_mail.assert_not_called()

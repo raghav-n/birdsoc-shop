@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useForm } from 'react-hook-form';
@@ -373,10 +373,15 @@ const Checkout = () => {
   const [selectedShippingMethod, setSelectedShippingMethod] = useState('');
   const [isSelectedMethodSelfCollect, setIsSelectedMethodSelfCollect] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
-  const orderReference = cart?.id ? `MER-${100000 + parseInt(cart.id)}` : '';
+  const orderNumber = cart?.id ? String(100000 + parseInt(cart.id, 10)) : '';
+  const orderReference = orderNumber ? `MER-${orderNumber}` : '';
   const [donation, setDonation] = useState(0);
   const [customDonation, setCustomDonation] = useState('');
-  const [dragOver, setDragOver] = useState(false);                    
+  const [dragOver, setDragOver] = useState(false);
+  const [isSendingTestPaymentEmail, setIsSendingTestPaymentEmail] = useState(false);
+  const handledPaymentConfirmationRef = useRef(false);
+  const isCheckingPaymentConfirmationRef = useRef(false);
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   const {
     register,
@@ -608,6 +613,100 @@ const Checkout = () => {
     setValue('donationType', 'custom');
   };
 
+  const handleSendTestPaymentEmail = async () => {
+    if (!orderNumber || isSendingTestPaymentEmail) {
+      return;
+    }
+
+    setIsSendingTestPaymentEmail(true);
+    try {
+      const result = await checkoutService.sendPayNowTestEmail(orderNumber);
+      toast.success(
+        `Test PayNow email sent to ${result.recipient}. Automatic confirmation polling is active.`
+      );
+    } catch (error) {
+      toast.error(
+        error.response?.data?.detail || 'Failed to send test PayNow email'
+      );
+    } finally {
+      setIsSendingTestPaymentEmail(false);
+    }
+  };
+
+  const cartCount = getCartCount();
+  const cartItems = cart?.lines || [];
+  const lineTotal = cartItems.reduce((sum, item) => sum + parseFloat(item.line_price_incl_tax || 0), 0);
+  const discounts = cart?.offer_discounts || [];
+  const subtotal = cart?.total_excl_tax || 0;
+  const selectedMethod = shippingMethods.find(method => method.code === selectedShippingMethod);
+  const shippingCost = selectedMethod ? (selectedMethod.is_self_collect ? 0 : parseFloat(selectedMethod.price) || 0) : 0;
+  const totalWithDonation = subtotal + shippingCost + donation;
+  const isFreeOrder = subtotal + shippingCost === 0;
+  const needsPayment = !isFreeOrder || donation > 0;
+
+  useEffect(() => {
+    handledPaymentConfirmationRef.current = false;
+  }, [orderNumber]);
+
+  useEffect(() => {
+    if (currentStep !== 4 || !orderNumber || !needsPayment) {
+      return;
+    }
+
+    const checkPaymentConfirmation = async () => {
+      if (
+        handledPaymentConfirmationRef.current ||
+        isCheckingPaymentConfirmationRef.current
+      ) {
+        return;
+      }
+
+      isCheckingPaymentConfirmationRef.current = true;
+
+      try {
+        const result = await checkoutService.checkPayNowEmail(orderNumber);
+        if (!result.confirmed) {
+          return;
+        }
+
+        handledPaymentConfirmationRef.current = true;
+        trackPurchase(orderNumber, totalWithDonation, cart?.lines || [], shippingCost);
+        clearCart();
+        navigate('/order-success', {
+          replace: true,
+          state: {
+            orderNumber,
+            orderTotal: totalWithDonation,
+            autoConfirmedPayment: true,
+          },
+        });
+      } catch (error) {
+        const statusCode = error.response?.status;
+        if (statusCode !== 404 && statusCode !== 501 && statusCode !== 502) {
+          console.error('Automatic payment confirmation check failed:', error);
+        }
+      } finally {
+        isCheckingPaymentConfirmationRef.current = false;
+      }
+    };
+
+    checkPaymentConfirmation();
+    const intervalId = window.setInterval(checkPaymentConfirmation, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      isCheckingPaymentConfirmationRef.current = false;
+    };
+  }, [
+    cart,
+    clearCart,
+    currentStep,
+    navigate,
+    needsPayment,
+    orderNumber,
+    shippingCost,
+    totalWithDonation,
+  ]);
 
   if (cartLoading) {
     return (
@@ -620,15 +719,6 @@ const Checkout = () => {
   if (!cart || cart.lines?.length === 0) {
     return null; // Will redirect to cart
   }
-
-  const cartCount = getCartCount();
-  const cartItems = cart?.lines || [];
-  const lineTotal = cartItems.reduce((sum, item) => sum + parseFloat(item.line_price_incl_tax || 0), 0);
-  const discounts = cart?.offer_discounts || [];
-  const subtotal = cart?.total_excl_tax || 0;
-  const selectedMethod = shippingMethods.find(method => method.code === selectedShippingMethod);
-  const shippingCost = selectedMethod ? (selectedMethod.is_self_collect ? 0 : parseFloat(selectedMethod.price) || 0) : 0;
-  const totalWithDonation = subtotal + shippingCost + donation;
 
   // Calculate visible step numbers (contact step removed, so internal 2→1, 3→2, 4→3, 5→4)
   const getStepNumber = (stepIndex) => {
@@ -838,14 +928,30 @@ const Checkout = () => {
             {currentStep >= 4 && (
               <StepContent>
                 {(() => {
-                  const isFreeOrder = subtotal + shippingCost === 0;
-                  const needsPayment = !isFreeOrder || donation > 0;
                   return (
                     <>
                       {needsPayment && (
                         <Alert variant="info" style={{ marginBottom: '1rem' }}>
                           For now, we only accept payment via PayNow – either via QR code or UEN number.
                         </Alert>
+                      )}
+
+                      {needsPayment && isLocalhost && (
+                        <div style={{ marginBottom: '1rem' }}>
+                          <Alert variant="info" style={{ marginBottom: '1rem' }}>
+                            Local testing: automatic PayNow confirmation polling is active on this step.
+                          </Alert>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={handleSendTestPaymentEmail}
+                            disabled={!orderNumber || isSendingTestPaymentEmail}
+                          >
+                            {isSendingTestPaymentEmail
+                              ? 'Sending Test Email...'
+                              : 'Send Local Test PayNow Email'}
+                          </Button>
+                        </div>
                       )}
 
                       <PaymentLayout>

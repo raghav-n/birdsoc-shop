@@ -35,6 +35,22 @@ export const checkoutService = {
     return response.data;
   },
 
+  // Check whether a PayNow confirmation email has been received yet
+  checkPayNowEmail: async (orderNumber) => {
+    const response = await api.get('/checkout/payment/paynow-email-check', {
+      params: { order: orderNumber },
+    });
+    return response.data;
+  },
+
+  // Send a localhost-only test email that matches the PayNow polling parser
+  sendPayNowTestEmail: async (orderNumber) => {
+    const response = await api.post('/checkout/payment/paynow-email-test', {
+      order: orderNumber,
+    });
+    return response.data;
+  },
+
   // Save pending checkout intent (called when reaching payment step)
   savePendingCheckout: async (data) => {
     const response = await api.post('/checkout/pending', data);

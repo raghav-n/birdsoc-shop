@@ -157,9 +157,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
 
             try:
                 extra_json = _json.loads(extra_json)
-            except Exception as e:
+            except Exception:
                 return Response(
-                    {"detail": f"extra_json must be valid JSON: {e}"},
+                    {"detail": "extra_json must be valid JSON"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -206,8 +206,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             event_participant = event.add_participant(
                 participant, is_confirmed=not is_paid, extra_json=extra_json
             )
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return Response(
+                {"detail": "Unable to add participant to this event."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # If free, we're done
         if not is_paid:
@@ -334,9 +337,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         if isinstance(participants_payload, str):
             try:
                 participants = _json.loads(participants_payload)
-            except Exception as e:
+            except Exception:
                 return Response(
-                    {"detail": f"participants must be valid JSON list: {e}"},
+                    {"detail": "participants must be a valid JSON list"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
@@ -437,10 +440,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             if isinstance(extra_json, str) and extra_json:
                 try:
                     extra_json = _json.loads(extra_json)
-                except Exception as e:
-                    errors.append(
-                        {"index": idx, "detail": f"extra_json must be valid JSON: {e}"}
-                    )
+                except Exception:
+                    errors.append({"index": idx, "detail": "extra_json must be valid JSON"})
                     continue
 
             normalized.append(
@@ -563,8 +564,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     is_confirmed=not requires_payment,
                     extra_json=item.get("extra_json"),
                 )
-            except ValueError as e:
-                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                return Response(
+                    {"detail": "Unable to add one or more participants to this event."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             entry = {
                 "participant": {
@@ -660,9 +664,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         if isinstance(participants_payload, str):
             try:
                 participants = _json.loads(participants_payload)
-            except Exception as e:
+            except Exception:
                 return Response(
-                    {"detail": f"participants must be valid JSON list: {e}"},
+                    {"detail": "participants must be a valid JSON list"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
@@ -720,9 +724,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             if isinstance(extra_json, str) and extra_json:
                 try:
                     extra_json = _json.loads(extra_json)
-                except Exception as e:
+                except Exception:
                     return Response(
-                        {"detail": f"extra_json must be valid JSON (index {idx}): {e}"},
+                        {"detail": f"extra_json must be valid JSON (index {idx})"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 

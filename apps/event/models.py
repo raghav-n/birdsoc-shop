@@ -116,15 +116,15 @@ class OrganizedEvent(models.Model):
                     if isinstance(self.json_schema, str)
                     else self.json_schema
                 )
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON schema configured: {e.msg}")
+            except json.JSONDecodeError:
+                raise ValueError("Invalid JSON schema configured.")
 
             try:
                 jsonschema.validate(
                     instance=kwargs.get("extra_json", {}), schema=schema
                 )
-            except jsonschema.ValidationError as e:
-                raise ValueError(f"Participant data validation error: {e.message}")
+            except jsonschema.ValidationError:
+                raise ValueError("Participant data is invalid.")
 
         if self.max_participants is not None:
             current_count = self.participant_count

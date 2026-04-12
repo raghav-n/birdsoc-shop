@@ -28,7 +28,6 @@ DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
 PaymentEvent = get_model("order", "PaymentEvent")
 PaymentEventQuantity = get_model("order", "PaymentEventQuantity")
 PaymentEventType = get_model("order", "PaymentEventType")
-InvalidOrderStatus = get_class("order.exceptions", "InvalidOrderStatus")
 OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
 OrderPlacementMixin = get_class("checkout.mixins", "OrderPlacementMixin")
 Selector = get_class("partner.strategy", "Selector")
@@ -182,25 +181,22 @@ def _place_order_from_pending(pending, amount):
         "paynow-processing", total_with_donation, reference=reference
     )
 
-    try:
-        order_number = placer.generate_order_number(basket)
-        guest_email = pending.email or cache.get(f"guest-email:{basket.id}") or ""
-        order = placer.place_order(
-            order_number=order_number,
-            user=basket.owner,
-            basket=basket,
-            shipping_address=None,
-            shipping_method=method,
-            shipping_charge=shipping_charge,
-            order_total=order_total,
-            billing_address=None,
-            donation_amount=donation,
-            guest_email=guest_email,
-        )
-        basket.submit()
-        PendingCheckout.objects.filter(basket_id=pending.basket_id).delete()
-    except Exception as e:
-        return {"order": None, "error": f"Unable to place order: {e}"}
+    order_number = placer.generate_order_number(basket)
+    guest_email = pending.email or cache.get(f"guest-email:{basket.id}") or ""
+    order = placer.place_order(
+        order_number=order_number,
+        user=basket.owner,
+        basket=basket,
+        shipping_address=None,
+        shipping_method=method,
+        shipping_charge=shipping_charge,
+        order_total=order_total,
+        billing_address=None,
+        donation_amount=donation,
+        guest_email=guest_email,
+    )
+    basket.submit()
+    PendingCheckout.objects.filter(basket_id=pending.basket_id).delete()
 
     return {"order": order, "error": None}
 
@@ -258,8 +254,6 @@ def verify_payment(request):
 
         # Try to place the order from the pending checkout
         result = _place_order_from_pending(pending, Decimal(amount))
-        if result["error"]:
-            return JsonResponse({"error": result["error"]}, status=400)
         order = result["order"]
 
     # Store payment confirmation with the amount
@@ -274,12 +268,8 @@ def verify_payment(request):
 
         confirm_paynow_payment(order, Decimal(amount))
 
-    except PaymentConfirmationError as e:
-        return JsonResponse({"error": str(e)}, status=400)
-    except InvalidOrderStatus as e:
-        return JsonResponse(
-            {"error": f"Failed to confirm payment: {str(e)}"}, status=500
-        )
+    except PaymentConfirmationError:
+        return JsonResponse({"error": "Payment confirmation failed."}, status=400)
 
     return JsonResponse(
         {"success": f"Order {order_number} marked as paid. Amount: SGD {amount}."}

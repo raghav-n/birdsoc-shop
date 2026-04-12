@@ -33,6 +33,15 @@ const SuccessMessage = styled.p`
   line-height: 1.6;
 `;
 
+const AutoConfirmationMessage = styled(Card)`
+  margin-bottom: 2rem;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  border-color: rgba(34, 197, 94, 0.35);
+  background-color: rgba(34, 197, 94, 0.08);
+  color: var(--dark);
+`;
+
 const OrderCard = styled(Card)`
   margin-bottom: 2rem;
   padding: 2rem;
@@ -107,6 +116,7 @@ const OrderSuccess = () => {
   const location = useLocation();
   const orderNumber = location.state?.orderNumber || 'N/A';
   const orderTotal = location.state?.orderTotal || 0;
+  const autoConfirmedPayment = location.state?.autoConfirmedPayment || false;
 
   return (
     <SuccessContainer>
@@ -120,6 +130,12 @@ const OrderSuccess = () => {
         Thank you for your order! We've received your payment and will process your order shortly.
         You'll receive an email confirmation with all the details.
       </SuccessMessage>
+
+      {autoConfirmedPayment && (
+        <AutoConfirmationMessage>
+          We automatically confirmed your PayNow payment.
+        </AutoConfirmationMessage>
+      )}
 
       <OrderCard>
         <OrderInfo>
@@ -152,7 +168,9 @@ const OrderSuccess = () => {
           
           <StepsList>
             <Step>
-              <strong>1. Order Confirmation:</strong> We'll verify your payment and send you an order confirmation email.
+              <strong>1. Order Confirmation:</strong> {autoConfirmedPayment
+                ? 'Your payment has already been confirmed and your order is now being processed.'
+                : "We'll verify your payment and send you an order confirmation email."}
             </Step>
             <Step>
               <strong>2. Collection:</strong> Collect your order. Details are available in our <Link to="/faq">FAQ</Link> page.

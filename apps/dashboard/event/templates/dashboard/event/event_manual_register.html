@@ -352,8 +352,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ participants, donation: donationInt })
           });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || 'Failed to compute price');
+          const data = await parseJsonSafely(res);
+          if (!res.ok) throw new Error(apiErrorMessage(res, data, 'Unable to preview price'));
           form.dataset.priceData = JSON.stringify(data);
           // Render
           const items = (data.items||[]).map((it, i)=>{
@@ -386,6 +386,25 @@
         return String(s||'').toUpperCase().replace(/[^A-Z0-9-]/g,'').slice(0,25);
       }
 
+      async function parseJsonSafely(res){
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) return null;
+        try {
+          return await res.json();
+        } catch (_err) {
+          return null;
+        }
+      }
+
+      function apiErrorMessage(res, data, fallback){
+        if (res.status >= 500) return fallback;
+        if (!data) return fallback;
+        if (typeof data.detail === 'string' && data.detail) return data.detail;
+        if (typeof data.error === 'string' && data.error) return data.error;
+        if (typeof data.message === 'string' && data.message) return data.message;
+        return fallback;
+      }
+
       async function createGroupAndQR(){
         try{
           statusText.textContent = '';
@@ -407,8 +426,8 @@
           }
           body.append('reference', ref);
           const res = await fetch(`${apiBase()}/events/${EVENT_ID}/register/bulk`, { method: 'POST', body });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || 'Failed to create registration');
+          const data = await parseJsonSafely(res);
+          if (!res.ok) throw new Error(apiErrorMessage(res, data, 'Unable to create registration'));
           if (data.group){
             const group = data.group || {};
             const amountRaw = (group.amount_total_with_donation != null ? group.amount_total_with_donation : (parseFloat(group.amount_total||0) + parseFloat(group.donation_amount||0))).toString();
@@ -445,8 +464,8 @@
           const fd = new FormData();
           fd.append('payment_proof', proofFile.files[0]);
           const res = await fetch(`${apiBase()}/event-registration-groups/${gid}/payment/paynow-proof`, { method: 'POST', body: fd });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || 'Upload failed');
+          const data = await parseJsonSafely(res);
+          if (!res.ok) throw new Error(apiErrorMessage(res, data, 'Upload failed'));
           uploadStatus.textContent = 'Uploaded!';
           uploadStatus.className = 'ml-2 small text-success';
         } catch (e) {
