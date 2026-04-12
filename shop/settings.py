@@ -90,6 +90,8 @@ GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
 GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
 GMAIL_TEST_RECIPIENT = os.environ.get("GMAIL_TEST_RECIPIENT", "")
+GMAIL_ALLOWED_FROM_ADDRESSES = os.environ.get("GMAIL_ALLOWED_FROM_ADDRESSES", "")
+GMAIL_ALLOWED_FROM_DOMAINS = os.environ.get("GMAIL_ALLOWED_FROM_DOMAINS", "")
 # Gmail search query used to find PayNow notifications
 GMAIL_POLL_QUERY = os.environ.get(
     "GMAIL_POLL_QUERY",
@@ -355,7 +357,7 @@ if TESTING:
 
 db_defaults = {
     "ENGINE": "django.db.backends.postgresql",
-    "NAME": "shop",
+    "NAME": "shop_backup",
     "USER": DB_USER,
     "PASSWORD": DB_PASS,
     "HOST": "127.0.0.1",

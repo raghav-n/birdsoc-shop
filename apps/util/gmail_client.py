@@ -1,7 +1,8 @@
 import base64
 import re
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Tuple
+from email.utils import parseaddr
+from typing import Optional
 
 from django.conf import settings
 
@@ -81,17 +82,64 @@ def _extract_body(payload) -> str:
     return "\n".join(texts)
 
 
+def _get_headers(payload) -> dict[str, str]:
+    headers = {}
+    for header in payload.get("headers", []) or []:
+        name = (header.get("name") or "").strip().lower()
+        value = (header.get("value") or "").strip()
+        if name and value:
+            headers[name] = value
+    return headers
+
+
+def _get_allowed_sender_addresses() -> set[str]:
+    raw = getattr(settings, "GMAIL_ALLOWED_FROM_ADDRESSES", "") or ""
+    return {item.strip().lower() for item in raw.split(",") if item.strip()}
+
+
+def _get_allowed_sender_domains() -> set[str]:
+    raw = getattr(settings, "GMAIL_ALLOWED_FROM_DOMAINS", "") or ""
+    return {item.strip().lower().lstrip("@") for item in raw.split(",") if item.strip()}
+
+
+def _sender_matches_allowlist(from_email: str) -> bool:
+    default_from_email = (getattr(settings, "DEFAULT_FROM_EMAIL", "") or "").strip().lower()
+    allowed_addresses = _get_allowed_sender_addresses()
+    allowed_domains = _get_allowed_sender_domains()
+
+    if not from_email:
+        return False
+
+    email_value = from_email.lower()
+    dfe_extracted = re.search(r'<([^>]+)>', default_from_email)
+
+    if default_from_email and email_value == (dfe_extracted.group(1) if dfe_extracted else default_from_email):
+        return True
+
+    if not allowed_addresses and not allowed_domains:
+        return True
+
+    if email_value in allowed_addresses:
+        return True
+
+    if "@" not in email_value:
+        return False
+
+    domain = email_value.rsplit("@", 1)[1]
+    return domain in allowed_domains
+
+
 def find_paynow_email_for_order(
     service,
     order_number: str,
     subject_query: Optional[str] = None,
     max_age_minutes: int = 60,
     max_results: int = 10,
-) -> Optional[Tuple[str, datetime]]:
+) -> Optional[dict[str, str | datetime]]:
     """
     Search Gmail for a recent PayNow notification containing the given MER order number.
 
-    Returns a tuple (amount_str, received_at_datetime) if found; otherwise None.
+    Returns a dict with parsed payment details if found; otherwise None.
     """
     if not order_number:
         return None
@@ -132,7 +180,14 @@ def find_paynow_email_for_order(
             if received_at < min_dt:
                 continue
 
-            body_text = _extract_body(msg.get("payload", {}))
+            payload = msg.get("payload", {})
+            headers = _get_headers(payload)
+            from_header = headers.get("from", "")
+            from_email = parseaddr(from_header)[1].lower()
+            if not _sender_matches_allowlist(from_email):
+                continue
+
+            body_text = _extract_body(payload)
             if not body_text:
                 continue
 
@@ -146,7 +201,12 @@ def find_paynow_email_for_order(
                 continue
 
             amount = amount_match.group(1).replace(",", "").strip()
-            return amount, received_at
+            return {
+                "amount": amount,
+                "received_at": received_at,
+                "from_header": from_header,
+                "from_email": from_email,
+            }
         except Exception:
             # Skip malformed message
             continue

@@ -378,10 +378,9 @@ const Checkout = () => {
   const [donation, setDonation] = useState(0);
   const [customDonation, setCustomDonation] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [isCheckingPaymentConfirmation, setIsCheckingPaymentConfirmation] = useState(false);
   const [isSendingTestPaymentEmail, setIsSendingTestPaymentEmail] = useState(false);
-  const didLeaveCheckoutRef = useRef(false);
   const handledPaymentConfirmationRef = useRef(false);
+  const isCheckingPaymentConfirmationRef = useRef(false);
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   const {
@@ -623,7 +622,7 @@ const Checkout = () => {
     try {
       const result = await checkoutService.sendPayNowTestEmail(orderNumber);
       toast.success(
-        `Test PayNow email sent to ${result.recipient}. Leave the tab and come back to trigger polling.`
+        `Test PayNow email sent to ${result.recipient}. Automatic confirmation polling is active.`
       );
     } catch (error) {
       toast.error(
@@ -642,23 +641,27 @@ const Checkout = () => {
   const selectedMethod = shippingMethods.find(method => method.code === selectedShippingMethod);
   const shippingCost = selectedMethod ? (selectedMethod.is_self_collect ? 0 : parseFloat(selectedMethod.price) || 0) : 0;
   const totalWithDonation = subtotal + shippingCost + donation;
+  const isFreeOrder = subtotal + shippingCost === 0;
+  const needsPayment = !isFreeOrder || donation > 0;
 
   useEffect(() => {
     handledPaymentConfirmationRef.current = false;
   }, [orderNumber]);
 
   useEffect(() => {
-    if (currentStep !== 4 || !orderNumber) {
-      didLeaveCheckoutRef.current = false;
+    if (currentStep !== 4 || !orderNumber || !needsPayment) {
       return;
     }
 
     const checkPaymentConfirmation = async () => {
-      if (handledPaymentConfirmationRef.current || isCheckingPaymentConfirmation) {
+      if (
+        handledPaymentConfirmationRef.current ||
+        isCheckingPaymentConfirmationRef.current
+      ) {
         return;
       }
 
-      setIsCheckingPaymentConfirmation(true);
+      isCheckingPaymentConfirmationRef.current = true;
 
       try {
         const result = await checkoutService.checkPayNowEmail(orderNumber);
@@ -669,16 +672,12 @@ const Checkout = () => {
         handledPaymentConfirmationRef.current = true;
         trackPurchase(orderNumber, totalWithDonation, cart?.lines || [], shippingCost);
         clearCart();
-        toast.success(
-          result.already_confirmed
-            ? 'Payment was already confirmed. Redirecting to your order.'
-            : 'Payment confirmed. Redirecting to your order.'
-        );
         navigate('/order-success', {
           replace: true,
           state: {
             orderNumber,
             orderTotal: totalWithDonation,
+            autoConfirmedPayment: true,
           },
         });
       } catch (error) {
@@ -687,48 +686,23 @@ const Checkout = () => {
           console.error('Automatic payment confirmation check failed:', error);
         }
       } finally {
-        setIsCheckingPaymentConfirmation(false);
+        isCheckingPaymentConfirmationRef.current = false;
       }
     };
 
-    const handleReturnToCheckout = () => {
-      if (!didLeaveCheckoutRef.current) {
-        return;
-      }
-      didLeaveCheckoutRef.current = false;
-      checkPaymentConfirmation();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        didLeaveCheckoutRef.current = true;
-        return;
-      }
-
-      if (document.visibilityState === 'visible') {
-        handleReturnToCheckout();
-      }
-    };
-
-    const handleFocus = () => {
-      if (document.visibilityState === 'visible') {
-        handleReturnToCheckout();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    checkPaymentConfirmation();
+    const intervalId = window.setInterval(checkPaymentConfirmation, 10000);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      window.clearInterval(intervalId);
+      isCheckingPaymentConfirmationRef.current = false;
     };
   }, [
     cart,
     clearCart,
     currentStep,
-    isCheckingPaymentConfirmation,
     navigate,
+    needsPayment,
     orderNumber,
     shippingCost,
     totalWithDonation,
@@ -954,8 +928,6 @@ const Checkout = () => {
             {currentStep >= 4 && (
               <StepContent>
                 {(() => {
-                  const isFreeOrder = subtotal + shippingCost === 0;
-                  const needsPayment = !isFreeOrder || donation > 0;
                   return (
                     <>
                       {needsPayment && (
@@ -964,14 +936,11 @@ const Checkout = () => {
                         </Alert>
                       )}
 
-                      {isCheckingPaymentConfirmation && (
-                        <Alert variant="info" style={{ marginBottom: '1rem' }}>
-                          Checking for your PayNow confirmation...
-                        </Alert>
-                      )}
-
                       {needsPayment && isLocalhost && (
                         <div style={{ marginBottom: '1rem' }}>
+                          <Alert variant="info" style={{ marginBottom: '1rem' }}>
+                            Local testing: automatic PayNow confirmation polling is active on this step.
+                          </Alert>
                           <Button
                             type="button"
                             variant="secondary"

@@ -119,7 +119,9 @@ class PayNowGmailCheckView(APIView):
         if not found:
             return Response({"confirmed": False, "found": False})
 
-        amount_str, received_at = found
+        amount_str = found["amount"]
+        received_at = found["received_at"]
+        sender = found.get("from_email", "")
 
         # Validate the amount matches
         try:
@@ -177,6 +179,7 @@ class PayNowGmailCheckView(APIView):
                 "confirmed": True,
                 "found": True,
                 "amount": amount_str,
+                "sender": sender,
                 "email_timestamp": received_at.isoformat(),
             }
         )
