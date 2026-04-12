@@ -137,9 +137,6 @@
                 <a href="{% url 'dashboard-event:event-participant-create' pk=event.id %}" class="btn btn-success btn-sm ml-2">
                     <i class="fas fa-user-plus"></i> {% trans "Create New Participant" %}
                 </a>
-                <a href="{% url 'dashboard-event:event-manual-register' pk=event.id %}" class="btn btn-warning btn-sm ml-2">
-                    <i class="fas fa-qrcode"></i> {% trans "Manually Register Participants" %}
-                </a>
             </div>
         </div>
         <div class="card-body">
@@ -153,7 +150,7 @@
                             <th>{% trans "Party Size" %}</th>
                             <th>{% trans "Reference" %}</th>
                             <th>{% trans "Registered" %}</th>
-                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Confirmed" %}</th>
                             <th>{% trans "Attended" %}</th>
                             <th>{% trans "Actions" %}</th>
                         </tr>
@@ -179,10 +176,8 @@
                                 </td>
                                 <td>{{ ep.registered_at }}</td>
                                 <td>
-                                    {% if ep.is_cancelled %}
-                                        <span class="badge badge-danger">{% trans "Cancelled" %}</span>
-                                    {% elif ep.is_confirmed %}
-                                        <span class="badge badge-success">{% trans "Confirmed" %}</span>
+                                    {% if ep.is_confirmed %}
+                                        <span class="badge badge-success">{% trans "Yes" %}</span>
                                     {% else %}
                                         <span class="badge badge-warning">{% trans "Pending" %}</span>
                                     {% endif %}
@@ -195,7 +190,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="{% url 'event-dashboard:event-participant-detail' pk=ep.id %}" class="btn btn-info btn-sm">
+                                    <a href="{% url 'dashboard-event:participant-detail' pk=ep.participant.id %}" class="btn btn-info btn-sm">
                                         {% trans "View" %}
                                     </a>
                                     <button class="btn btn-danger btn-sm remove-participant" 
@@ -420,7 +415,7 @@
                         },
                         error: function(xhr) {
                             var errorMsg = 'An error occurred while removing the participant.';
-                            if (xhr.status < 500 && xhr.responseJSON && xhr.responseJSON.message) {
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMsg = xhr.responseJSON.message;
                             }
                             alert(errorMsg);
