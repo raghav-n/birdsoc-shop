@@ -1,9 +1,20 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils.crypto import get_random_string
+from oscar.core.loading import get_model
 from rest_framework.test import APITestCase, APIClient
 
 from apps.api.tests.utils import auth_client, create_product, create_shipping_method
+
+
+ConditionalOffer = get_model("offer", "ConditionalOffer")
+Condition = get_model("offer", "Condition")
+Benefit = get_model("offer", "Benefit")
+Range = get_model("offer", "Range")
+RangeProduct = get_model("offer", "RangeProduct")
 
 
 class OrdersExtraTests(APITestCase):
@@ -41,3 +52,69 @@ class OrdersExtraTests(APITestCase):
         r = c2.get(f"/api/v1/orders/{order['number']}")
         # Not in queryset for user => 404
         self.assertEqual(r.status_code, 404)
+
+    def test_retrieve_includes_pre_discount_totals_and_discounts(self):
+        client = APIClient()
+        auth_client(client, email="discounted@example.com")
+
+        product = create_product(
+            title=f"Discounted Product {get_random_string(6)}",
+            price=Decimal("20.00"),
+        )
+        offer_range = Range._default_manager.create(
+            name=f"Discount Range {get_random_string(6)}"
+        )
+        RangeProduct._default_manager.create(range=offer_range, product=product)
+        condition = Condition._default_manager.create(
+            type=Condition.COUNT,
+            range=offer_range,
+            value=1,
+        )
+        benefit = Benefit._default_manager.create(
+            type=Benefit.PERCENTAGE,
+            value=Decimal("20.00"),
+            range=offer_range,
+        )
+        ConditionalOffer._default_manager.create(
+            name=f"20% Off {get_random_string(6)}",
+            offer_type=ConditionalOffer.SITE,
+            condition=condition,
+            benefit=benefit,
+        )
+
+        shipping_method = create_shipping_method(price=Decimal("0.00"))
+        basket_id = client.post("/api/v1/baskets").data["cart_id"]
+        client.post(
+            f"/api/v1/baskets/{basket_id}/lines",
+            {"product_id": product.id, "quantity": 1},
+            format="json",
+        )
+
+        image = SimpleUploadedFile("proof.jpg", b"fake-bytes", content_type="image/jpeg")
+        temp_key = client.post(
+            "/api/v1/checkout/payment/paynow-proof",
+            {"basket_id": basket_id, "payment_proof": image},
+        ).data["temp_key"]
+        placed = client.post(
+            "/api/v1/checkout/place-order",
+            {
+                "basket_id": basket_id,
+                "temp_key": temp_key,
+                "shipping_method_code": shipping_method.code,
+            },
+        )
+        self.assertEqual(placed.status_code, 201, placed.data)
+
+        number = placed.data["number"]
+        response = client.get(f"/api/v1/orders/{number}")
+        self.assertEqual(response.status_code, 200, response.data)
+
+        data = response.data
+        self.assertEqual(Decimal(str(data["basket_total_before_discounts_incl_tax"])), Decimal("20.00"))
+        self.assertEqual(Decimal(str(data["basket_total_incl_tax"])), Decimal("16.00"))
+        self.assertEqual(Decimal(str(data["total_discount_incl_tax"])), Decimal("4.00"))
+        self.assertEqual(len(data["basket_discounts"]), 1)
+        self.assertEqual(data["basket_discounts"][0]["name"][:7], "20% Off")
+        self.assertEqual(Decimal(str(data["basket_discounts"][0]["amount"])), Decimal("4.00"))
+        self.assertEqual(Decimal(str(data["lines"][0]["line_price_before_discounts_incl_tax"])), Decimal("20.00"))
+        self.assertEqual(Decimal(str(data["lines"][0]["line_price_incl_tax"])), Decimal("16.00"))

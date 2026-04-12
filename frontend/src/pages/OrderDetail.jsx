@@ -208,6 +208,17 @@ const PriceAmount = styled.div`
   color: var(--link-text);
 `;
 
+const DiscountLabel = styled.span`
+  color: var(--success, #2e7d32);
+  font-size: 0.9rem;
+`;
+
+const DiscountAmount = styled.span`
+  color: var(--success, #2e7d32);
+  font-size: 0.9rem;
+  font-weight: 600;
+`;
+
 const OrderSidebar = styled.div`
   display: flex;
   flex-direction: column;
@@ -253,6 +264,11 @@ const OrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
+
+  const toNumber = (value) => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
 
   useEffect(() => {
     loadOrder();
@@ -312,6 +328,19 @@ const OrderDetail = () => {
     );
   }
 
+  const orderLines = order.lines || [];
+  const itemCount = orderLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
+  const subtotal = toNumber(order.basket_total_before_discounts_incl_tax)
+    || orderLines.reduce(
+      (sum, line) => sum + toNumber(line.line_price_before_discounts_incl_tax ?? line.line_price_incl_tax),
+      0,
+    );
+  const shippingCost = toNumber(order.shipping_incl_tax);
+  const donationAmount = toNumber(order.donation_amount);
+  const totalWithDonation = toNumber(order.total_incl_tax) + donationAmount;
+  const basketDiscounts = order.basket_discounts || [];
+  const paymentMethod = order.sources?.map((source) => source.source_type).filter(Boolean).join(', ') || 'PayNow';
+
   return (
     <OrderContainer>
       <OrderHeader>
@@ -351,7 +380,7 @@ const OrderDetail = () => {
               Order Items
             </SectionTitle>
             
-            {order.lines?.map((line) => (
+            {orderLines.map((line) => (
               <OrderItem key={line.id}>
                 <ItemImage>
                   <div style={{ color: '#666', fontSize: '0.7rem' }}>
@@ -362,13 +391,16 @@ const OrderDetail = () => {
                 <ItemInfo>
                   <ItemTitle>{sanitizeText(line.title)}</ItemTitle>
                   <ItemDetails>
-                    Quantity: {line.quantity} × {formatCurrency(line.unit_price_incl_tax)}
+                    Quantity: {line.quantity} × {formatCurrency(line.unit_price_incl_tax, order.currency)}
                   </ItemDetails>
                 </ItemInfo>
 
                 <ItemPrice>
                   <PriceAmount>
-                    {formatCurrency(line.line_price_incl_tax)}
+                    {formatCurrency(
+                      line.line_price_before_discounts_incl_tax ?? line.line_price_incl_tax,
+                      order.currency,
+                    )}
                   </PriceAmount>
                 </ItemPrice>
               </OrderItem>
@@ -432,32 +464,32 @@ const OrderDetail = () => {
             <SectionTitle>Order Summary</SectionTitle>
             
             <SummaryRow>
-              <span>Subtotal</span>
-              <span>{formatCurrency(order.total_excl_tax)}</span>
+              <span>Subtotal ({itemCount} items)</span>
+              <span>{formatCurrency(subtotal, order.currency)}</span>
             </SummaryRow>
+
+            {basketDiscounts.map((discount, idx) => (
+              <SummaryRow key={`${discount.name}-${idx}`}>
+                <DiscountLabel>{sanitizeText(discount.name)}</DiscountLabel>
+                <DiscountAmount>-{formatCurrency(discount.amount, order.currency)}</DiscountAmount>
+              </SummaryRow>
+            ))}
 
             <SummaryRow>
               <span>Shipping</span>
-              <span>{formatCurrency(order.shipping_incl_tax || 0)}</span>
+              <span>{shippingCost === 0 ? 'Free' : formatCurrency(shippingCost, order.currency)}</span>
             </SummaryRow>
 
-            {order.total_incl_tax !== order.total_excl_tax && (
-              <SummaryRow>
-                <span>Tax</span>
-                <span>{formatCurrency(order.total_incl_tax - order.total_excl_tax)}</span>
-              </SummaryRow>
-            )}
-
-            {order.donation_amount > 0 && (
+            {donationAmount > 0 && (
               <SummaryRow>
                 <span>Donation</span>
-                <span>{formatCurrency(order.donation_amount)}</span>
+                <span>{formatCurrency(donationAmount, order.currency)}</span>
               </SummaryRow>
             )}
 
             <SummaryRow total>
               <span>Total</span>
-              <span>{formatCurrency(order.total_incl_tax + (order.donation_amount || 0))}</span>
+              <span>{formatCurrency(totalWithDonation, order.currency)}</span>
             </SummaryRow>
           </Section>
 
@@ -472,7 +504,7 @@ const OrderDetail = () => {
             
             <InfoRow>
               <InfoLabel>Payment Method</InfoLabel>
-              <InfoValue>PayNow</InfoValue>
+              <InfoValue>{paymentMethod}</InfoValue>
             </InfoRow>
             
             {order.guest_email && (

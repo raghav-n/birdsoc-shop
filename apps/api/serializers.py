@@ -321,16 +321,22 @@ class OrderSourceSerializer(serializers.ModelSerializer):
 
 
 class OrderLineLiteSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     upc = serializers.CharField()
     title = serializers.CharField()
     quantity = serializers.IntegerField()
     unit_price_incl_tax = serializers.DecimalField(max_digits=12, decimal_places=2)
     line_price_incl_tax = serializers.DecimalField(max_digits=12, decimal_places=2)
+    line_price_before_discounts_incl_tax = serializers.DecimalField(
+        max_digits=12, decimal_places=2
+    )
 
 
 class OrderSerializer(serializers.ModelSerializer):
     lines = serializers.SerializerMethodField()
     sources = OrderSourceSerializer(many=True, read_only=True)
+    basket_discounts = serializers.SerializerMethodField()
+    shipping_discounts = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -339,23 +345,51 @@ class OrderSerializer(serializers.ModelSerializer):
             "status",
             "date_placed",
             "currency",
+            "guest_email",
+            "shipping_method",
+            "total_excl_tax",
             "total_incl_tax",
             "total_tax",
+            "shipping_incl_tax",
+            "basket_total_before_discounts_incl_tax",
+            "basket_total_incl_tax",
+            "shipping_before_discounts_incl_tax",
+            "total_discount_incl_tax",
             "donation_amount",
+            "basket_discounts",
+            "shipping_discounts",
             "lines",
             "sources",
         ]
+
+    def _serialize_discount(self, discount):
+        return {
+            "name": discount.offer_name,
+            "amount": discount.amount,
+            "voucher_code": discount.voucher_code or "",
+            "category": discount.category,
+        }
+
+    def get_basket_discounts(self, obj: Order):
+        return [self._serialize_discount(discount) for discount in obj.basket_discounts]
+
+    def get_shipping_discounts(self, obj: Order):
+        return [self._serialize_discount(discount) for discount in obj.shipping_discounts]
 
     def get_lines(self, obj: Order):
         results = []
         for l in obj.lines.select_related("product").all():
             results.append(
                 {
+                    "id": l.id,
                     "upc": l.upc or (l.product.upc if l.product_id else None),
                     "title": l.title or (l.description or ""),
                     "quantity": l.quantity,
                     "unit_price_incl_tax": l.unit_price_incl_tax,
                     "line_price_incl_tax": l.line_price_incl_tax,
+                    "line_price_before_discounts_incl_tax": (
+                        l.line_price_before_discounts_incl_tax
+                    ),
                 }
             )
         return results
