@@ -342,12 +342,12 @@
                 var fileCount = $(this)[0].files.length;
                 if (fileCount > 0) {
                     if (fileCount === 1) {
-                        $(this).next('.custom-file-label').html($(this)[0].files[0].name);
+                        $(this).next('.custom-file-label').text($(this)[0].files[0].name);
                     } else {
-                        $(this).next('.custom-file-label').html(fileCount + ' files selected');
+                        $(this).next('.custom-file-label').text(fileCount + ' files selected');
                     }
                 } else {
-                    $(this).next('.custom-file-label').html('Choose files...');
+                    $(this).next('.custom-file-label').text('Choose files...');
                 }
             });
         });

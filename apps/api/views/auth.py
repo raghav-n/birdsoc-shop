@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,7 +12,6 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.conf import settings
-from django.contrib.auth.password_validation import validate_password
 
 from apps.api.serializers import UserSerializer
 
@@ -39,9 +39,9 @@ class RegisterView(APIView):
             )
         try:
             validate_password(password)
-        except Exception as e:
+        except ValidationError as exc:
             return Response(
-                {"detail": " ".join([str(i) for i in e])},
+                {"detail": " ".join(exc.messages)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         user = User.objects.create_user(
@@ -157,9 +157,9 @@ class PasswordResetConfirmView(APIView):
 
         try:
             validate_password(new_password, user)
-        except Exception as e:
+        except ValidationError as exc:
             return Response(
-                {"detail": " ".join([str(i) for i in e])},
+                {"detail": " ".join(exc.messages)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
