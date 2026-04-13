@@ -66,4 +66,19 @@ class Source(AbstractSource):
         return True
 
 
+class Donation(models.Model):
+    name = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    reference = models.CharField(max_length=25, db_index=True)
+    email = models.EmailField(blank=True, default='')
+    note = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.reference} — ${self.amount}"
+
+
 from oscar.apps.payment.models import *

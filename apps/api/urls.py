@@ -42,6 +42,7 @@ from apps.api.views.payments import PayNowGmailCheckView, PayNowGmailTestEmailVi
 from apps.api.views.forms import FormSubmissionView, FormSchemaView
 from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.analytics import AnalyticsDashboardView
+from apps.api.views.donations import DonationCreateView
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -71,6 +72,7 @@ urlpatterns = [
     path("banners", BannerListView.as_view(), name="banner-list"),
     path("banners/text", TextBannerView.as_view(), name="banner-text"),
     path("analytics/dashboard", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
+    path("donations", DonationCreateView.as_view(), name="donation-create"),
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
     path(
         "checkout/shipping-methods",

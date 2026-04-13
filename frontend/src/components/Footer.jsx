@@ -102,8 +102,8 @@ const Footer = () => {
             <h4>Useful Links</h4>
             <FooterLinks>
               <FooterLink to="/contact">Contact Us</FooterLink>
-              <FooterLink to="/faq#shipping">Shipping Info</FooterLink>
               <FooterLink to="/faq">FAQ</FooterLink>
+              <FooterLink to="/donate">Donate</FooterLink>
             </FooterLinks>
           </FooterSectionCompact>
 
@@ -111,7 +111,11 @@ const Footer = () => {
             <FooterSectionCompact>
               <h4>Account</h4>
               <FooterLinks>
-                <FooterLink to="/orders">My Orders</FooterLink>
+                {isAuthenticated && (
+                  <>
+                    <FooterLink to="/orders">My Orders</FooterLink>
+                  </>
+                )}
                 {!isAuthenticated && (
                   <>
                     <FooterLink to="/login">Sign In</FooterLink>

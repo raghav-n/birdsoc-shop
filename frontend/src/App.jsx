@@ -28,6 +28,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import Dashboard from './pages/Dashboard';
+import Donate from './pages/Donate';
+import DonationSuccess from './pages/DonationSuccess';
 import { trackPageView } from './utils/analytics';
 
 const ScrollToTop = () => {
@@ -94,6 +96,8 @@ function App() {
                 <Route path="/refund" element={<Refund />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="/donate" element={<Donate />} />
+                <Route path="/donate/success" element={<DonationSuccess />} />
                 <Route path="/analytics" element={<StaffOnly><Dashboard /></StaffOnly>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
