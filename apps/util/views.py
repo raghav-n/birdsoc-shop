@@ -2,6 +2,7 @@ from decimal import Decimal
 import sys
 
 from django.db import OperationalError
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from sentry_sdk import last_event_id
@@ -14,9 +15,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from oscar.core.loading import get_model, get_class
 from apps.util.payments import confirm_paynow_payment, PaymentConfirmationError
-from apps.checkout.models import PendingCheckout
+from apps.checkout.models import PendingCheckout, UnmatchedPayment
 
 JWT_SECRET = settings.JWT_SECRET
 
@@ -201,6 +203,51 @@ def _place_order_from_pending(pending, amount):
     return {"order": order, "error": None}
 
 
+def _record_unmatched_payment(order_number, amount):
+    now = timezone.now()
+
+    with transaction.atomic():
+        unmatched_payment, created = UnmatchedPayment.objects.get_or_create(
+            order_number=order_number,
+            amount=amount,
+            defaults={
+                "occurrence_count": 1,
+                "first_seen_at": now,
+                "last_seen_at": now,
+            },
+        )
+
+        if not created:
+            unmatched_payment.occurrence_count += 1
+            unmatched_payment.last_seen_at = now
+
+        should_send_notification = created or not unmatched_payment.notification_sent_at
+        if should_send_notification:
+            try:
+                mail_admins(
+                    subject=f"Unmatched payment received: {order_number}",
+                    message=(
+                        f"A payment webhook was received that could not be matched "
+                        f"to any order or pending checkout.\n\n"
+                        f"Reference / order number: {order_number}\n"
+                        f"Amount: SGD {amount}\n\n"
+                        f"This may indicate the customer entered an incorrect "
+                        f"reference when making their PayNow transfer.\n\n"
+                        f"Please check the pending checkouts dashboard for "
+                        f"recent records that may correspond to this payment."
+                    ),
+                )
+            except Exception:
+                pass  # Don't let email failure block the webhook response
+            else:
+                unmatched_payment.notification_sent_at = now
+
+        update_fields = ["occurrence_count", "last_seen_at"]
+        if should_send_notification and unmatched_payment.notification_sent_at:
+            update_fields.append("notification_sent_at")
+        unmatched_payment.save(update_fields=update_fields)
+
+
 @csrf_exempt
 def verify_payment(request):
     if request.method != "POST":
@@ -232,22 +279,7 @@ def verify_payment(request):
         reference = f"{settings.ORDER_PREFIX}{order_number}"
         pending = PendingCheckout.objects.filter(reference=reference).first()
         if pending is None:
-            try:
-                mail_admins(
-                    subject=f"Unmatched payment received: {order_number}",
-                    message=(
-                        f"A payment webhook was received that could not be matched "
-                        f"to any order or pending checkout.\n\n"
-                        f"Reference / order number: {order_number}\n"
-                        f"Amount: SGD {amount}\n\n"
-                        f"This may indicate the customer entered an incorrect "
-                        f"reference when making their PayNow transfer.\n\n"
-                        f"Please check the pending checkouts dashboard for "
-                        f"recent records that may correspond to this payment."
-                    ),
-                )
-            except Exception:
-                pass  # Don't let email failure block the webhook response
+            _record_unmatched_payment(order_number=order_number, amount=Decimal(amount))
             return JsonResponse(
                 {"error": f"Order {order_number} not found"}, status=404
             )

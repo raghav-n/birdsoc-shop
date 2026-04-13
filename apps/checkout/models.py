@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class PendingCheckout(models.Model):
@@ -29,6 +30,34 @@ class PendingCheckout(models.Model):
 
     def __str__(self):
         return f"Pending #{self.reference} (basket {self.basket_id})"
+
+
+class UnmatchedPayment(models.Model):
+    """
+    Tracks payment webhooks that could not be matched to an order or pending
+    checkout so duplicate webhook deliveries do not trigger duplicate alerts.
+    """
+
+    order_number = models.CharField(max_length=64)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    occurrence_count = models.PositiveIntegerField(default=1)
+    first_seen_at = models.DateTimeField(default=timezone.now)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    notification_sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        app_label = "checkout"
+        verbose_name = "Unmatched Payment"
+        verbose_name_plural = "Unmatched Payments"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order_number", "amount"],
+                name="checkout_unmatched_payment_order_amount_uniq",
+            )
+        ]
+
+    def __str__(self):
+        return f"Unmatched payment #{self.order_number} ({self.amount})"
 
 
 from oscar.apps.checkout.models import *

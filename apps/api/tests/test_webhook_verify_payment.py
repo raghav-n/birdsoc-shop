@@ -5,8 +5,11 @@ import jwt
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase, APIClient
+from oscar.core.loading import get_model
 
 from apps.api.tests.utils import auth_client, create_product, create_shipping_method
+
+UnmatchedPayment = get_model("checkout", "UnmatchedPayment")
 
 
 class VerifyPaymentWebhookTests(APITestCase):
@@ -97,3 +100,32 @@ class VerifyPaymentWebhookTests(APITestCase):
             "/api/verify-payment/", data={}, HTTP_AUTHORIZATION=f"Bearer {bad_token}"
         )
         self.assertEqual(r.status_code, 401)
+
+    def test_unmatched_payment_only_sends_one_admin_email(self):
+        from unittest.mock import patch
+
+        payload = {"order_number": "102891", "amount": "4.50"}
+        token = jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+        with patch("apps.util.views.mail_admins") as mock_mail_admins:
+            first = self.client.post(
+                "/api/verify-payment/",
+                data={},
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            second = self.client.post(
+                "/api/verify-payment/",
+                data={},
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+
+        self.assertEqual(first.status_code, 404)
+        self.assertEqual(second.status_code, 404)
+        self.assertEqual(mock_mail_admins.call_count, 1)
+
+        unmatched = UnmatchedPayment.objects.get(
+            order_number="102891",
+            amount=Decimal("4.50"),
+        )
+        self.assertEqual(unmatched.occurrence_count, 2)
+        self.assertIsNotNone(unmatched.notification_sent_at)
