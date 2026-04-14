@@ -45,8 +45,8 @@ const AboutSection = styled(Card)`
 
 const IntroGrid = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.95fr);
+  gap: 1rem;
   align-items: stretch;
   margin-bottom: 2rem;
 
@@ -73,29 +73,23 @@ const AboutText = styled.p`
   }
 `;
 
-const CollageCard = styled(Card)`
-  padding: 1rem;
+const CollageWrap = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-`;
-
-const CollageTitle = styled.h2`
-  font-size: 1rem;
-  margin: 0;
+  align-items: stretch;
 `;
 
 const PhotoGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.35rem;
+  width: 100%;
 `;
 
 const PhotoTile = styled.div`
   position: relative;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #e9e4eb;
 
   img {
@@ -109,13 +103,6 @@ const PhotoTile = styled.div`
   &:hover img {
     transform: scale(1.04);
   }
-`;
-
-const CollageCaption = styled.p`
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #666;
 `;
 
 // ── Form card ────────────────────────────────────────────────────────────────
@@ -392,7 +379,7 @@ const Donate = () => {
             Our partnership with <Link to="https://ebird.org">eBird</Link> allows us to contribute to global bird research, and our members publish peer-reviewed papers and collaborate with other regional experts to advance regional ornithological knowledge.
           </AboutText>
           <AboutText>
-            Keeping our online resources going comes at a cost, as does holding outreach events and walks. Every dollar goes directly
+            Keeping our online resources going and running outreach comes at a cost. Your contributions go directly
             towards keeping our resources freely available to the community.
           </AboutText>
           <AboutText style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.5rem' }}>
@@ -400,8 +387,7 @@ const Donate = () => {
           </AboutText>
         </AboutSection>
 
-        <CollageCard>
-          <CollageTitle>BirdSoc SG in the field</CollageTitle>
+        <CollageWrap>
           <PhotoGrid>
             {DONATION_PHOTOS.map(photo => (
               <PhotoTile key={photo.src}>
@@ -409,10 +395,7 @@ const Donate = () => {
               </PhotoTile>
             ))}
           </PhotoGrid>
-          <CollageCaption>
-            Your donation helps fund outreach, fieldwork, and the free birding resources we maintain for the community.
-          </CollageCaption>
-        </CollageCard>
+        </CollageWrap>
       </IntroGrid>
 
       {/* ── Multi-step form ── */}
