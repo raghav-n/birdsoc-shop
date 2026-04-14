@@ -400,7 +400,8 @@ const Checkout = () => {
       state: '',
       postcode: '',
       country: 'Singapore',
-      phone: ''
+      phone: '',
+      donationType: '0'
     }
   });
 
@@ -611,6 +612,19 @@ const Checkout = () => {
     const amount = parseInt(value) || 0;
     setDonation(amount);
     setValue('donationType', 'custom');
+  };
+
+  const handlePresetDonationToggle = (amount) => {
+    if (donation === amount) {
+      setDonation(0);
+      setValue('donationType', '0');
+      setCustomDonation('');
+      return;
+    }
+
+    setDonation(amount);
+    setValue('donationType', String(amount));
+    setCustomDonation('');
   };
 
   const handleSendTestPaymentEmail = async () => {
@@ -976,45 +990,22 @@ const Checkout = () => {
                           <DonationOptions>
                             <DonationOption
                               type="button"
-                              selected={donation === 0}
-                              onClick={() => {
-                                setDonation(0);
-                                setValue('donationType', '0');
-                                setCustomDonation('');
-                              }}
-                            >
-                              $0
-                            </DonationOption>
-                            <DonationOption
-                              type="button"
                               selected={donation === 5}
-                              onClick={() => {
-                                setDonation(5);
-                                setValue('donationType', '5');
-                                setCustomDonation('');
-                              }}
+                              onClick={() => handlePresetDonationToggle(5)}
                             >
                               $5
                             </DonationOption>
                             <DonationOption
                               type="button"
                               selected={donation === 10}
-                              onClick={() => {
-                                setDonation(10);
-                                setValue('donationType', '10');
-                                setCustomDonation('');
-                              }}
+                              onClick={() => handlePresetDonationToggle(10)}
                             >
                               $10
                             </DonationOption>
                             <DonationOption
                               type="button"
                               selected={donation === 20}
-                              onClick={() => {
-                                setDonation(20);
-                                setValue('donationType', '20');
-                                setCustomDonation('');
-                              }}
+                              onClick={() => handlePresetDonationToggle(20)}
                             >
                               $20
                             </DonationOption>
