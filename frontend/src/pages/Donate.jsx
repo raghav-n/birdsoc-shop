@@ -9,7 +9,7 @@ import { donationService } from '../services/donations';
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 const PageContainer = styled.div`
-  max-width: 720px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
 `;
@@ -41,7 +41,18 @@ const HeroSubtitle = styled.p`
 
 const AboutSection = styled(Card)`
   padding: 2rem;
+`;
+
+const IntroGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 1.5rem;
+  align-items: stretch;
   margin-bottom: 2rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const AboutTitle = styled.h2`
@@ -62,10 +73,57 @@ const AboutText = styled.p`
   }
 `;
 
+const CollageCard = styled(Card)`
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const CollageTitle = styled.h2`
+  font-size: 1rem;
+  margin: 0;
+`;
+
+const PhotoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+`;
+
+const PhotoTile = styled.div`
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #e9e4eb;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s ease;
+  }
+
+  &:hover img {
+    transform: scale(1.04);
+  }
+`;
+
+const CollageCaption = styled.p`
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #666;
+`;
+
 // ── Form card ────────────────────────────────────────────────────────────────
 
 const FormCard = styled(Card)`
   padding: 2rem;
+  max-width: 840px;
+  margin: 0 auto;
 `;
 
 const StepIndicator = styled.div`
@@ -101,6 +159,7 @@ const AmountGrid = styled.div`
 `;
 
 const AmountButton = styled.button`
+  min-height: 46px;
   padding: 0.6rem 0;
   border-radius: 6px;
   border: 2px solid ${props => props.selected ? 'var(--link-text)' : '#e1e1e1'};
@@ -117,16 +176,35 @@ const AmountButton = styled.button`
 `;
 
 const CustomAmountRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin-top: 0.5rem;
+  width: calc((100% - 1.5rem) / 4);
+
+  @media (max-width: 480px) {
+    width: calc((100% - 0.5rem) / 2);
+  }
+`;
+
+const CustomAmountField = styled.div`
+  position: relative;
+  width: 100%;
+
+  input {
+    min-height: 46px;
+    padding: 0.6rem 0.75rem 0.6rem 1.9rem;
+    font-size: 0.95rem;
+    border-radius: 6px;
+  }
 `;
 
 const DollarPrefix = styled.span`
-  font-size: 1.1rem;
-  color: #555;
-  font-weight: 500;
+  position: absolute;
+  top: 50%;
+  left: 0.8rem;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: #777;
+  font-weight: 600;
+  pointer-events: none;
 `;
 
 const QRSection = styled.div`
@@ -183,6 +261,24 @@ const buildReference = (name) => {
 };
 
 const PRESET_AMOUNTS = [5, 10, 20, 50];
+const DONATION_PHOTOS = [
+  {
+    src: '/img/donate/donate-1.jpg',
+    alt: 'BirdSoc Singapore volunteers at an outreach booth',
+  },
+  {
+    src: '/img/donate/donate-2.jpg',
+    alt: 'BirdSoc Singapore members speaking with visitors',
+  },
+  {
+    src: '/img/donate/donate-3.jpg',
+    alt: 'BirdSoc Singapore activity with bird education materials',
+  },
+  {
+    src: '/img/donate/donate-4.jpg',
+    alt: 'BirdSoc Singapore volunteers engaging the public',
+  },
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -284,25 +380,40 @@ const Donate = () => {
       </Hero>
 
       {/* ── About / impact ── */}
-      <AboutSection>
-        <AboutTitle>
-          <Bird size={20} />
-          What we do
-        </AboutTitle>
-        <AboutText>
-          We maintain the <Link to="https://singaporebirds.com"><em>Birds of Singapore</em></Link> website and the <Link to="https://records.singaporebirds.com">Singapore Bird Database</Link>, the
-          only complete repository of rare bird records in Singapore. We also conduct outreach through walks, talks, and booths. 
-          Our partnership with <Link to="https://ebird.org">eBird</Link> allows us to contribute to global bird research, and our members publish peer-reviewed papers and collaborate with other regional experts to advance regional ornithological knowledge.
-        </AboutText>
-        <AboutText>
-          Keeping our online resources going comes at a cost, as does holding outreach events and walks. Every dollar goes directly
-          towards keeping our resources freely available to the community.
-        </AboutText>
-        <AboutText style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.5rem' }}>
-          Note: as BirdSoc SG is not a registered Charity, donations are not tax deductible.
-        </AboutText>
+      <IntroGrid>
+        <AboutSection>
+          <AboutTitle>
+            <Bird size={20} />
+            What we do
+          </AboutTitle>
+          <AboutText>
+            We maintain the <Link to="https://singaporebirds.com"><em>Birds of Singapore</em></Link> website and the <Link to="https://records.singaporebirds.com">Singapore Bird Database</Link>, the
+            only complete repository of rare bird records in Singapore. We also conduct outreach through walks, talks, and booths.
+            Our partnership with <Link to="https://ebird.org">eBird</Link> allows us to contribute to global bird research, and our members publish peer-reviewed papers and collaborate with other regional experts to advance regional ornithological knowledge.
+          </AboutText>
+          <AboutText>
+            Keeping our online resources going comes at a cost, as does holding outreach events and walks. Every dollar goes directly
+            towards keeping our resources freely available to the community.
+          </AboutText>
+          <AboutText style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.5rem' }}>
+            Note: as BirdSoc SG is not a registered Charity, donations are not tax deductible.
+          </AboutText>
+        </AboutSection>
 
-      </AboutSection>
+        <CollageCard>
+          <CollageTitle>BirdSoc SG in the field</CollageTitle>
+          <PhotoGrid>
+            {DONATION_PHOTOS.map(photo => (
+              <PhotoTile key={photo.src}>
+                <img src={photo.src} alt={photo.alt} loading="lazy" />
+              </PhotoTile>
+            ))}
+          </PhotoGrid>
+          <CollageCaption>
+            Your donation helps fund outreach, fieldwork, and the free birding resources we maintain for the community.
+          </CollageCaption>
+        </CollageCard>
+      </IntroGrid>
 
       {/* ── Multi-step form ── */}
       <FormCard>
@@ -366,17 +477,18 @@ const Donate = () => {
                 ))}
               </AmountGrid>
               <CustomAmountRow>
-                <DollarPrefix>$</DollarPrefix>
-                <Input
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  placeholder="Custom amount"
-                  value={customAmount}
-                  onChange={handleCustomChange}
-                  hasError={!!amountError}
-                  style={{ maxWidth: 180 }}
-                />
+                <CustomAmountField>
+                  <DollarPrefix>$</DollarPrefix>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Custom amount"
+                    value={customAmount}
+                    onChange={handleCustomChange}
+                    hasError={!!amountError}
+                  />
+                </CustomAmountField>
               </CustomAmountRow>
               {amountError && <ErrorMessage>{amountError}</ErrorMessage>}
             </FormGroup>
