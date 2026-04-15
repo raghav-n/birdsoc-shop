@@ -31,6 +31,10 @@ def login(request):
     state = secrets.token_urlsafe(32)
     request.session["auth0_state"] = state
 
+    next_url = request.GET.get("next")
+    if next_url:
+        request.session["auth0_next"] = next_url
+
     return oauth.auth0.authorize_redirect(
         request, request.build_absolute_uri(reverse("dashboard_callback")), state=state
     )
@@ -66,7 +70,10 @@ def callback(request):
     except User.DoesNotExist:
         return redirect(reverse("home") + "?noaccess=1")
 
-    return redirect(request.build_absolute_uri(reverse("dashboard:index")))
+    next_url = request.session.pop("auth0_next", None)
+    if next_url:
+        return redirect(next_url)
+    return redirect(reverse("dashboard:index"))
 
 
 def logout(request):

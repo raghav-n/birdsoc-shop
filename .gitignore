@@ -15,6 +15,7 @@ refund_vouchers/
 registration_closed_state.txt
 
 CLAUDE.md
+AGENTS.md
 data/
 *.sqlite3
 memory/
