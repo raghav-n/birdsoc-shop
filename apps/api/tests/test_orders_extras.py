@@ -81,18 +81,22 @@ class OrdersExtraTests(APITestCase):
         response = guest.get(f"/api/v1/orders/{order['number']}", {"id": "not-a-uuid"})
         self.assertEqual(response.status_code, 404)
 
-    def test_receipt_allows_anonymous_access_with_valid_id(self):
+    def test_receipt_requires_owner_or_staff(self):
         client = APIClient()
         auth_client(client, email="receipt-access@example.com")
         order = self._place_order_for(client)
 
+        # Guest with valid ?id= should not be able to access the receipt
         guest = APIClient()
-        with patch("apps.order.models.Order.get_receipt_as_pdf", return_value=b"%PDF-fake"):
-            response = guest.get(
-                f"/api/v1/orders/{order['number']}/receipt",
-                {"id": order["access_id"]},
-            )
+        response = guest.get(
+            f"/api/v1/orders/{order['number']}/receipt",
+            {"id": order["access_id"]},
+        )
+        self.assertEqual(response.status_code, 404)
 
+        # Owner can access the receipt
+        with patch("apps.order.models.Order.get_receipt_as_pdf", return_value=b"%PDF-fake"):
+            response = client.get(f"/api/v1/orders/{order['number']}/receipt")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
 

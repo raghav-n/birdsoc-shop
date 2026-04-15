@@ -16,7 +16,7 @@ class OrdersViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "number"
 
     def get_permissions(self):
-        if self.action in {"retrieve", "receipt"}:
+        if self.action == "retrieve":
             return [permissions.AllowAny()]
         return super().get_permissions()
 
@@ -49,9 +49,21 @@ class OrdersViewSet(viewsets.ReadOnlyModelViewSet):
         ser = OrderSerializer(obj)
         return Response(ser.data)
 
+    def _get_order_for_owner_or_staff(self):
+        number = self.kwargs.get(self.lookup_field)
+        try:
+            order = Order._default_manager.get(number=number)
+        except Order.DoesNotExist as exc:
+            raise Http404 from exc
+
+        user = self.request.user
+        if user.is_authenticated and (user.is_staff or order.user_id == getattr(user, "id", None)):
+            return order
+        raise Http404
+
     @action(detail=True, methods=["get"], url_path="receipt")
     def receipt(self, request, number=None):
-        order = self._get_order_for_detail_access()
+        order = self._get_order_for_owner_or_staff()
         pdf_bytes = order.get_receipt_as_pdf()
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
         resp["Content-Disposition"] = f"inline; filename=receipt-{number}.pdf"
