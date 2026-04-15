@@ -48,6 +48,7 @@
         {% if user.is_superuser %}
             <a href="{% url 'dashboard:order-summary' %}" class="btn btn-success mt-2" style="max-width: 200px">{% trans "Order summary" %}</a>
             <a href="{% url 'dashboard:sales-report' %}" class="btn btn-info mt-2 ml-2" style="max-width: 200px">{% trans "Sales Report" %}</a>
+            <a href="{% url 'dashboard:order-bulk-email' %}" class="btn btn-secondary mt-2 ml-2" style="max-width: 200px">Send bulk email</a>
         {% endif %}
     </div>
 

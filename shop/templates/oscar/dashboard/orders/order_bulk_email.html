@@ -1,0 +1,306 @@
+{% extends "oscar/dashboard/layout.html" %}
+{% load i18n %}
+
+{% block title %}Send Bulk Email | {% trans "Orders" %} | {{ block.super }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:order-list' %}">{% trans "Orders" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Send Bulk Email</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block header %}
+<div class="page-header">
+    <h1>Send Bulk Email</h1>
+</div>
+{% endblock %}
+
+{% block dashboard_content %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>Recipients</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-0">
+            <p class="mb-1">
+                Emails are sent to <strong><span id="recipient-count">—</span> unique recipients</strong>
+                matching the selected sales periods and statuses.
+                If a customer has multiple matching orders, they receive one email (most recent order used for variables).
+            </p>
+            <p class="mb-0 small text-muted">
+                Sales periods define date ranges. You can manage them on the
+                <a href="{% url 'dashboard:sales-report' %}">Sales Report page</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>Available variables</h3>
+    </div>
+    <div class="card-body py-2">
+        <ul class="mb-0 list-inline" style="font-size: 0.9rem;">
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{first_name}}{% endverbatim %}</code> — first name</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{last_name}}{% endverbatim %}</code> — last name</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{email}}{% endverbatim %}</code> — email address</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{order_number}}{% endverbatim %}</code> — order number</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{order_status}}{% endverbatim %}</code> — order status</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{date_placed}}{% endverbatim %}</code> — date placed</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{total}}{% endverbatim %}</code> — order total</li>
+            <li class="list-inline-item mr-3"><code>{% verbatim %}{{collection_details}}{% endverbatim %}</code> — collection date &amp; location from the order</li>
+            <li class="list-inline-item"><code>{% verbatim %}{{order_link_button}}{% endverbatim %}</code> — "Show collection QR code" button linking to the customer's order page</li>
+            <li class="list-inline-item"><code>{% verbatim %}{{order_link}}{% endverbatim %}</code> — Raw link to the customer's order page</li>
+        </ul>
+    </div>
+</div>
+
+<form method="post" id="bulk-email-form" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Sales periods <span class="text-danger">*</span></h3>
+        </div>
+        <div class="card-body">
+            {% if form.sales_periods.errors %}
+                <div class="alert alert-danger">{{ form.sales_periods.errors }}</div>
+            {% endif %}
+            {{ form.sales_periods }}
+            <small class="form-text text-muted mt-2">{{ form.sales_periods.help_text }}</small>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Order statuses</h3>
+        </div>
+        <div class="card-body">
+            {% if form.statuses.errors %}
+                <div class="alert alert-danger">{{ form.statuses.errors }}</div>
+            {% endif %}
+            {{ form.statuses }}
+            <small class="form-text text-muted mt-2">{{ form.statuses.help_text }}</small>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Email</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label for="{{ form.subject.id_for_label }}">Subject <span class="text-danger">*</span></label>
+                <input type="text" name="subject" maxlength="255" class="form-control" required
+                       id="id_subject" placeholder="Enter email subject"
+                       value="{{ form.subject.value|default:'' }}">
+                {% if form.subject.errors %}
+                    <div class="alert alert-danger mt-1">{{ form.subject.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.message.id_for_label }}">Message body <span class="text-danger">*</span></label>
+                {{ form.message }}
+                {% if form.message.errors %}
+                    <div class="alert alert-danger mt-1">{{ form.message.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group form-check">
+                <input class="form-check-input" type="checkbox" name="bcc_sales" id="id_bcc_sales"
+                       {% if form.bcc_sales.value %}checked{% endif %}>
+                <label class="form-check-label" for="id_bcc_sales">BCC birdsocsgsales@gmail.com</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Attachments</h3>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted">You can attach up to 5 files.</p>
+            {% for field in form %}
+                {% if field.name|slice:":10" == "attachment" %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        <input type="file" name="{{ field.name }}" id="{{ field.auto_id }}" class="form-control-file">
+                        {% if field.errors %}
+                            <div class="alert alert-danger mt-1">{{ field.errors }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Send test email</h3>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted">Sends the current subject and message to a single address using sample variable values. The subject will be prefixed with <code>[TEST]</code>.</p>
+            <div class="form-inline">
+                <input type="email" id="test-email-input" class="form-control mr-2" placeholder="test@example.com" style="width: 280px;">
+                <button type="button" id="send-test-btn" class="btn btn-outline-secondary">Send test</button>
+            </div>
+            <div id="test-email-result" class="mt-2" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Send emails</button>
+        <a href="{% url 'dashboard:order-list' %}" class="btn btn-secondary ml-2">Cancel</a>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extrascripts %}
+{{ block.super }}
+<script src="https://cdn.tiny.cloud/1/kifouz8br5h4jxd86qad37cshlsdzkq4jkytzkcfwis0e8fh/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+$(document).ready(function () {
+    $('#id_message').removeAttr('required');
+
+    tinymce.init({
+        selector: '#id_message',
+        height: 400,
+        menubar: true,
+        plugins: ['advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                  'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                  'insertdatetime', 'media', 'table', 'help', 'wordcount'],
+        toolbar: 'undo redo | formatselect | bold italic backcolor | ' +
+                 'alignleft aligncenter alignright alignjustify | ' +
+                 'bullist numlist outdent indent | removeformat | help',
+        content_style: 'body { font-family: Helvetica, Arial, sans-serif; font-size: 14px }',
+        setup: function (editor) {
+            editor.on('change', function () { editor.save(); });
+        }
+    });
+
+    function updateCount() {
+        var periodIds = [];
+        $('input[name="sales_periods"]:checked').each(function () {
+            periodIds.push($(this).val());
+        });
+        var statuses = [];
+        $('input[name="statuses"]:checked').each(function () {
+            statuses.push($(this).val());
+        });
+
+        if (periodIds.length === 0) {
+            $('#recipient-count').text('0');
+            return;
+        }
+
+        $.ajax({
+            url: '{% url "dashboard:order-bulk-email-count" %}',
+            method: 'POST',
+            data: {
+                sales_periods: periodIds,
+                statuses: statuses,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            traditional: true,
+            success: function (resp) {
+                $('#recipient-count').text(resp.count);
+            }
+        });
+    }
+
+    $('input[name="sales_periods"], input[name="statuses"]').on('change', updateCount);
+    updateCount();
+
+    $('#send-test-btn').on('click', function () {
+        var editor = tinymce.get('id_message');
+        if (editor) editor.save();
+
+        var subject = $('#id_subject').val();
+        var message = $('#id_message').val();
+        var testEmail = $('#test-email-input').val();
+        var $result = $('#test-email-result');
+
+        if (!subject || !message) {
+            $result.removeClass('text-success').addClass('text-danger')
+                   .text('Please fill in the subject and message first.').show();
+            return;
+        }
+        if (!testEmail) {
+            $result.removeClass('text-success').addClass('text-danger')
+                   .text('Please enter a test email address.').show();
+            return;
+        }
+
+        var periodIds = [];
+        $('input[name="sales_periods"]:checked').each(function () { periodIds.push($(this).val()); });
+        var statuses = [];
+        $('input[name="statuses"]:checked').each(function () { statuses.push($(this).val()); });
+
+        $('#send-test-btn').prop('disabled', true).text('Sending…');
+        $result.hide();
+
+        $.ajax({
+            url: '{% url "dashboard:order-bulk-email-test" %}',
+            method: 'POST',
+            traditional: true,
+            data: {
+                subject: subject,
+                message: message,
+                test_email: testEmail,
+                sales_periods: periodIds,
+                statuses: statuses,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function (resp) {
+                if (resp.success) {
+                    $result.removeClass('text-danger').addClass('text-success')
+                           .text('Test email sent to ' + testEmail + ' using order #' + resp.order_number + '.').show();
+                } else {
+                    $result.removeClass('text-success').addClass('text-danger')
+                           .text('Failed: ' + resp.error).show();
+                }
+            },
+            error: function () {
+                $result.removeClass('text-success').addClass('text-danger')
+                       .text('An unexpected error occurred.').show();
+            },
+            complete: function () {
+                $('#send-test-btn').prop('disabled', false).text('Send test');
+            }
+        });
+    });
+
+    $('#bulk-email-form').on('submit', function (e) {
+        var editor = tinymce.get('id_message');
+        if (editor) editor.save();
+
+        if (!$('#id_subject').val()) {
+            alert('Please enter an email subject.');
+            e.preventDefault();
+            return false;
+        }
+        if (!$('#id_message').val()) {
+            alert('Please enter a message body.');
+            e.preventDefault();
+            return false;
+        }
+        var count = parseInt($('#recipient-count').text()) || 0;
+        if (!confirm('Send to ' + count + ' recipients? This cannot be undone.')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

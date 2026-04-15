@@ -7,8 +7,8 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
 
     def get_urls(self):
         from apps.dashboard.orders.views import (
-            OrderLookupView,
             OrderCollectionView,
+            OrderScanResultView,
             OrderSummaryView,
             OnsitePurchaseView,
             VoucherCheckView,
@@ -17,18 +17,41 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             SalesReportView,
             PendingCheckoutDashboardView,
             ResendConfirmationEmailView,
+            OrderBulkEmailView,
+            OrderBulkEmailCountView,
+            OrderBulkEmailTestView,
         )
 
         new_urls = [
             path(
-                "lookup/",
-                OrderLookupView.as_view(),
+                "scan/result/",
+                OrderScanResultView.as_view(),
                 name="order-lookup",
             ),
             path(
                 "collect/",
                 OrderCollectionView.as_view(),
                 name="order-collection",
+            ),
+            path(
+                "bulk-email/",
+                OrderBulkEmailView.as_view(),
+                name="order-bulk-email",
+            ),
+            path(
+                "bulk-email/count/",
+                OrderBulkEmailCountView.as_view(),
+                name="order-bulk-email-count",
+            ),
+            path(
+                "bulk-email/test/",
+                OrderBulkEmailTestView.as_view(),
+                name="order-bulk-email-test",
+            ),
+            path(
+                "scan/result/<str:number>/",
+                OrderScanResultView.as_view(),
+                name="order-scan-result",
             ),
             path("summary/", OrderSummaryView.as_view(), name="order-summary"),
             path(

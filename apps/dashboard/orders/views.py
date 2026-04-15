@@ -1339,3 +1339,250 @@ class ResendConfirmationEmailView(View):
             capture_exception(exc)
             messages.error(request, "Failed to send confirmation email.")
         return redirect("dashboard:order-detail", number=order.number)
+
+
+class OrderBulkEmailForm(forms.Form):
+    sales_periods = forms.ModelMultipleChoiceField(
+        queryset=SalesPeriod.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        label="Sales periods",
+        help_text="Orders placed within the selected sales periods will receive this email.",
+    )
+    statuses = forms.MultipleChoiceField(
+        choices=[],
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Order statuses",
+        help_text="Leave all unchecked to include every status.",
+    )
+    subject = forms.CharField(max_length=255, required=True, label="Subject")
+    message = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 12}),
+        required=True,
+        label="Message body",
+    )
+    bcc_sales = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="BCC birdsocsgsales@gmail.com",
+    )
+    attachment1 = forms.FileField(required=False, label="Attachment 1")
+    attachment2 = forms.FileField(required=False, label="Attachment 2")
+    attachment3 = forms.FileField(required=False, label="Attachment 3")
+    attachment4 = forms.FileField(required=False, label="Attachment 4")
+    attachment5 = forms.FileField(required=False, label="Attachment 5")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        all_statuses = list(settings.OSCAR_ORDER_STATUS_PIPELINE.keys())
+        self.fields["statuses"].choices = [(s, s) for s in all_statuses]
+        self.fields["message"].help_text = (
+            "Available variables: {{first_name}}, {{last_name}}, {{email}}, "
+            "{{order_number}}, {{order_status}}, {{date_placed}}, {{total}}, "
+            "{{collection_details}}, {{order_link_button}}"
+        )
+        self.fields["message"].initial = (
+            "<p>Hi {{first_name}},</p>"
+            "<p>Your merchandise order #{{order_number}} will be ready for collection soon!</p>"
+            "<p>{{collection_details}}</p>" 
+            "<p>Please click on this button below to show the collection QR code; we'll scan it during collection. If you'd like to have someone else collect your order on your behalf, please send them this link: {{order_link}}</p>"
+            "{{order_link_button}}"
+            "<p>If you have any questions, please don't hesitate to reach out.</p>"
+            "<p>Best regards,<br>Bird Society of Singapore</p>"
+        )
+        self.fields["subject"].initial = "BirdSoc SG Merchandise Collection"
+
+    def get_attachments(self):
+        attachments = []
+        for i in range(1, 6):
+            f = self.cleaned_data.get(f"attachment{i}")
+            if f:
+                attachments.append(f)
+        return attachments
+
+
+def _bulk_email_context(order):
+    """Build the template-variable context dict for a single order."""
+    base_url = settings.OSCAR_STATIC_BASE_URL.rstrip("/")
+    order_url = f"{base_url}/orders/{order.number}?id={order.collection_access_id}"
+    order_link_button = (
+        f'<a href="{order_url}" '
+        f'style="display:inline-block;padding:10px 22px;background-color:#222;'
+        f'color:#ffffff;text-decoration:none;border-radius:4px;font-family:sans-serif;'
+        f'font-size:15px;">Show collection QR code</a>'
+    )
+    collection_parts = []
+    if order.collection_date:
+        collection_parts.append(
+            f"<strong>Collection date:</strong> {order.collection_date.strftime('%A, %B %d, %Y')}"
+        )
+    if order.collection_location:
+        collection_parts.append(
+            f"<strong>Location:</strong> {order.collection_location}"
+        )
+    return {
+        "first_name": (order.user.first_name if order.user_id and order.user else "") or "",
+        "last_name": (order.user.last_name if order.user_id and order.user else "") or "",
+        "email": _order_recipient_email(order),
+        "order_number": str(order.number),
+        "order_status": order.status,
+        "date_placed": localtime(order.date_placed).strftime("%B %d, %Y"),
+        "total": str(order.total_incl_tax),
+        "collection_details": "<br>".join(collection_parts),
+        "order_link_button": order_link_button,
+        "order_link": order_url,
+    }
+
+
+def _render_and_send_bulk_email(subject, message_template, order, recipient, bcc_list, attachments):
+    """Substitute variables, render HTML, and send. Returns True on success."""
+    ctx = _bulk_email_context(order)
+    personalized = message_template
+    for key, value in ctx.items():
+        personalized = personalized.replace(f"{{{{{key}}}}}", value)
+    html_message = render_to_string(
+        "oscar/dashboard/orders/email/bulk_email.html",
+        {"subject": subject, "message": personalized},
+    )
+    msg = EmailMultiAlternatives(
+        subject, html_message, settings.DEFAULT_FROM_EMAIL, [recipient], bcc=bcc_list
+    )
+    msg.content_subtype = "html"
+    for attachment, data in attachments:
+        msg.attach(attachment.name, data, attachment.content_type)
+    msg.send()
+
+
+def _orders_for_bulk_email(sales_periods, statuses):
+    q = Q()
+    for period in sales_periods:
+        q |= Q(date_placed__gte=period.start, date_placed__lte=period.end)
+    qs = Order._default_manager.filter(q).select_related("user")
+    if statuses:
+        qs = qs.filter(status__in=statuses)
+    return qs.order_by("-date_placed")
+
+
+def _order_recipient_email(order):
+    if order.user_id and order.user:
+        return order.user.email
+    return order.guest_email or ""
+
+
+def _deduplicated_orders(orders):
+    """Return one order per unique recipient email (most recent first)."""
+    seen = {}
+    for order in orders:
+        email = _order_recipient_email(order).lower()
+        if email and email not in seen:
+            seen[email] = order
+    return seen
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class OrderBulkEmailView(View):
+    template_name = "oscar/dashboard/orders/order_bulk_email.html"
+
+    def get(self, request):
+        form = OrderBulkEmailForm()
+        return render(request, self.template_name, {"form": form})
+
+    def post(self, request):
+        form = OrderBulkEmailForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+
+        sales_periods = form.cleaned_data["sales_periods"]
+        statuses = form.cleaned_data.get("statuses") or []
+        subject = form.cleaned_data["subject"]
+        message_template = form.cleaned_data["message"]
+        bcc_sales = form.cleaned_data.get("bcc_sales") is True
+        attachments = [(a, a.read()) for a in form.get_attachments()]
+
+        orders = _orders_for_bulk_email(sales_periods, statuses)
+        recipients = _deduplicated_orders(orders)
+
+        bcc_list = []
+        reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+        if reply_to_email:
+            bcc_list.append(reply_to_email)
+        if bcc_sales:
+            bcc_list.append("birdsocsgsales@gmail.com")
+        seen_bcc = set()
+        bcc_list = [x for x in bcc_list if not (x.lower() in seen_bcc or seen_bcc.add(x.lower()))]
+
+        successful = 0
+        failed = 0
+
+        for email_lower, order in recipients.items():
+            email = _order_recipient_email(order)
+            try:
+                _render_and_send_bulk_email(subject, message_template, order, email, bcc_list, attachments)
+                successful += 1
+                try:
+                    order.set_status(settings.COLLECTION_INFO_SENT_STATUS)
+                except Exception:
+                    pass
+            except Exception as exc:
+                capture_exception(exc)
+                failed += 1
+
+        if failed:
+            messages.warning(
+                request,
+                f"Sent {successful} emails successfully, but {failed} failed.",
+            )
+        else:
+            messages.success(request, f"Successfully sent {successful} emails.")
+
+        return redirect("dashboard:order-list")
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class OrderBulkEmailCountView(View):
+    def post(self, request):
+        period_ids = request.POST.getlist("sales_periods")
+        statuses = request.POST.getlist("statuses")
+
+        if not period_ids:
+            return JsonResponse({"count": 0})
+
+        periods = SalesPeriod.objects.filter(pk__in=period_ids)
+        orders = _orders_for_bulk_email(periods, statuses)
+        count = len(_deduplicated_orders(orders))
+        return JsonResponse({"count": count})
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class OrderBulkEmailTestView(View):
+    def post(self, request):
+        subject = request.POST.get("subject", "").strip()
+        message_template = request.POST.get("message", "").strip()
+        test_email = request.POST.get("test_email", "").strip()
+
+        if not subject:
+            return JsonResponse({"success": False, "error": "Subject is required."})
+        if not message_template:
+            return JsonResponse({"success": False, "error": "Message body is required."})
+        if not test_email:
+            return JsonResponse({"success": False, "error": "Test email address is required."})
+
+        period_ids = request.POST.getlist("sales_periods")
+        statuses = request.POST.getlist("statuses")
+
+        order = None
+        if period_ids:
+            periods = SalesPeriod.objects.filter(pk__in=period_ids)
+            orders = _orders_for_bulk_email(periods, statuses)
+            order = orders.order_by("?").first()
+
+        if order is None:
+            return JsonResponse({"success": False, "error": "No matching orders found for the selected filters."})
+
+        try:
+            _render_and_send_bulk_email(f"[TEST] {subject}", message_template, order, test_email, [], [])
+            return JsonResponse({"success": True, "order_number": str(order.number)})
+        except Exception as exc:
+            capture_exception(exc)
+            return JsonResponse({"success": False, "error": str(exc)})
