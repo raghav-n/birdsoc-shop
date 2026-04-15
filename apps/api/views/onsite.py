@@ -179,7 +179,7 @@ class OnsiteCalculateView(APIView):
             })
 
         strategy = Selector().strategy(request=request)
-        basket = _build_unsaved_basket(products_data, strategy, user=request.user)
+        basket = _build_unsaved_basket(products_data, strategy)
 
         if not basket.num_lines:
             return Response({
@@ -216,7 +216,7 @@ class OnsiteCalculateView(APIView):
                 if not is_available:
                     voucher_error = message or "Voucher is not available"
                 else:
-                    v_basket = _build_unsaved_basket(products_data, strategy, user=request.user)
+                    v_basket = _build_unsaved_basket(products_data, strategy)
                     v_basket.vouchers.add(voucher)
                     Applicator().apply(v_basket, request.user, request)
                     total_after_voucher = v_basket.total_excl_tax
@@ -227,6 +227,11 @@ class OnsiteCalculateView(APIView):
                 voucher_error = "Unable to apply voucher"
 
         total = max(Decimal("0.00"), total_after_offers - voucher_discount)
+
+        # Clean up any temporary baskets that Oscar saved during add_product
+        for b in [basket, locals().get("v_basket")]:
+            if b is not None and b.pk:
+                b.delete()
 
         return Response({
             "subtotal": str(original_total),
