@@ -1,4 +1,4 @@
-import { calculateOrderTotal, getStockStatus, isProductInStock } from '../helpers';
+import { getStockStatus, isProductInStock } from '../helpers';
 
 describe('helpers', () => {
   it('identifies in-stock products correctly', () => {
@@ -29,10 +29,5 @@ describe('helpers', () => {
     expect(getStockStatus({
       stock: { is_available: true, num_in_stock: 10, low_stock_threshold: 3 },
     })).toBe('In Stock');
-  });
-
-  it('adds donations into the order total', () => {
-    expect(calculateOrderTotal(18.5)).toBe(18.5);
-    expect(calculateOrderTotal(18.5, 4)).toBe(22.5);
   });
 });

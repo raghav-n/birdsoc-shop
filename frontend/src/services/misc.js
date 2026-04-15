@@ -1,12 +1,6 @@
 import api from './api';
 
 export const miscService = {
-  // Health check
-  getHealth: async () => {
-    const response = await api.get('/health');
-    return response.data;
-  },
-
   // Get shop config
   getConfig: async () => {
     const response = await api.get('/config');
@@ -18,25 +12,12 @@ export const miscService = {
     const response = await api.get('/faq');
     return response.data;
   },
-
-  // Get shipping methods (public)
-  getShippingMethods: async (selfCollect = null) => {
-    const params = selfCollect !== null ? { self_collect: selfCollect } : {};
-    const response = await api.get('/shipping/methods', { params });
-    return response.data;
-  },
 };
 
 export const refundService = {
   // Create refund request
   createRefundRequest: async (refundData) => {
     const response = await api.post('/refunds', refundData);
-    return response.data;
-  },
-
-  // Get refund request details
-  getRefundRequest: async (id) => {
-    const response = await api.get(`/refunds/${id}`);
     return response.data;
   },
 };

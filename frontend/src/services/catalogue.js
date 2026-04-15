@@ -20,23 +20,4 @@ export const catalogueService = {
     });
     return response.data;
   },
-
-  // Get category by slug
-  getCategory: async (slug) => {
-    const response = await api.get(`/categories/${slug}`);
-    return response.data;
-  },
-
-  // Get product recommendations
-  getProductRecommendations: async (productId) => {
-    const response = await api.get(`/products/${productId}/recommendations`);
-    return response.data;
-  },
-
-  // Search products
-  searchProducts: async (query, filters = {}) => {
-    const params = { q: query, ...filters };
-    const response = await api.get('/products', { params });
-    return response.data;
-  },
 };

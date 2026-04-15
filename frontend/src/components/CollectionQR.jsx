@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { renderQrCodeToCanvas } from '../utils/qr';
 
 const QRCard = styled.div`
   display: flex;
@@ -20,14 +21,6 @@ const QRCanvasWrap = styled.div`
   }
 `;
 
-const HelperText = styled.p`
-  margin: 0;
-  text-align: center;
-  color: #666;
-  font-size: 0.95rem;
-  max-width: 320px;
-`;
-
 const CodeLabel = styled.code`
   display: inline-block;
   padding: 0.35rem 0.5rem;
@@ -37,22 +30,6 @@ const CodeLabel = styled.code`
   font-size: 0.85rem;
   word-break: break-all;
 `;
-
-const ensureQrLibrary = async () => {
-  if (typeof window.QrCodeWithLogo !== 'undefined') {
-    return window.QrCodeWithLogo;
-  }
-
-  await new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = '/js/qrcode-with-logos.min.js';
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-
-  return window.QrCodeWithLogo;
-};
 
 const CollectionQR = ({ content, orderNumber }) => {
   const canvasRef = useRef(null);
@@ -66,17 +43,7 @@ const CollectionQR = ({ content, orderNumber }) => {
       }
 
       try {
-        const QrCodeWithLogo = await ensureQrLibrary();
-        if (cancelled || !canvasRef.current) {
-          return;
-        }
-
-        const context = canvasRef.current.getContext('2d');
-        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-
-        new QrCodeWithLogo({
-          canvas: canvasRef.current,
-          content,
+        await renderQrCodeToCanvas(canvasRef.current, content, {
           width: 240,
           nodeQrCodeOptions: {
             color: {
@@ -86,6 +53,9 @@ const CollectionQR = ({ content, orderNumber }) => {
             errorCorrectionLevel: 'H',
           },
         });
+        if (cancelled || !canvasRef.current) {
+          return;
+        }
       } catch (error) {
         console.error('Failed to render collection QR code:', error);
       }

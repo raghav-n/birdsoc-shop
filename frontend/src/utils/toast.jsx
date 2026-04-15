@@ -71,44 +71,4 @@ export const showToast = {
   }
 };
 
-/**
- * Process Django-style flash messages that may have 'safe' in their tags
- * This mimics the Django template logic: {% if 'safe' in message.tags %}{{ message|safe }}{% else %}{{ message }}{% endif %}
- */
-export const processFlashMessages = (messages) => {
-  return messages.map(message => {
-    const isSafe = message.tags && message.tags.includes('safe');
-    const variant = getVariantFromTags(message.tags);
-    
-    return {
-      ...message,
-      isSafe,
-      variant,
-      display: () => {
-        switch (variant) {
-          case 'success':
-            return showToast.success(message.message, { isSafe });
-          case 'error':
-          case 'danger':
-            return showToast.error(message.message, { isSafe });
-          case 'warning':
-            return showToast.warning(message.message, { isSafe });
-          case 'info':
-          default:
-            return showToast.info(message.message, { isSafe });
-        }
-      }
-    };
-  });
-};
-
-const getVariantFromTags = (tags) => {
-  if (!tags) return 'info';
-  
-  if (tags.includes('success')) return 'success';
-  if (tags.includes('error') || tags.includes('danger')) return 'error';
-  if (tags.includes('warning')) return 'warning';
-  return 'info';
-};
-
 export default showToast;

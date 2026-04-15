@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Header from './Header';
 import Footer from './Footer';
+import SafeHtml from './SafeHtml';
 import { useShopConfig } from '../context/ShopConfigContext';
 import { bannerService } from '../services/misc';
 
@@ -60,7 +61,9 @@ const Layout = ({ children }) => {
     <LayoutContainer>
       <Header />
       {textBanner && (
-        <TextBannerBar dangerouslySetInnerHTML={{ __html: textBanner }} />
+        <TextBannerBar>
+          <SafeHtml html={textBanner} tag="div" />
+        </TextBannerBar>
       )}
       {!shopOpen && (
         <ClosedBanner>

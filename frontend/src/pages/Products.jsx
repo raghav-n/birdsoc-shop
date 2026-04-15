@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { Search, SlidersHorizontal } from 'lucide-react';
-import { catalogueService } from '../services/catalogue';
 import { Input, Button, FormGroup, Label } from '../styles/GlobalStyles';
 import CollectionSection from '../components/CollectionSection';
 import BannerGrid from '../components/BannerGrid';
@@ -10,6 +9,7 @@ import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import { sanitizeText } from '../utils/safeContent';
 import { debounce } from '../utils/helpers';
+import { buildCollections, fetchCatalogueSnapshot } from '../utils/catalogue';
 
 const ProductsContainer = styled.div`
   max-width: 1200px;
@@ -112,13 +112,9 @@ const Products = () => {
       const query = searchParams.get('q');
       if (query) params.q = query;
 
-      const [productsRes, categoriesRes] = await Promise.all([
-        catalogueService.getProducts(params),
-        catalogueService.getCategories(true),
-      ]);
-
-      setProducts(productsRes.results || productsRes);
-      setCategories(categoriesRes.results || categoriesRes);
+      const data = await fetchCatalogueSnapshot(params);
+      setProducts(data.products);
+      setCategories(data.categories);
     } catch (err) {
       setError('Failed to load products');
       console.error('Error fetching data:', err);
@@ -133,43 +129,7 @@ const Products = () => {
 
   const collections = useMemo(() => {
     const categoryFilter = searchParams.get('category');
-
-    const filtered = categoryFilter
-      ? categories.filter((c) => c.slug === categoryFilter)
-      : categories;
-
-    const grouped = filtered
-      .map((cat) => ({
-        ...cat,
-        products: products.filter(
-          (p) => p.category_slugs && p.category_slugs.includes(cat.slug)
-        ),
-      }))
-      .filter((col) => col.products.length > 0);
-
-    // Products not in any category
-    if (!categoryFilter) {
-      const categorised = new Set(
-        categories.flatMap((c) =>
-          products
-            .filter((p) => p.category_slugs && p.category_slugs.includes(c.slug))
-            .map((p) => p.id)
-        )
-      );
-      const uncategorised = products.filter((p) => !categorised.has(p.id));
-      if (uncategorised.length > 0) {
-        grouped.push({
-          id: 'uncategorised',
-          name: 'Other',
-          slug: 'other',
-          description: '',
-          image: null,
-          products: uncategorised,
-        });
-      }
-    }
-
-    return grouped;
+    return buildCollections(products, categories, categoryFilter || '');
   }, [products, categories, searchParams]);
 
   const handleSearchChange = (e) => {

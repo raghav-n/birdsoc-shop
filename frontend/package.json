@@ -19,7 +19,6 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.53.0",
     "react-hot-toast": "^2.4.1",
-    "react-query": "^3.39.3",
     "react-router-dom": "^6.26.1",
     "styled-components": "^6.1.13"
   },
@@ -35,7 +34,7 @@
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
     "jsdom": "^26.1.0",
-    "vitest": "^3.2.4",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "vitest": "^3.2.4"
   }
 }

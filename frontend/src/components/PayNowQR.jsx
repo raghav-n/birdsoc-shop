@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { Download } from 'lucide-react';
 import styled from 'styled-components';
+import { renderPayNowQrToContainer } from '../utils/qr';
 
 const QRContainer = styled.div`
   display: flex;
@@ -83,76 +84,15 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
 
   useEffect(() => {
     const container = containerRef.current;
+    if (!container) return undefined;
 
-    const loadQR = () => {
-      try {
-        // Check if libraries are loaded
-        if (typeof window.PaynowQR === 'undefined' || typeof window.QrCodeWithLogo === 'undefined') {
-          console.error('PayNow QR libraries not loaded');
-          return;
-        }
-
-        const totalAmount = parseFloat(amount) + parseFloat(donation);
-
-        // Create a fresh canvas to avoid stacked QR codes from concurrent renders
-        container.innerHTML = '';
-        const canvas = document.createElement('canvas');
-        container.appendChild(canvas);
-
-        const QRstring = new window.PaynowQR({
-          uen: 'T23SS0038A',
-          amount: totalAmount,
-          editable: false,
-          refNumber: finalReferenceId,
-        }).output();
-
-        new window.QrCodeWithLogo({
-          canvas: canvas,
-          content: QRstring,
-          width: 270,
-          logo: {
-            src: "/img/paynow-logo.png",
-            borderWidth: 1,
-          },
-          nodeQrCodeOptions: {
-            color: {
-              dark: "#731B6C",
-              light: "#ffffff",
-            },
-            errorCorrectionLevel: "H"
-          }
-        });
-      } catch (error) {
-        console.error('Error generating QR code:', error);
-      }
-    };
-
-    // Load scripts if not already loaded
-    const loadScripts = async () => {
-      if (typeof window.PaynowQR === 'undefined') {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = '/js/lib/paynowqr.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      }
-
-      if (typeof window.QrCodeWithLogo === 'undefined') {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = '/js/qrcode-with-logos.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      }
-
-      loadQR();
-    };
-
-    loadScripts();
+    renderPayNowQrToContainer(container, {
+      amount,
+      donation,
+      referenceId: finalReferenceId,
+    }).catch((error) => {
+      console.error('Error generating QR code:', error);
+    });
 
     return () => {
       container.innerHTML = '';
@@ -187,9 +127,6 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
           <UENLabel>UEN Number</UENLabel>
           <UENNumber>T23SS0038A</UENNumber>
         </UENInfo>
-        <div style={{ marginTop: '0.75rem', fontSize: '0.8rem' }}>
-          Scan this QR code with your banking app to make payment via PayNow
-        </div>
       </PaymentInfo>
       <SaveButton onClick={handleSave}>
         <Download size={14} />

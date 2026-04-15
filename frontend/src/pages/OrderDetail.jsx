@@ -8,7 +8,7 @@ import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import SafeHtml from '../components/SafeHtml';
 import CollectionQR from '../components/CollectionQR';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { downloadFile, formatCurrency, formatDate } from '../utils/helpers';
 import { renderShippingMethodDescription, containsHTML, sanitizeText } from '../utils/safeContent';
 import toast from 'react-hot-toast';
 
@@ -303,17 +303,7 @@ const OrderDetail = () => {
     try {
       setDownloadingReceipt(true);
       const blob = await orderService.getOrderReceipt(orderNumber, accessId);
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `receipt-${orderNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
+      downloadFile(blob, `receipt-${orderNumber}.pdf`);
       toast.success('Receipt downloaded successfully');
     } catch (error) {
       console.error('Failed to download receipt:', error);
