@@ -338,6 +338,8 @@ class OrderSerializer(serializers.ModelSerializer):
     sources = OrderSourceSerializer(many=True, read_only=True)
     basket_discounts = serializers.SerializerMethodField()
     shipping_discounts = serializers.SerializerMethodField()
+    access_id = serializers.CharField(source="collection_access_id", read_only=True)
+    is_self_collect = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -361,6 +363,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "shipping_discounts",
             "lines",
             "sources",
+            "access_id",
+            "is_self_collect",
         ]
 
     def _serialize_discount(self, discount):
@@ -412,6 +416,11 @@ class OrderSerializer(serializers.ModelSerializer):
                 }
             )
         return results
+
+    def get_is_self_collect(self, obj: Order):
+        ShippingMethod = get_model("shipping", "DynamicShippingMethod")
+        method = ShippingMethod._default_manager.filter(name=obj.shipping_method).first()
+        return bool(method and method.is_self_collect)
 
 
 class FAQItemSerializer(serializers.ModelSerializer):

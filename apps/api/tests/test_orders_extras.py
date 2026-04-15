@@ -53,6 +53,47 @@ class OrdersExtraTests(APITestCase):
         # Not in queryset for user => 404
         self.assertEqual(r.status_code, 404)
 
+    def test_retrieve_allows_anonymous_access_with_valid_id(self):
+        client = APIClient()
+        auth_client(client, email="anon-access@example.com")
+        order = self._place_order_for(client)
+
+        guest = APIClient()
+        response = guest.get(
+            f"/api/v1/orders/{order['number']}",
+            {"id": order["access_id"]},
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["number"], order["number"])
+        self.assertEqual(response.data["access_id"], order["access_id"])
+
+    def test_retrieve_requires_owner_or_valid_id(self):
+        client = APIClient()
+        auth_client(client, email="no-token@example.com")
+        order = self._place_order_for(client)
+
+        guest = APIClient()
+        response = guest.get(f"/api/v1/orders/{order['number']}")
+        self.assertEqual(response.status_code, 404)
+
+        response = guest.get(f"/api/v1/orders/{order['number']}", {"id": "not-a-uuid"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_receipt_allows_anonymous_access_with_valid_id(self):
+        client = APIClient()
+        auth_client(client, email="receipt-access@example.com")
+        order = self._place_order_for(client)
+
+        guest = APIClient()
+        response = guest.get(
+            f"/api/v1/orders/{order['number']}/receipt",
+            {"id": order["access_id"]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
     def test_retrieve_includes_pre_discount_totals_and_discounts(self):
         client = APIClient()
         auth_client(client, email="discounted@example.com")
