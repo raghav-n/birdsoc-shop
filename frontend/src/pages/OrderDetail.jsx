@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { ArrowLeft, Download, Package, Truck, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Download, Package, Truck, CheckCircle, QrCode } from 'lucide-react';
 import { orderService } from '../services/orders';
 import { Button, Card } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import SafeHtml from '../components/SafeHtml';
+import CollectionQR from '../components/CollectionQR';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { renderShippingMethodDescription, containsHTML, sanitizeText } from '../utils/safeContent';
 import toast from 'react-hot-toast';
@@ -126,6 +127,10 @@ const OrderContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    order: 2;
+  }
 `;
 
 const Section = styled(Card)`
@@ -223,6 +228,10 @@ const OrderSidebar = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    order: 1;
+  }
 `;
 
 const SummaryRow = styled.div`
@@ -261,9 +270,11 @@ const InfoValue = styled.div`
 
 const OrderDetail = () => {
   const { orderNumber } = useParams();
+  const [searchParams] = useSearchParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloadingReceipt, setDownloadingReceipt] = useState(false);
+  const accessId = searchParams.get('id') || '';
 
   const toNumber = (value) => {
     const parsed = Number.parseFloat(value);
@@ -272,14 +283,16 @@ const OrderDetail = () => {
 
   useEffect(() => {
     loadOrder();
-  }, [orderNumber]);
+  }, [orderNumber, accessId]);
 
   const loadOrder = async () => {
+    setLoading(true);
     try {
-      const orderData = await orderService.getOrder(orderNumber);
+      const orderData = await orderService.getOrder(orderNumber, accessId);
       setOrder(orderData);
     } catch (error) {
       console.error('Failed to load order:', error);
+      setOrder(null);
       toast.error('Failed to load order details');
     } finally {
       setLoading(false);
@@ -289,7 +302,7 @@ const OrderDetail = () => {
   const downloadReceipt = async () => {
     try {
       setDownloadingReceipt(true);
-      const blob = await orderService.getOrderReceipt(orderNumber);
+      const blob = await orderService.getOrderReceipt(orderNumber, accessId);
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -340,15 +353,14 @@ const OrderDetail = () => {
   const totalWithDonation = toNumber(order.total_incl_tax) + donationAmount;
   const basketDiscounts = order.basket_discounts || [];
   const paymentMethod = order.sources?.map((source) => source.source_type).filter(Boolean).join(', ') || 'PayNow';
+  const collectionQrUrl = order.access_id
+    ? `${window.location.origin}/dashboard/orders/scan/result/${encodeURIComponent(order.number)}/?id=${encodeURIComponent(order.access_id)}`
+    : null;
 
   return (
     <OrderContainer>
       <OrderHeader>
         <HeaderLeft>
-          <BackButton to="/orders">
-            <ArrowLeft size={20} />
-            Back to Orders
-          </BackButton>
           <div>
             <OrderTitle>Order Details</OrderTitle>
             <OrderNumber>Order #{order.number}</OrderNumber>
@@ -467,6 +479,16 @@ const OrderDetail = () => {
 
         <OrderSidebar>
           {/* Order Summary */}
+          {order.is_self_collect && collectionQrUrl && (
+            <Section>
+              <SectionTitle>
+                <QrCode size={20} />
+                Collection QR Code
+              </SectionTitle>
+              <CollectionQR content={collectionQrUrl} orderNumber={order.number} />
+            </Section>
+          )}
+
           <Section>
             <SectionTitle>Order Summary</SectionTitle>
             
