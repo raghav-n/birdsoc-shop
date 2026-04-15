@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import CollectionQrScanner from '../components/CollectionQrScanner';
+import { buildOrderLookupPath } from '../utils/collectionQr';
 
 const Page = styled.div`
   max-width: 640px;
@@ -20,6 +22,10 @@ const SearchCard = styled.div`
   border: 1px solid #e5e5e5;
   border-radius: 8px;
   padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+`;
+
+const ScannerWrap = styled.div`
   margin-bottom: 1rem;
 `;
 
@@ -130,6 +136,7 @@ const Empty = styled.p`
 const COLLECTED = 'Collected';
 
 const OrderLookup = () => {
+  const navigate = useNavigate();
   const { number: numberParam } = useParams();
   const [searchParams] = useSearchParams();
   const accessId = searchParams.get('id') || '';
@@ -139,7 +146,7 @@ const OrderLookup = () => {
   const [openCard, setOpenCard] = useState(null);
   const [pendingCollect, setPendingCollect] = useState(null);
   const debounceRef = useRef(null);
-  const initialLoadRef = useRef(false);
+  const hydratedLookupRef = useRef('');
 
   const runSearch = useCallback(async (params) => {
     try {
@@ -155,17 +162,41 @@ const OrderLookup = () => {
         toast.error('Search failed');
       }
       setOrders([]);
+      throw err;
     }
   }, []);
 
+  const lookupOrder = useCallback(async ({ number, accessId: lookupAccessId = '', replaceUrl = false }) => {
+    const nextNumber = String(number ?? '').trim();
+    const nextAccessId = String(lookupAccessId ?? '').trim();
+
+    if (!nextNumber) {
+      return;
+    }
+
+    setQuery(nextNumber);
+
+    if (replaceUrl) {
+      navigate(buildOrderLookupPath({ number: nextNumber, accessId: nextAccessId }), { replace: true });
+    }
+
+    await runSearch(nextAccessId ? { number: nextNumber, id: nextAccessId } : { number: nextNumber });
+  }, [navigate, runSearch]);
+
   // QR scan deep link: /console/order-lookup/<number>?id=<access_id>
   useEffect(() => {
-    if (initialLoadRef.current) return;
-    if (numberParam && accessId) {
-      initialLoadRef.current = true;
-      runSearch({ number: numberParam, id: accessId });
+    if (!numberParam) {
+      return;
     }
-  }, [numberParam, accessId, runSearch]);
+
+    const lookupKey = `${numberParam}:${accessId}`;
+    if (hydratedLookupRef.current === lookupKey) {
+      return;
+    }
+
+    hydratedLookupRef.current = lookupKey;
+    lookupOrder({ number: numberParam, accessId }).catch(() => {});
+  }, [numberParam, accessId, lookupOrder]);
 
   const onInputChange = (e) => {
     const val = e.target.value;
@@ -181,9 +212,14 @@ const OrderLookup = () => {
       return;
     }
     debounceRef.current = setTimeout(() => {
-      runSearch(isNumber ? { number: trimmed } : { name: trimmed });
+      runSearch(isNumber ? { number: trimmed } : { name: trimmed }).catch(() => {});
     }, 250);
   };
+
+  const handleScannedLookup = useCallback(async ({ number, accessId: scannedAccessId }) => {
+    await lookupOrder({ number, accessId: scannedAccessId, replaceUrl: true });
+    toast.success(`Opened order ${number}`);
+  }, [lookupOrder]);
 
   const handleCollect = async (orderNumber) => {
     if (pendingCollect !== orderNumber) {
@@ -217,6 +253,14 @@ const OrderLookup = () => {
   return (
     <Page>
       <Title>Order lookup</Title>
+
+      <ScannerWrap>
+        <CollectionQrScanner
+          description="Scan a collection QR code to load the matching order here."
+          buttonLabel="Scan collection QR"
+          onScan={handleScannedLookup}
+        />
+      </ScannerWrap>
 
       <SearchCard>
         <Label htmlFor="lookup-input">Order number or customer name</Label>

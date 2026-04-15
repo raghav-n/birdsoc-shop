@@ -10,6 +10,7 @@ import SafeHtml from '../components/SafeHtml';
 import CollectionQR from '../components/CollectionQR';
 import { downloadFile, formatCurrency, formatDate } from '../utils/helpers';
 import { renderShippingMethodDescription, containsHTML, sanitizeText } from '../utils/safeContent';
+import { buildCollectionQrUrl } from '../utils/collectionQr';
 import toast from 'react-hot-toast';
 
 const OrderContainer = styled.div`
@@ -344,7 +345,11 @@ const OrderDetail = () => {
   const basketDiscounts = order.basket_discounts || [];
   const paymentMethod = order.sources?.map((source) => source.source_type).filter(Boolean).join(', ') || 'PayNow';
   const collectionQrUrl = order.access_id
-    ? `${window.location.origin}/console/order-lookup/${encodeURIComponent(order.number)}?id=${encodeURIComponent(order.access_id)}`
+    ? buildCollectionQrUrl({
+      origin: window.location.origin,
+      number: order.number,
+      accessId: order.access_id,
+    })
     : null;
 
   return (

@@ -1,7 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import CollectionQrScanner from '../components/CollectionQrScanner';
+import { buildOrderLookupPath } from '../utils/collectionQr';
 
 const Page = styled.div`
   max-width: 480px;
@@ -26,6 +29,7 @@ const CardGrid = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  margin-bottom: 1rem;
 `;
 
 const Card = styled(Link)`
@@ -62,6 +66,12 @@ const AnalyticsCard = styled(Card)`
 
 const Console = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleScannedLookup = ({ number, accessId }) => {
+    navigate(buildOrderLookupPath({ number, accessId }));
+    toast.success(`Opened order ${number}`);
+  };
 
   return (
     <Page>
@@ -86,6 +96,12 @@ const Console = () => {
           </Card>
         )}
       </CardGrid>
+
+      <CollectionQrScanner
+        title="Scan collection QR"
+        buttonLabel="Scan QR code"
+        onScan={handleScannedLookup}
+      />
     </Page>
   );
 };
