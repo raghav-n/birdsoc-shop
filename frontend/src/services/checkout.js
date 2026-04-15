@@ -1,15 +1,10 @@
 import api from './api';
 
 export const checkoutService = {
-  // Set checkout email (for guest checkout)
-  setCheckoutEmail: async (email) => {
-    const response = await api.post('/checkout/email', { email });
-    return response.data;
-  },
-
   // Get shipping methods
-  getShippingMethods: async () => {
-    const response = await api.get('/checkout/shipping-methods');
+  getShippingMethods: async (selfCollect = null) => {
+    const params = selfCollect !== null ? { self_collect: selfCollect } : {};
+    const response = await api.get('/shipping/methods', { params });
     return response.data;
   },
 

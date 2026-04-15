@@ -43,6 +43,7 @@ from apps.api.views.forms import FormSubmissionView, FormSchemaView
 from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.analytics import AnalyticsDashboardView
 from apps.api.views.donations import DonationCreateView
+from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -72,13 +73,11 @@ urlpatterns = [
     path("banners", BannerListView.as_view(), name="banner-list"),
     path("banners/text", TextBannerView.as_view(), name="banner-text"),
     path("analytics/dashboard", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
+    path("onsite/calculate", OnsiteCalculateView.as_view(), name="onsite-calculate"),
+    path("onsite/pending", OnsitePendingView.as_view(), name="onsite-pending"),
+    path("onsite/order", OnsiteOrderView.as_view(), name="onsite-order"),
     path("donations", DonationCreateView.as_view(), name="donation-create"),
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
-    path(
-        "checkout/shipping-methods",
-        ShippingMethodsView.as_view(),
-        name="checkout-shipping-methods",
-    ),
     path(
         "checkout/payment/paynow-proof",
         PayNowProofUploadView.as_view(),

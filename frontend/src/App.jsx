@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { GlobalStyle } from './styles/GlobalStyles';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -28,6 +27,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import Dashboard from './pages/Dashboard';
+import OnsitePurchase from './pages/OnsitePurchase';
 import Donate from './pages/Donate';
 import DonationSuccess from './pages/DonationSuccess';
 import { trackPageView } from './utils/analytics';
@@ -57,20 +57,9 @@ const StaffOnly = ({ children }) => {
   return children;
 };
 
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
+    <Router>
         <ScrollToTop />
         <PageViewTracker />
         <GlobalStyle />
@@ -99,6 +88,7 @@ function App() {
                 <Route path="/donate" element={<Donate />} />
                 <Route path="/donate/success" element={<DonationSuccess />} />
                 <Route path="/analytics" element={<StaffOnly><Dashboard /></StaffOnly>} />
+                <Route path="/onsite-purchase" element={<StaffOnly><OnsitePurchase /></StaffOnly>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
@@ -131,7 +121,6 @@ function App() {
         </AuthProvider>
         </ShopConfigProvider>
       </Router>
-    </QueryClientProvider>
   );
 }
 

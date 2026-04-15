@@ -86,6 +86,8 @@ def _place_order_from_pending(pending, amount):
     """
     from django.core.cache import cache
 
+    snapshot = pending.basket_snapshot or {}
+
     try:
         basket = Basket._default_manager.get(id=pending.basket_id)
     except Basket.DoesNotExist:
@@ -97,7 +99,6 @@ def _place_order_from_pending(pending, amount):
         # Basket lines may have been deleted (e.g. stock hit 0 while user was on
         # the payment screen), or the basket was merged into another basket.
         # Try to restore lines from the snapshot saved at checkout time.
-        snapshot = pending.basket_snapshot or {}
         snapshot_lines = snapshot.get("lines", [])
 
         # Ensure the basket is Open so lines can be created on it
@@ -147,7 +148,9 @@ def _place_order_from_pending(pending, amount):
     )
     method = None
     if pending.shipping_method_code:
-        method = qs.filter(code=pending.shipping_method_code).first()
+        method = DynamicShippingMethod._default_manager.filter(
+            active=True, code=pending.shipping_method_code
+        ).first()
     if not method:
         if settings.GLOBAL_SELF_COLLECTION_REQUIRED:
             method = qs.filter(is_self_collect=True).first()
@@ -183,7 +186,11 @@ def _place_order_from_pending(pending, amount):
         "paynow-processing", total_with_donation, reference=reference
     )
 
-    order_number = placer.generate_order_number(basket)
+    desired_order_number = snapshot.get("order_number")
+    if desired_order_number and Order._default_manager.filter(number=desired_order_number).exists():
+        return {"order": None, "error": "Reserved order number is already in use"}
+
+    order_number = desired_order_number or placer.generate_order_number(basket)
     guest_email = pending.email or cache.get(f"guest-email:{basket.id}") or ""
     order = placer.place_order(
         order_number=order_number,
