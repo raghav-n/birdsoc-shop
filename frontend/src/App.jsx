@@ -28,6 +28,8 @@ import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import Dashboard from './pages/Dashboard';
 import OnsitePurchase from './pages/OnsitePurchase';
+import Console from './pages/Console';
+import OrderLookup from './pages/OrderLookup';
 import Donate from './pages/Donate';
 import DonationSuccess from './pages/DonationSuccess';
 import { trackPageView } from './utils/analytics';
@@ -54,6 +56,13 @@ const StaffOnly = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user?.is_staff) return <Navigate to="/" replace />;
+  return children;
+};
+
+const SuperuserOnly = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user?.is_superuser) return <Navigate to="/" replace />;
   return children;
 };
 
@@ -87,8 +96,11 @@ function App() {
                 <Route path="/events/:id" element={<EventDetail />} />
                 <Route path="/donate" element={<Donate />} />
                 <Route path="/donate/success" element={<DonationSuccess />} />
-                <Route path="/analytics" element={<StaffOnly><Dashboard /></StaffOnly>} />
-                <Route path="/onsite-purchase" element={<StaffOnly><OnsitePurchase /></StaffOnly>} />
+                <Route path="/console" element={<StaffOnly><Console /></StaffOnly>} />
+                <Route path="/console/analytics" element={<SuperuserOnly><Dashboard /></SuperuserOnly>} />
+                <Route path="/console/onsite-purchase" element={<StaffOnly><OnsitePurchase /></StaffOnly>} />
+                <Route path="/console/order-lookup" element={<StaffOnly><OrderLookup /></StaffOnly>} />
+                <Route path="/console/order-lookup/:number" element={<StaffOnly><OrderLookup /></StaffOnly>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

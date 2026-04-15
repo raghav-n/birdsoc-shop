@@ -20,7 +20,7 @@ Selector = get_class("partner.strategy", "Selector")
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ["id", "email", "first_name", "last_name", "is_staff"]
+        fields = ["id", "email", "first_name", "last_name", "is_staff", "is_superuser"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
