@@ -6,13 +6,16 @@ from io import BytesIO
 from django import forms
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import JsonResponse, HttpResponse
+from django.core.mail import EmailMultiAlternatives
+from django.http import JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
+from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.utils.timezone import localtime
 from django.views import View
 from oscar.core.loading import get_model, get_class
 from django.db import models
+from django.db.models import Q
 from django.views.generic import TemplateView, FormView
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -54,33 +57,46 @@ Applicator = get_class("offer.applicator", "Applicator")
 User = get_model("auth", "User")
 
 
-@method_decorator(staff_member_required, name="dispatch")
-class OrderLookupView(View):
-    template_name = "oscar/dashboard/orders/order_lookup.html"
+def _display_customer_name(order):
+    if order.user_id and order.user:
+        full_name = order.user.get_full_name().strip()
+        if full_name:
+            return full_name
+    if order.guest_email:
+        return order.guest_email
+    return "Guest"
 
-    def get(self, request):
-        return render(request, self.template_name)
 
-    def post(self, request):
-        Order = get_model("order", "Order")
+def _display_line_title(line):
+    title = (line.title or "").strip()
+    if "[" in title:
+        return title[: title.index("[")].rstrip()
+    return title
 
-        order_number = json.loads(request.body.decode())["order_number"]
 
-        try:
-            order = Order._default_manager.get(number=order_number)
-        except Order.DoesNotExist:
-            return JsonResponse({"success": False, "message": "No matching order"})
+def _line_category(line):
+    product = line.product
+    while product:
+        cats = list(product.categories.all())
+        if cats:
+            return cats[0].name
+        product = product.parent
+    return "Other"
 
-        items = list(order.lines.values("title", "quantity"))
 
-        return JsonResponse(
+def _scan_order_context(order):
+    return {
+        "order_number": order.number,
+        "customer_name": _display_customer_name(order),
+        "items": [
             {
-                "success": True,
-                "customer_name": order.user.get_full_name(),
-                "status": order.status,
-                "items": items,
+                "title": _display_line_title(line),
+                "quantity": line.quantity,
+                "category": _line_category(line),
             }
-        )
+            for line in order.lines.all()
+        ],
+    }
 
 
 @method_decorator(staff_member_required, name="dispatch")
@@ -98,6 +114,73 @@ class OrderCollectionView(View):
         order.set_status(settings.COLLECTED_STATUS)
 
         return JsonResponse({"success": True})
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class OrderScanResultView(View):
+    template_name = "oscar/dashboard/orders/order_scan_result.html"
+
+    def get(self, request, number=None):
+        ctx = {}
+        if number:
+            order = get_object_or_404(
+                Order._default_manager.prefetch_related(
+                    "lines__product__categories",
+                    "lines__product__parent__categories",
+                ),
+                number=number,
+            )
+            if not order.has_valid_collection_access_id(request.GET.get("id")):
+                raise Http404
+            ctx = _scan_order_context(order)
+            ctx["order_status"] = order.status
+        return render(request, self.template_name, ctx)
+
+    def post(self, request, number=None):
+        data = json.loads(request.body.decode())
+        order_number = data.get("order_number", "").strip()
+        name = data.get("name", "").strip()
+
+        if not order_number and not name:
+            return JsonResponse({"orders": []})
+
+        q = Q()
+        if order_number:
+            q &= Q(number__startswith=order_number)
+        if name:
+            q &= (
+                Q(user__first_name__icontains=name)
+                | Q(user__last_name__icontains=name)
+            )
+
+        orders = (
+            Order._default_manager
+            .filter(q)
+            .select_related("user")
+            .prefetch_related(
+                "lines__product__categories",
+                "lines__product__parent__categories",
+            )[:25]
+        )
+
+        return JsonResponse({
+            "orders": [
+                {
+                    "number": o.number,
+                    "customer_name": _display_customer_name(o),
+                    "status": o.status,
+                    "items": [
+                        {
+                            "title": _display_line_title(line),
+                            "quantity": line.quantity,
+                            "category": _line_category(line),
+                        }
+                        for line in o.lines.all()
+                    ],
+                }
+                for o in orders
+            ]
+        })
 
 
 class OrderExportForm(forms.Form):

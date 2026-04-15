@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order lookup</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+        h1 { font-size: 1.75rem !important; }
+        .container {
+            max-width: max(480px, 40vw);
+            width: 100%;
+            margin-top: 5vh;
+        }
+        .search-card {
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 1.1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+        label { font-size: 0.85rem; color: #555; margin-bottom: 4px; display: block; }
+
+        /* result cards */
+        .order-card {
+            background: #fff;
+            box-shadow: 0 0 8px rgba(0,0,0,0.08);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .order-card.collected {
+            background: #f0f0f0;
+            box-shadow: none;
+            opacity: 0.65;
+        }
+        .order-card-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 12px 16px;
+            cursor: pointer;
+            user-select: none;
+            gap: 4px;
+        }
+        .order-card:not(.collected) .order-card-header:hover { background: #f9f9f9; }
+        .order-card-header .title { font-size: 1.05rem; font-weight: 600; }
+        .order-card-header .status-badge {
+            font-size: 0.78rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: #e2e2e2;
+            color: #333;
+            white-space: nowrap;
+        }
+        .order-card.collected .status-badge {
+            background: #c8c8c8;
+            color: #666;
+        }
+        .order-card-body {
+            display: none;
+            padding: 0 16px 14px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .order-card-body.open { display: block; }
+        .items-table { width: 100%; font-size: 1rem; border-collapse: collapse; margin: 10px 0 14px; }
+        .items-table th { text-align: left; padding: 4px 0; color: #555; font-size: 0.85rem; }
+        .items-table td { padding: 3px 0; }
+        .items-table td:last-child { text-align: right; }
+        .no-results { color: #888; text-align: center; padding: 20px 0; }
+    </style>
+    {% include "oscar/header_contents.html" %}
+    {% if items %}{{ items|json_script:"prefilled-items" }}{% else %}<script id="prefilled-items" type="application/json">[]</script>{% endif %}
+</head>
+<body>
+
+<div class="container">
+    <h1>Order lookup</h1>
+
+    <div class="search-card">
+        <label for="input-search">Order number or customer name</label>
+        <input type="text" id="input-search" placeholder="5+ digits or 4+ characters…"
+               value="{{ order_number|default:'' }}" autocomplete="off">
+    </div>
+
+    <div id="results"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function () {
+    var COLLECT_URL = "{% url 'dashboard:order-collection' %}";
+    var CSRF = "{{ csrf_token }}";
+    var PREFILLED_NUMBER = "{{ order_number|default:'' }}";
+    var PREFILLED_STATUS = "{{ order_status|default:'' }}";
+    var PREFILLED_CUSTOMER = "{{ customer_name|default:'' }}";
+    var PREFILLED_ITEMS = JSON.parse(document.getElementById('prefilled-items').textContent);
+    var COLLECTED_STATUS = "Collected";
+
+    var debounceTimer = null;
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function renderCards(orders) {
+        var container = document.getElementById("results");
+        if (!orders.length) {
+            container.innerHTML = '<p class="no-results">No matching orders found.</p>';
+            return;
+        }
+        container.innerHTML = orders.map(function (o, idx) {
+            var isCollected = o.status === COLLECTED_STATUS;
+            // Group items by category
+            var catMap = {};
+            var catOrder = [];
+            (o.items || []).forEach(function (item) {
+                var cat = item.category || 'Other';
+                if (!catMap[cat]) { catMap[cat] = []; catOrder.push(cat); }
+                catMap[cat].push(item);
+            });
+            var rows = catOrder.length ? catOrder.map(function (cat) {
+                var itemRows = catMap[cat].map(function (item) {
+                    return '<tr><td style="padding-left:8px">' + esc(item.title) + '</td><td>' + item.quantity + '</td></tr>';
+                }).join('');
+                return '<tr><td colspan="2" style="padding-top:8px;padding-bottom:2px;font-size:0.8rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;text-align:left">'
+                     + esc(cat) + '</td></tr>' + itemRows;
+            }).join('') : '<tr><td colspan="2" style="color:#999">No items.</td></tr>';
+
+            var collectBtn = isCollected
+                ? '<button class="btn btn-secondary btn-sm" disabled>Collected</button>'
+                : '<button class="btn btn-dark btn-sm" onclick="collect(\'' + esc(o.number) + '\', this)">Mark as collected</button>';
+
+            return '<div class="order-card' + (isCollected ? ' collected' : '') + '" id="card-' + esc(o.number) + '">'
+                 + '  <div class="order-card-header" onclick="toggleCard(\'' + esc(o.number) + '\')">'
+                 + '    <span class="title">#' + esc(o.number) + ' &nbsp; ' + esc(o.customer_name) + '</span>'
+                 + '    <span class="status-badge" id="badge-' + esc(o.number) + '">' + esc(o.status) + '</span>'
+                 + '  </div>'
+                 + '  <div class="order-card-body' + (idx === 0 ? ' open' : '') + '" id="body-' + esc(o.number) + '">'
+                 + '    <table class="items-table">'
+                 + '      <thead><tr><th>Item</th><th style="text-align:right">Qty</th></tr></thead>'
+                 + '      <tbody>' + rows + '</tbody>'
+                 + '    </table>'
+                 + '    ' + collectBtn
+                 + '  </div>'
+                 + '</div>';
+        }).join('');
+    }
+
+    window.toggleCard = function (number) {
+        document.getElementById("body-" + number).classList.toggle("open");
+    };
+
+    window.collect = function (orderNumber, btn) {
+        Swal.fire({
+            title: 'Mark order ' + orderNumber + ' as collected?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, mark collected',
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            fetch(COLLECT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ order_number: orderNumber }),
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var card = document.getElementById("card-" + orderNumber);
+                    card.classList.add("collected");
+                    document.getElementById("badge-" + orderNumber).textContent = "Collected";
+                    btn.textContent = "Collected";
+                    btn.className = "btn btn-secondary btn-sm";
+                    Swal.fire({ title: 'Order ' + orderNumber + ' marked as collected.', icon: 'success' });
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Mark as collected';
+                    Swal.fire({ title: 'An error occurred.', text: data.message, icon: 'error' });
+                }
+            });
+        });
+    };
+
+    async function search(orderNumber, name) {
+        var resp = await fetch("{% url 'dashboard:order-lookup' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ order_number: orderNumber, name: name }),
+        });
+        return await resp.json();
+    }
+
+    function onInput() {
+        var val = document.getElementById("input-search").value.trim();
+        var isNumber = /^\d+$/.test(val);
+        var numReady  = isNumber && val.length >= 5;
+        var nameReady = !isNumber && val.length >= 4;
+
+        if (!numReady && !nameReady) {
+            document.getElementById("results").innerHTML = "";
+            return;
+        }
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async function () {
+            var data = await search(numReady ? val : "", nameReady ? val : "");
+            renderCards(data.orders || []);
+        }, 250);
+    }
+
+    document.getElementById("input-search").addEventListener("input", onInput);
+
+    if (PREFILLED_NUMBER) {
+        renderCards([{
+            number: PREFILLED_NUMBER,
+            customer_name: PREFILLED_CUSTOMER,
+            status: PREFILLED_STATUS,
+            items: PREFILLED_ITEMS,
+        }]);
+    }
+})();
+</script>
+
+</body>
+</html>
