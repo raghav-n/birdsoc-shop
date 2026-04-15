@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.crypto import get_random_string
@@ -86,10 +87,11 @@ class OrdersExtraTests(APITestCase):
         order = self._place_order_for(client)
 
         guest = APIClient()
-        response = guest.get(
-            f"/api/v1/orders/{order['number']}/receipt",
-            {"id": order["access_id"]},
-        )
+        with patch("apps.order.models.Order.get_receipt_as_pdf", return_value=b"%PDF-fake"):
+            response = guest.get(
+                f"/api/v1/orders/{order['number']}/receipt",
+                {"id": order["access_id"]},
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
