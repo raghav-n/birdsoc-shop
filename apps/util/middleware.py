@@ -60,11 +60,8 @@ class NoAdminMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path.startswith("/admin/"):
-            if (
-                not request.user.is_authenticated
-                or request.user.email not in settings.ADMIN_EMAILS
-            ):
+        if request.path.startswith("/admin/") or request.path.startswith("/dashboard/"):
+            if not request.user.is_superuser:
                 raise Http404()
         response = self.get_response(request)
         return response
