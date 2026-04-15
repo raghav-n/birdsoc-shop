@@ -5,14 +5,19 @@ from django.urls import path
 class OrdersDashboardConfig(apps.OrdersDashboardConfig):
     name = "apps.dashboard.orders"
 
+    def ready(self):
+        super().ready()
+        from apps.dashboard.orders.views import OrderDetailView
+
+        self.order_detail_view = OrderDetailView
+
     def get_urls(self):
         from apps.dashboard.orders.views import (
             OrderCollectionView,
+            OrderDetailView,
             OrderScanResultView,
             OrderSummaryView,
             OnsitePurchaseView,
-            VoucherCheckView,
-            SiteOffersView,
             OrderStatsView,
             SalesReportView,
             PendingCheckoutDashboardView,
@@ -57,8 +62,6 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             path(
                 "onsite-purchase/", OnsitePurchaseView.as_view(), name="onsite-purchase"
             ),
-            path("voucher-check/", VoucherCheckView.as_view(), name="voucher-check"),
-            path("site-offers/", SiteOffersView.as_view(), name="site-offers"),
             path("statistics/", OrderStatsView.as_view(), name="order-statistics"),
             path("sales-report/", SalesReportView.as_view(), name="sales-report"),
             path(
@@ -70,6 +73,11 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
                 "<str:number>/resend-confirmation/",
                 ResendConfirmationEmailView.as_view(),
                 name="order-resend-confirmation",
+            ),
+            path(
+                "<str:number>/",
+                OrderDetailView.as_view(),
+                name="order-detail",
             ),
         ]
 

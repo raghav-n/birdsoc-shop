@@ -82,6 +82,11 @@
     <button type="button" class="btn btn-secondary mb-3" onclick="document.getElementById('resend-email-form').submit()">
         <i class="fas fa-envelope"></i> {% trans "Resend confirmation email" %}
     </button>
+    {% if can_delete_order %}
+        <button type="button" class="btn btn-danger mb-3" onclick="document.getElementById('delete-order-form').submit()">
+            <i class="fas fa-trash"></i> {% trans "Delete order" %}
+        </button>
+    {% endif %}
     <div class="card card-body bg-light">
         <h3><i class="fas fa-exclamation-triangle"></i> {% trans "Change order status" %}:</h3>
         {% if order_status_form.has_choices %}
@@ -283,4 +288,16 @@
     <form id="resend-email-form" method="post" action="{% url 'dashboard:order-resend-confirmation' number=order.number %}" style="display:none">
         {% csrf_token %}
     </form>
+    {% if can_delete_order %}
+        <form
+            id="delete-order-form"
+            method="post"
+            action="{% url 'dashboard:order-detail' number=order.number %}"
+            style="display:none"
+            onsubmit="return confirm('{% trans "Delete this order and release its allocations?" %}')"
+        >
+            {% csrf_token %}
+            <input type="hidden" name="order_action" value="delete_order">
+        </form>
+    {% endif %}
 {% endblock %}

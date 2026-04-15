@@ -1,7 +1,39 @@
 from anymail.exceptions import AnymailRecipientsRefused
 from django.conf import settings
+from django.db import transaction
 from oscar.apps.order.utils import OrderNumberGenerator as CoreOrderNumberGenerator
 from oscar.apps.order.utils import OrderDispatcher as CoreOrderDispatcher
+from oscar.core.loading import get_model
+
+
+Order = get_model("order", "Order")
+
+
+class OrderDeletionNotAllowed(Exception):
+    pass
+
+
+@transaction.atomic
+def delete_order_and_release_allocations(order):
+    locked_order = (
+        Order._default_manager.select_for_update()
+        .prefetch_related("lines__stockrecord")
+        .get(pk=order.pk)
+    )
+
+    if locked_order.status == settings.COLLECTED_STATUS:
+        raise OrderDeletionNotAllowed(
+            f"Order {locked_order.number} is already {settings.COLLECTED_STATUS!r} and cannot be deleted."
+        )
+
+    allocations_released = 0
+    for line in locked_order.lines.select_related("stockrecord").all():
+        if line.can_track_allocations and line.num_allocated:
+            allocations_released += line.num_allocated
+            line.cancel_allocation(line.num_allocated)
+
+    deleted_count, _ = locked_order.delete()
+    return allocations_released, deleted_count
 
 
 class OrderNumberGenerator(CoreOrderNumberGenerator):
