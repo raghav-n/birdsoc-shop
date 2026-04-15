@@ -44,6 +44,7 @@ from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.analytics import AnalyticsDashboardView
 from apps.api.views.donations import DonationCreateView
 from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView
+from apps.api.views.order_lookup import OrderSearchView, OrderCollectView
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -74,6 +75,8 @@ urlpatterns = [
     path("banners/text", TextBannerView.as_view(), name="banner-text"),
     path("analytics/dashboard", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
     path("onsite/calculate", OnsiteCalculateView.as_view(), name="onsite-calculate"),
+    path("orders/search", OrderSearchView.as_view(), name="orders-search"),
+    path("orders/<str:number>/collect", OrderCollectView.as_view(), name="orders-collect"),
     path("onsite/pending", OnsitePendingView.as_view(), name="onsite-pending"),
     path("onsite/order", OnsiteOrderView.as_view(), name="onsite-order"),
     path("donations", DonationCreateView.as_view(), name="donation-create"),

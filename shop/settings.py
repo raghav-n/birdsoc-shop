@@ -636,10 +636,6 @@ OSCAR_DASHBOARD_NAVIGATION = [
                 "url_name": "dashboard:order-list",
             },
             {
-                "label": _("Order lookup"),
-                "url_name": "dashboard:order-lookup",
-            },
-            {
                 "label": _("Statistics"),
                 "url_name": "dashboard:order-stats",
             },

@@ -11,7 +11,7 @@ from apps.api.tests.utils import auth_client, create_product, create_shipping_me
 Order = get_model("order", "Order")
 
 
-class OrderScanDashboardTests(TestCase):
+class OrderLookupApiTests(TestCase):
     def _place_order(self):
         api_client = APIClient()
         auth_client(api_client, email="buyer@example.com")
@@ -42,38 +42,41 @@ class OrderScanDashboardTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         return response.data
 
-    def test_staff_can_open_scan_result_with_valid_id(self):
-        order = self._place_order()
-        staff_user = create_user(email="staff@example.com")
-        staff_user.is_staff = True
-        staff_user.save(update_fields=["is_staff"])
-        self.client.force_login(staff_user)
+    def _staff_client(self):
+        staff = create_user(email="staff@example.com")
+        staff.is_staff = True
+        staff.is_superuser = True
+        staff.save(update_fields=["is_staff", "is_superuser"])
+        client = APIClient()
+        auth_client(client, email="staff@example.com")
+        return client
 
-        response = self.client.get(
-            reverse("dashboard:order-scan-result", kwargs={"number": order["number"]}),
-            {"id": order["access_id"]},
+    def test_staff_can_look_up_order_with_valid_access_id(self):
+        order = self._place_order()
+        client = self._staff_client()
+
+        response = client.get(
+            "/api/v1/orders/search",
+            {"number": order["number"], "id": order["access_id"]},
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, order["number"])
-        self.assertContains(response, "Test User")
-        self.assertContains(response, "Scan Test Badge")
-        self.assertEqual(response.context["items"][0]["title"], "Scan Test Badge")
-        self.assertEqual(response.context["items"][0]["quantity"], 2)
+        orders = response.data["orders"]
+        self.assertEqual(len(orders), 1)
+        self.assertEqual(orders[0]["number"], order["number"])
+        self.assertEqual(orders[0]["items"][0]["title"], "Scan Test Badge")
+        self.assertEqual(orders[0]["items"][0]["quantity"], 2)
 
-    def test_scan_result_requires_valid_id(self):
+    def test_lookup_rejects_invalid_access_id(self):
         order = self._place_order()
-        staff_user = create_user(email="staff@example.com")
-        staff_user.is_staff = True
-        staff_user.save(update_fields=["is_staff"])
-        self.client.force_login(staff_user)
+        client = self._staff_client()
 
-        response = self.client.get(
-            reverse("dashboard:order-scan-result", kwargs={"number": order["number"]}),
-            {"id": "invalid"},
+        response = client.get(
+            "/api/v1/orders/search",
+            {"number": order["number"], "id": "invalid"},
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
 
 
 class OrderDeleteDashboardTests(TestCase):

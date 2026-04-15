@@ -344,7 +344,7 @@ const OrderDetail = () => {
   const basketDiscounts = order.basket_discounts || [];
   const paymentMethod = order.sources?.map((source) => source.source_type).filter(Boolean).join(', ') || 'PayNow';
   const collectionQrUrl = order.access_id
-    ? `${window.location.origin}/dashboard/orders/scan/result/${encodeURIComponent(order.number)}/?id=${encodeURIComponent(order.access_id)}`
+    ? `${window.location.origin}/console/order-lookup/${encodeURIComponent(order.number)}?id=${encodeURIComponent(order.access_id)}`
     : null;
 
   return (

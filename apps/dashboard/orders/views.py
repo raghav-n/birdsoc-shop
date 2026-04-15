@@ -5,7 +5,13 @@ from io import BytesIO
 
 from django import forms
 from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
+
+# Redirect to the Auth0 dashboard login instead of /admin/login/
+console_staff_required = user_passes_test(
+    lambda u: u.is_active and u.is_staff,
+    login_url="/dashboard/login/",
+)
 from django.core.mail import EmailMultiAlternatives
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse, HttpResponse, Http404
@@ -49,132 +55,6 @@ OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
 Source = get_model("payment", "Source")
 ShippingAddress = get_model("order", "ShippingAddress")
 Country = get_model("address", "Country")
-def _display_customer_name(order):
-    if order.user_id and order.user:
-        full_name = order.user.get_full_name().strip()
-        if full_name:
-            return full_name
-    if order.guest_email:
-        return order.guest_email
-    return "Guest"
-
-
-def _display_line_title(line):
-    title = (line.title or "").strip()
-    if "[" in title:
-        return title[: title.index("[")].rstrip()
-    return title
-
-
-def _line_category(line):
-    product = line.product
-    while product:
-        cats = list(product.categories.all())
-        if cats:
-            return cats[0].name
-        product = product.parent
-    return "Other"
-
-
-def _scan_order_context(order):
-    return {
-        "order_number": order.number,
-        "customer_name": _display_customer_name(order),
-        "items": [
-            {
-                "title": _display_line_title(line),
-                "quantity": line.quantity,
-                "category": _line_category(line),
-            }
-            for line in order.lines.all()
-        ],
-    }
-
-
-@method_decorator(staff_member_required, name="dispatch")
-class OrderCollectionView(View):
-    def post(self, request):
-        Order = get_model("order", "Order")
-
-        order_number = json.loads(request.body.decode())["order_number"]
-
-        try:
-            order = Order._default_manager.get(number=order_number)
-        except Order.DoesNotExist:
-            return JsonResponse({"success": False, "message": "No matching order"})
-
-        order.set_status(settings.COLLECTED_STATUS)
-
-        return JsonResponse({"success": True})
-
-
-@method_decorator(staff_member_required, name="dispatch")
-class OrderScanResultView(View):
-    template_name = "oscar/dashboard/orders/order_scan_result.html"
-
-    def get(self, request, number=None):
-        ctx = {}
-        if number:
-            order = get_object_or_404(
-                Order._default_manager.prefetch_related(
-                    "lines__product__categories",
-                    "lines__product__parent__categories",
-                ),
-                number=number,
-            )
-            if not order.has_valid_collection_access_id(request.GET.get("id")):
-                raise Http404
-            ctx = _scan_order_context(order)
-            ctx["order_status"] = order.status
-        return render(request, self.template_name, ctx)
-
-    def post(self, request, number=None):
-        data = json.loads(request.body.decode())
-        order_number = data.get("order_number", "").strip()
-        name = data.get("name", "").strip()
-
-        if not order_number and not name:
-            return JsonResponse({"orders": []})
-
-        q = Q()
-        if order_number:
-            q &= Q(number__startswith=order_number)
-        if name:
-            q &= (
-                Q(user__first_name__icontains=name)
-                | Q(user__last_name__icontains=name)
-            )
-
-        orders = (
-            Order._default_manager
-            .filter(q)
-            .select_related("user")
-            .prefetch_related(
-                "lines__product__categories",
-                "lines__product__parent__categories",
-            )[:25]
-        )
-
-        return JsonResponse({
-            "orders": [
-                {
-                    "number": o.number,
-                    "customer_name": _display_customer_name(o),
-                    "status": o.status,
-                    "items": [
-                        {
-                            "title": _display_line_title(line),
-                            "quantity": line.quantity,
-                            "category": _line_category(line),
-                        }
-                        for line in o.lines.all()
-                    ],
-                }
-                for o in orders
-            ]
-        })
-
-
 class OrderExportForm(forms.Form):
     start_date = forms.DateField(
         required=True, widget=forms.DateInput(attrs={"type": "date"})
@@ -274,7 +154,7 @@ class OrderDetailView(BaseOrderDetailView):
         return redirect("dashboard:order-list")
 
 
-@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(console_staff_required, name="dispatch")
 class OnsitePurchaseView(RedirectView):
     permanent = False
     query_string = True
@@ -326,7 +206,7 @@ class OrderStatsView(BaseOrderStatsView):
         return stats
 
 
-@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(console_staff_required, name="dispatch")
 class SalesReportView(View):
     template_name = "oscar/dashboard/orders/sales_report.html"
 
@@ -714,7 +594,7 @@ class PendingCheckoutDashboardView(View):
         return redirect("dashboard:order-detail", number=order.number)
 
 
-@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(console_staff_required, name="dispatch")
 class ResendConfirmationEmailView(View):
     def post(self, request, number):
         order = get_object_or_404(Order, number=number)
@@ -867,7 +747,7 @@ def _deduplicated_orders(orders):
     return seen
 
 
-@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(console_staff_required, name="dispatch")
 class OrderBulkEmailView(View):
     template_name = "oscar/dashboard/orders/order_bulk_email.html"
 
@@ -926,7 +806,7 @@ class OrderBulkEmailView(View):
         return redirect("dashboard:order-list")
 
 
-@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(console_staff_required, name="dispatch")
 class OrderBulkEmailCountView(View):
     def post(self, request):
         period_ids = request.POST.getlist("sales_periods")
@@ -941,7 +821,7 @@ class OrderBulkEmailCountView(View):
         return JsonResponse({"count": count})
 
 
-@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(console_staff_required, name="dispatch")
 class OrderBulkEmailTestView(View):
     def post(self, request):
         subject = request.POST.get("subject", "").strip()
