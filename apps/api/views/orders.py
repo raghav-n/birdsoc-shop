@@ -16,7 +16,7 @@ class OrdersViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "number"
 
     def get_permissions(self):
-        if self.action == "retrieve":
+        if self.action in {"retrieve", "receipt"}:
             return [permissions.AllowAny()]
         return super().get_permissions()
 
