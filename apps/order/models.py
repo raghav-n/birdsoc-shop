@@ -1,3 +1,7 @@
+import datetime
+import secrets
+import uuid
+
 from django.conf import settings
 from django.db import models
 from django.template.loader import render_to_string
@@ -10,6 +14,7 @@ from weasyprint import Document, HTML
 from decimal import Decimal
 
 Repository = get_class("shipping.repository", "Repository")
+COLLECTION_ACCESS_NAMESPACE = uuid.UUID("3f170217-46db-4c4b-8d16-5ea76568e7e4")
 
 
 class Order(AbstractOrder):
@@ -87,6 +92,26 @@ class Order(AbstractOrder):
     @property
     def total_incl_tax_with_donation(self):
         return self.total_incl_tax + self.donation_amount
+
+    @property
+    def collection_access_id(self):
+        if not self.number or not self.date_placed:
+            return None
+        placed_at = self.date_placed.astimezone(datetime.timezone.utc).isoformat(
+            timespec="microseconds"
+        )
+        return str(uuid.uuid5(COLLECTION_ACCESS_NAMESPACE, f"{self.number}:{placed_at}"))
+
+    def has_valid_collection_access_id(self, candidate):
+        if not candidate:
+            return False
+        try:
+            normalized_candidate = str(uuid.UUID(str(candidate)))
+        except (TypeError, ValueError, AttributeError):
+            return False
+        return secrets.compare_digest(
+            normalized_candidate, self.collection_access_id or ""
+        )
 
     @property
     def total_before_discounts_excl_tax_with_donation(self):
