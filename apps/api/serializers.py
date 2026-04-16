@@ -18,9 +18,14 @@ Selector = get_class("partner.strategy", "Selector")
 
 
 class UserSerializer(serializers.ModelSerializer):
+    groups = serializers.SerializerMethodField()
+
     class Meta:
         model = get_user_model()
-        fields = ["id", "email", "first_name", "last_name", "is_staff", "is_superuser"]
+        fields = ["id", "email", "first_name", "last_name", "is_staff", "is_superuser", "groups"]
+
+    def get_groups(self, obj):
+        return list(obj.groups.values_list("name", flat=True))
 
 
 class CategorySerializer(serializers.ModelSerializer):

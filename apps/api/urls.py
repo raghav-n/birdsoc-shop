@@ -45,6 +45,12 @@ from apps.api.views.analytics import AnalyticsDashboardView
 from apps.api.views.donations import DonationCreateView
 from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView
 from apps.api.views.order_lookup import OrderSearchView, OrderCollectView
+from apps.api.views.console_events import (
+    ConsoleEventsViewSet,
+    ConsoleVerifyRegistrationView,
+    ConsoleVerifyGroupView,
+    ConsoleRegistrationToggleView,
+)
 
 
 router = routers.DefaultRouter(trailing_slash=False)
@@ -52,6 +58,7 @@ router.register(r"products", ProductViewSet, basename="products")
 router.register(r"categories", CategoryViewSet, basename="categories")
 router.register(r"orders", OrdersViewSet, basename="orders")
 router.register(r"events", EventsViewSet, basename="events")
+router.register(r"console/events", ConsoleEventsViewSet, basename="console-events")
 
 
 urlpatterns = [
@@ -154,6 +161,22 @@ urlpatterns = [
         "event-registration-groups/<int:group_id>/payment/paynow-proof",
         EventRegistrationGroupProofUploadView.as_view(),
         name="event-registration-group-paynow-proof",
+    ),
+    # Console: event management
+    path(
+        "console/event-registrations/<int:reg_id>/verify",
+        ConsoleVerifyRegistrationView.as_view(),
+        name="console-verify-registration",
+    ),
+    path(
+        "console/event-registration-groups/<int:group_id>/verify",
+        ConsoleVerifyGroupView.as_view(),
+        name="console-verify-group",
+    ),
+    path(
+        "console/registration-toggle",
+        ConsoleRegistrationToggleView.as_view(),
+        name="console-registration-toggle",
     ),
     # Routers
     path("", include(router.urls)),

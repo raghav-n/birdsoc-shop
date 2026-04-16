@@ -73,21 +73,35 @@ const Console = () => {
     toast.success(`Opened order ${number}`);
   };
 
+  const canMerchandise = user?.is_superuser || user?.groups?.includes('Merchandise');
+  const canEvents = user?.is_superuser || user?.groups?.includes('Events');
+
   return (
     <Page>
       <Title>Console</Title>
       <Subtitle>Logged in as {user?.email}</Subtitle>
 
       <CardGrid>
-        <Card to="/console/onsite-purchase">
-          <CardTitle>Onsite purchase</CardTitle>
-          <CardDescription>Process in-person sales at the booth</CardDescription>
-        </Card>
+        {canMerchandise && (
+          <Card to="/console/onsite-purchase">
+            <CardTitle>Onsite purchase</CardTitle>
+            <CardDescription>Process in-person sales at the booth</CardDescription>
+          </Card>
+        )}
 
-        <Card to="/console/order-lookup">
-          <CardTitle>Order lookup</CardTitle>
-          <CardDescription>Search and mark orders as collected</CardDescription>
-        </Card>
+        {canMerchandise && (
+          <Card to="/console/order-lookup">
+            <CardTitle>Order lookup</CardTitle>
+            <CardDescription>Search and mark orders as collected</CardDescription>
+          </Card>
+        )}
+
+        {canEvents && (
+          <Card to="/console/events">
+            <CardTitle>Event management</CardTitle>
+            <CardDescription>Create events, manage registrations and attendance</CardDescription>
+          </Card>
+        )}
 
         {user?.is_superuser && (
           <Card to="/console/analytics">
