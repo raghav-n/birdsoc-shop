@@ -1,5 +1,6 @@
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
 from oscar.core.loading import get_model
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -84,10 +85,17 @@ class OrderSearchView(APIView):
         if number:
             q &= Q(number__startswith=number)
         if name:
-            q &= Q(user__first_name__icontains=name) | Q(user__last_name__icontains=name)
+            q &= (
+                Q(full_name_fl__icontains=name)
+                | Q(full_name_lf__icontains=name)
+            )
 
         orders = (
-            Order._default_manager.filter(q)
+            Order._default_manager.annotate(
+                full_name_fl=Concat("user__first_name", Value(" "), "user__last_name"),
+                full_name_lf=Concat("user__last_name", Value(" "), "user__first_name"),
+            )
+            .filter(q)
             .select_related("user")
             .prefetch_related(
                 "lines__product__categories",

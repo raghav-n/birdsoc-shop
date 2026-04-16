@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import OnsitePurchase from '../OnsitePurchase';
 
 const mocks = vi.hoisted(() => ({
@@ -160,7 +161,11 @@ describe('OnsitePurchase', () => {
   it('adds the clicked variant instead of the parent product card', async () => {
     mocks.getProducts.mockResolvedValue({ results: [parentProduct] });
 
-    render(<OnsitePurchase />);
+    render(
+      <MemoryRouter>
+        <OnsitePurchase />
+      </MemoryRouter>
+    );
 
     await screen.findByText('Club Tee');
 
@@ -181,7 +186,11 @@ describe('OnsitePurchase', () => {
   it('shows a shared parent price and only low-stock variant metadata', async () => {
     mocks.getProducts.mockResolvedValue({ results: [samePriceParentProduct] });
 
-    render(<OnsitePurchase />);
+    render(
+      <MemoryRouter>
+        <OnsitePurchase />
+      </MemoryRouter>
+    );
 
     await screen.findByText('Club Cap');
 
@@ -197,7 +206,11 @@ describe('OnsitePurchase', () => {
       results: [standaloneProduct, parentProduct, samePriceParentProduct],
     });
 
-    const { container } = render(<OnsitePurchase />);
+    const { container } = render(
+      <MemoryRouter>
+        <OnsitePurchase />
+      </MemoryRouter>
+    );
 
     await screen.findByText('Accessories');
     await screen.findByText('Apparel');
@@ -213,7 +226,11 @@ describe('OnsitePurchase', () => {
       results: [sharedWordProductA, sharedWordProductB],
     });
 
-    render(<OnsitePurchase />);
+    render(
+      <MemoryRouter>
+        <OnsitePurchase />
+      </MemoryRouter>
+    );
 
     const giftsSection = (await screen.findByText('Gifts')).closest('section');
 
@@ -234,12 +251,17 @@ describe('OnsitePurchase', () => {
   it('proceeds to payment without placing the order immediately', async () => {
     mocks.getProducts.mockResolvedValue({ results: [parentProduct] });
 
-    render(<OnsitePurchase />);
+    render(
+      <MemoryRouter>
+        <OnsitePurchase />
+      </MemoryRouter>
+    );
 
     await screen.findByText('Club Tee');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Club Tee - M' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Proceed to Payment' }));
+    const proceedButton = await screen.findByRole('button', { name: 'Proceed to Payment' });
+    fireEvent.click(proceedButton);
 
     await waitFor(() => {
       expect(mocks.createPending).toHaveBeenCalledWith([{ id: 201, quantity: 1 }], '');
@@ -253,12 +275,17 @@ describe('OnsitePurchase', () => {
   it('can return from payment to cart editing without clearing the cart', async () => {
     mocks.getProducts.mockResolvedValue({ results: [parentProduct] });
 
-    render(<OnsitePurchase />);
+    render(
+      <MemoryRouter>
+        <OnsitePurchase />
+      </MemoryRouter>
+    );
 
     await screen.findByText('Club Tee');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Club Tee - M' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Proceed to Payment' }));
+    const proceedButton = await screen.findByRole('button', { name: 'Proceed to Payment' });
+    fireEvent.click(proceedButton);
 
     await screen.findByText('MER-2ABCDE');
 
