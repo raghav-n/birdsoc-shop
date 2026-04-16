@@ -10,6 +10,35 @@ const ScannerCard = styled.div`
   padding: 1rem 1.25rem;
 `;
 
+const Root = styled.div``;
+
+const CollapsedTrigger = styled.button`
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #17362b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-color: #17362b;
+    box-shadow: 0 4px 12px rgba(23, 54, 43, 0.12);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: wait;
+    transform: none;
+  }
+`;
+
 const Header = styled.div`
   display: flex;
   align-items: flex-start;
@@ -188,6 +217,7 @@ const getCameraSupportError = () => {
 };
 
 const CollectionQrScanner = ({
+  className,
   title = 'Scan collection QR',
   buttonLabel = 'Start scanner',
   onScan,
@@ -201,6 +231,7 @@ const CollectionQrScanner = ({
 
   const [isStarting, setIsStarting] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState('');
   const [lastOrderNumber, setLastOrderNumber] = useState('');
   const [videoReady, setVideoReady] = useState(false);
@@ -227,6 +258,7 @@ const CollectionQrScanner = ({
 
     setIsScanning(false);
     setIsStarting(false);
+    setIsExpanded(false);
     setVideoReady(false);
   }, [clearPendingPoll]);
 
@@ -285,6 +317,8 @@ const CollectionQrScanner = ({
   }, [handleDetectedValue, isScanning, stopScanner, videoReady]);
 
   const startScanner = useCallback(async () => {
+    setIsExpanded(true);
+
     const supportError = getCameraSupportError();
     if (supportError) {
       setError(supportError);
@@ -359,51 +393,69 @@ const CollectionQrScanner = ({
     stopScanner();
   }, [stopScanner]);
 
+  if (!isExpanded) {
+    return (
+      <Root className={className} data-expanded="false">
+        <CollapsedTrigger
+          type="button"
+          onClick={startScanner}
+          disabled={isStarting}
+          aria-label={buttonLabel}
+          title={buttonLabel}
+        >
+          <ScanLine size={20} />
+        </CollapsedTrigger>
+      </Root>
+    );
+  }
+
   return (
-    <ScannerCard>
-      <Header>
-        <TitleWrap>
-          <IconWrap>
-            <ScanLine size={18} />
-          </IconWrap>
-          <div>
-            <Title>{title}</Title>
-          </div>
-        </TitleWrap>
+    <Root className={className} data-expanded="true">
+      <ScannerCard>
+        <Header>
+          <TitleWrap>
+            <IconWrap>
+              <ScanLine size={18} />
+            </IconWrap>
+            <div>
+              <Title>{title}</Title>
+            </div>
+          </TitleWrap>
 
-        <Actions>
-          <ActionButton type="button" onClick={startScanner} disabled={isStarting || isScanning}>
-            <Camera size={16} />
-            {isStarting ? 'Starting…' : buttonLabel}
-          </ActionButton>
-          {(isScanning || isStarting) && (
-            <ActionButton type="button" $secondary onClick={stopScanner}>
-              <CameraOff size={16} />
-              Stop
+          <Actions>
+            <ActionButton type="button" onClick={startScanner} disabled={isStarting || isScanning}>
+              <Camera size={16} />
+              {isStarting ? 'Starting…' : buttonLabel}
             </ActionButton>
+            {(isScanning || isStarting) && (
+              <ActionButton type="button" $secondary onClick={stopScanner}>
+                <CameraOff size={16} />
+                Stop
+              </ActionButton>
+            )}
+          </Actions>
+        </Header>
+
+        <Viewport>
+          {isScanning ? (
+            <>
+              <Video ref={videoRef} muted playsInline autoPlay />
+              <ScanFrame aria-hidden="true" />
+            </>
+          ) : (
+            <Placeholder>
+              <ScanLine size={30} />
+              <div>Allow camera access, then hold the collection QR inside the frame.</div>
+            </Placeholder>
           )}
-        </Actions>
-      </Header>
+        </Viewport>
 
-      <Viewport>
-        {isScanning ? (
-          <>
-            <Video ref={videoRef} muted playsInline autoPlay />
-            <ScanFrame aria-hidden="true" />
-          </>
-        ) : (
-          <Placeholder>
-            <ScanLine size={30} />
-            <div>Allow camera access, then hold the collection QR inside the frame.</div>
-          </Placeholder>
-        )}
-      </Viewport>
-
-      <StatusRow>
-        {error && <StatusPill $tone="error">{error}</StatusPill>}
-        {lastOrderNumber && <StatusPill>Opened order #{lastOrderNumber}</StatusPill>}
-      </StatusRow>
-    </ScannerCard>
+        <StatusRow>
+          {error && <StatusPill $tone="error">{error}</StatusPill>}
+          {lastOrderNumber && <StatusPill>Opened order #{lastOrderNumber}</StatusPill>}
+        </StatusRow>
+      </ScannerCard>
+    </Root>
   );
 };
 

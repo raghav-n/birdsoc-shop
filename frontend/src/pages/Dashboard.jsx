@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, BarChart2, AlertCircle } from 'lucide-react';
 import { dashboardService } from '../services/dashboard';
@@ -407,6 +408,7 @@ const Dashboard = () => {
 
   return (
     <Container>
+      <Link to="/console" style={{ fontSize: '0.8rem', color: 'var(--link-text)', display: 'inline-block', marginBottom: '0.5rem' }}>← Back to Console</Link>
       <PageTitle>Sales Dashboard</PageTitle>
       <PageSubtitle>
         {loading ? 'Updating…' : (isDateFiltered ? `${appliedStart || '…'} → ${appliedEnd || '…'}` : 'All-time revenue, cost, and profit across orders.')}

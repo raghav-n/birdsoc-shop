@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -14,7 +14,25 @@ const Page = styled.div`
 
 const Title = styled.h1`
   font-size: 1.5rem;
-  margin: 0 0 1rem;
+  margin: 0;
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+`;
+
+const HeaderScanner = styled(CollectionQrScanner)`
+  margin-left: auto;
+
+  &[data-expanded='true'] {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
 `;
 
 const SearchCard = styled.div`
@@ -22,10 +40,6 @@ const SearchCard = styled.div`
   border: 1px solid #e5e5e5;
   border-radius: 8px;
   padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
-`;
-
-const ScannerWrap = styled.div`
   margin-bottom: 1rem;
 `;
 
@@ -252,15 +266,15 @@ const OrderLookup = () => {
 
   return (
     <Page>
-      <Title>Order lookup</Title>
-
-      <ScannerWrap>
-        <CollectionQrScanner
+      <Link to="/console" style={{ fontSize: '0.8rem', color: 'var(--link-text)', display: 'inline-block', marginBottom: '0.5rem' }}>← Back to Console</Link>
+      <HeaderRow>
+        <Title>Order lookup</Title>
+        <HeaderScanner
           description="Scan a collection QR code to load the matching order here."
           buttonLabel="Scan collection QR"
           onScan={handleScannedLookup}
         />
-      </ScannerWrap>
+      </HeaderRow>
 
       <SearchCard>
         <Label htmlFor="lookup-input">Order number or customer name</Label>

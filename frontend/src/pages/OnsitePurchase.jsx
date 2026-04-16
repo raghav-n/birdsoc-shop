@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { Search, Plus, Minus, Trash2, Tag, CheckCircle, RefreshCw, ShoppingCart } from 'lucide-react';
 import { catalogueService } from '../services/catalogue';
@@ -713,6 +714,7 @@ export default function OnsitePurchase() {
 
   const handledRef = useRef(false);
   const pollingRef = useRef(false);
+  const calcIdRef = useRef(0);
 
   // ── Load products ────────────────────────────────────────────────────────
 
@@ -743,33 +745,40 @@ export default function OnsitePurchase() {
 
   // ── Recalculate pricing whenever cart or voucher changes ─────────────────
 
-  const calculatePrice = useCallback(async (cartState, voucherCode) => {
+  const calculatePrice = useCallback(async (cartState, voucherCode, calcId) => {
     const items = Object.values(cartState);
     if (items.length === 0) {
       setPricing(null);
+      setCalculatingPrice(false);
       return;
     }
-    setCalculatingPrice(true);
     try {
       const products = items.map(({ product, quantity }) => ({
         id: product.id,
         quantity,
       }));
       const result = await onsiteService.calculate(products, voucherCode);
+      if (calcId !== calcIdRef.current) return;
       setPricing(result);
       if (result.voucher_error && voucherCode) {
         setVoucherError(result.voucher_error);
       }
     } catch {
       // silent – don't toast on every keystroke
-    } finally {
-      setCalculatingPrice(false);
+      if (calcId !== calcIdRef.current) return;
     }
+    setCalculatingPrice(false);
   }, []);
 
   useEffect(() => {
+    const hasItems = Object.keys(cart).length > 0;
+    if (hasItems) {
+      setCalculatingPrice(true);
+    }
+    calcIdRef.current += 1;
+    const id = calcIdRef.current;
     const timer = setTimeout(() => {
-      calculatePrice(cart, appliedVoucher);
+      calculatePrice(cart, appliedVoucher, id);
     }, 250);
     return () => clearTimeout(timer);
   }, [cart, appliedVoucher, calculatePrice]);
@@ -957,6 +966,7 @@ export default function OnsitePurchase() {
   }, [categories, filteredProducts]);
 
   const subtotal = parseFloat(pricing?.subtotal ?? 0);
+  const offers = pricing?.offers ?? [];
   const offersDiscount = parseFloat(pricing?.offers_discount ?? 0);
   const voucherDiscount = parseFloat(pricing?.voucher_discount ?? 0);
   const total = parseFloat(pricing?.total ?? subtotal);
@@ -1118,13 +1128,21 @@ export default function OnsitePurchase() {
 
           {/* Totals */}
           {cartItems.length > 0 && (
-            <TotalsBlock>
-              {offersDiscount > 0 && (
-                <TotalRow>
-                  <DiscountLabel>{pricing?.offers_description || 'Discount'}</DiscountLabel>
-                  <DiscountValue>−{formatCurrency(offersDiscount)}</DiscountValue>
-                </TotalRow>
-              )}
+            <TotalsBlock style={{ opacity: calculatingPrice ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+              {offers.length > 0
+                ? offers.map((offer, i) => (
+                    <TotalRow key={i}>
+                      <DiscountLabel>{offer.name}</DiscountLabel>
+                      <DiscountValue>−{formatCurrency(parseFloat(offer.amount))}</DiscountValue>
+                    </TotalRow>
+                  ))
+                : offersDiscount > 0 && (
+                    <TotalRow>
+                      <DiscountLabel>{pricing?.offers_description || 'Discount'}</DiscountLabel>
+                      <DiscountValue>−{formatCurrency(offersDiscount)}</DiscountValue>
+                    </TotalRow>
+                  )
+              }
               {voucherDiscount > 0 && (
                 <TotalRow>
                   <DiscountLabel>Voucher ({appliedVoucher})</DiscountLabel>
@@ -1132,7 +1150,10 @@ export default function OnsitePurchase() {
                 </TotalRow>
               )}
               <TotalRow>
-                <span>Total{calculatingPrice ? ' …' : ''}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  Total
+                  {calculatingPrice && <Spinner />}
+                </span>
                 <span>{formatCurrency(total)}</span>
               </TotalRow>
             </TotalsBlock>
@@ -1142,7 +1163,13 @@ export default function OnsitePurchase() {
             onClick={handleProceedToPayment}
             disabled={cartItems.length === 0 || placing || calculatingPrice}
           >
-            {placing ? <><Spinner />Preparing payment…</> : 'Proceed to Payment'}
+            {placing ? (
+              <><Spinner />Preparing payment…</>
+            ) : calculatingPrice ? (
+              <><Spinner />Updating…</>
+            ) : (
+              'Proceed to Payment'
+            )}
           </ActionBtn>
         </CartFooter>
       </>
@@ -1189,12 +1216,20 @@ export default function OnsitePurchase() {
               <span>{formatCurrency(parseFloat(product.price?.incl_tax ?? 0) * quantity)}</span>
             </div>
           ))}
-          {offersDiscount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0', color: 'var(--success)' }}>
-              <span>{pricing?.offers_description || 'Discount'}</span>
-              <span>−{formatCurrency(offersDiscount)}</span>
-            </div>
-          )}
+          {offers.length > 0
+            ? offers.map((offer, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0', color: 'var(--success)' }}>
+                  <span>{offer.name}</span>
+                  <span>−{formatCurrency(parseFloat(offer.amount))}</span>
+                </div>
+              ))
+            : offersDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0', color: 'var(--success)' }}>
+                  <span>{pricing?.offers_description || 'Discount'}</span>
+                  <span>−{formatCurrency(offersDiscount)}</span>
+                </div>
+              )
+          }
           {voucherDiscount > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0', color: 'var(--success)' }}>
               <span>Voucher ({appliedVoucher})</span>
@@ -1227,6 +1262,7 @@ export default function OnsitePurchase() {
     <Page>
       <LeftPanel>
         <ProductBrowserHeader>
+          <Link to="/console" style={{ fontSize: '0.8rem', color: 'var(--link-text)', display: 'inline-block', marginBottom: '0.3rem' }}>← Back to Console</Link>
           <PageTitle>Onsite Purchase</PageTitle>
           <SearchWrapper>
             <SearchIcon><Search size={16} /></SearchIcon>

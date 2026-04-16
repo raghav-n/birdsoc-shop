@@ -200,10 +200,12 @@ class OnsiteCalculateView(APIView):
         total_after_offers = basket.total_excl_tax
         offers_discount = max(Decimal("0.00"), original_total - total_after_offers)
 
-        offers_description = ""
-        if basket.offer_applications.offer_discounts:
-            names = [d["name"] for d in basket.offer_applications.offer_discounts]
-            offers_description = ", ".join(names)
+        offers = [
+            {"name": d["name"] or "Discount", "amount": str(d["discount"])}
+            for d in basket.offer_applications.offer_discounts
+            if d.get("discount", 0)
+        ]
+        offers_description = ", ".join(o["name"] for o in offers)
 
         # Apply voucher on a fresh basket (stacked on top of site offers)
         voucher_discount = Decimal("0.00")
@@ -235,6 +237,7 @@ class OnsiteCalculateView(APIView):
 
         return Response({
             "subtotal": str(original_total),
+            "offers": offers,
             "offers_discount": str(offers_discount),
             "offers_description": offers_description,
             "voucher_discount": str(voucher_discount),

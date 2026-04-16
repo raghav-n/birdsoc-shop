@@ -45,7 +45,6 @@ export const AuthProvider = ({ children }) => {
       tokenManager.setTokens(access, refresh);
       setUser(userData);
       setIsAuthenticated(true);
-      
       toast.success('Login successful!');
       return { success: true };
     } catch (error) {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildLoginRedirectPath, getCurrentPath } from '../utils/authRedirect';
 
 const API_BASE_URL = '/api/v1';
 
@@ -74,7 +75,7 @@ api.interceptors.response.use(
             return access;
           }).catch((refreshError) => {
             tokenManager.clearTokens();
-            window.location.href = '/login';
+            window.location.href = buildLoginRedirectPath(getCurrentPath());
             return Promise.reject(refreshError);
           }).finally(() => {
             refreshPromise = null;
@@ -89,7 +90,7 @@ api.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       } else {
-        window.location.href = '/login';
+        window.location.href = buildLoginRedirectPath(getCurrentPath());
       }
     }
 

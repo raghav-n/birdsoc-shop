@@ -33,6 +33,7 @@ import OrderLookup from './pages/OrderLookup';
 import Donate from './pages/Donate';
 import DonationSuccess from './pages/DonationSuccess';
 import { trackPageView } from './utils/analytics';
+import { buildLoginRedirectPath } from './utils/authRedirect';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -54,15 +55,25 @@ const ShopOpenOnly = ({ children }) => {
 
 const StaffOnly = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return null;
-  if (!user?.is_staff) return <Navigate to="/" replace />;
+  if (!user) {
+    const next = location.pathname + location.search + location.hash;
+    return <Navigate to={buildLoginRedirectPath(next)} replace />;
+  }
+  if (!user.is_staff) return <Navigate to="/" replace />;
   return children;
 };
 
 const SuperuserOnly = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return null;
-  if (!user?.is_superuser) return <Navigate to="/" replace />;
+  if (!user) {
+    const next = location.pathname + location.search + location.hash;
+    return <Navigate to={buildLoginRedirectPath(next)} replace />;
+  }
+  if (!user.is_superuser) return <Navigate to="/" replace />;
   return children;
 };
 

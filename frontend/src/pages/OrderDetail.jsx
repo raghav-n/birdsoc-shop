@@ -367,14 +367,16 @@ const OrderDetail = () => {
             {order.status}
           </StatusBadge>
           
-          <Button
-            variant="secondary"
-            onClick={downloadReceipt}
-            disabled={downloadingReceipt}
-          >
-            <Download size={16} />
-            {downloadingReceipt ? 'Downloading...' : 'Receipt'}
-          </Button>
+          {!accessId && (
+            <Button
+              variant="secondary"
+              onClick={downloadReceipt}
+              disabled={downloadingReceipt}
+            >
+              <Download size={16} />
+              {downloadingReceipt ? 'Downloading...' : 'Receipt'}
+            </Button>
+          )}
         </div>
       </OrderHeader>
 
@@ -405,18 +407,20 @@ const OrderDetail = () => {
                 <ItemInfo>
                   <ItemTitle>{sanitizeText(line.title)}</ItemTitle>
                   <ItemDetails>
-                    Quantity: {line.quantity} × {formatCurrency(line.unit_price_incl_tax, order.currency)}
+                    Quantity: {line.quantity}{!accessId && ` × ${formatCurrency(line.unit_price_incl_tax, order.currency)}`}
                   </ItemDetails>
                 </ItemInfo>
 
-                <ItemPrice>
-                  <PriceAmount>
-                    {formatCurrency(
-                      line.line_price_before_discounts_incl_tax ?? line.line_price_incl_tax,
-                      order.currency,
-                    )}
-                  </PriceAmount>
-                </ItemPrice>
+                {!accessId && (
+                  <ItemPrice>
+                    <PriceAmount>
+                      {formatCurrency(
+                        line.line_price_before_discounts_incl_tax ?? line.line_price_incl_tax,
+                        order.currency,
+                      )}
+                    </PriceAmount>
+                  </ItemPrice>
+                )}
               </OrderItem>
             ))}
           </Section>
@@ -484,7 +488,7 @@ const OrderDetail = () => {
             </Section>
           )}
 
-          <Section>
+          {!accessId && <Section>
             <SectionTitle>Order Summary</SectionTitle>
             
             <SummaryRow>
@@ -515,29 +519,29 @@ const OrderDetail = () => {
               <span>Total</span>
               <span>{formatCurrency(totalWithDonation, order.currency)}</span>
             </SummaryRow>
-          </Section>
+          </Section>}
 
           {/* Order Information */}
-          <Section>
+          {!accessId && <Section>
             <SectionTitle>Order Information</SectionTitle>
-            
+
             <InfoRow>
               <InfoLabel>Order Date</InfoLabel>
               <InfoValue>{formatDate(order.date_placed)}</InfoValue>
             </InfoRow>
-            
+
             <InfoRow>
               <InfoLabel>Payment Method</InfoLabel>
               <InfoValue>{paymentMethod}</InfoValue>
             </InfoRow>
-            
+
             {order.guest_email && (
               <InfoRow>
                 <InfoLabel>Email</InfoLabel>
                 <InfoValue>{order.guest_email}</InfoValue>
               </InfoRow>
             )}
-          </Section>
+          </Section>}
 
           {/* Order Tracking */}
           {order.status === 'shipped' && (

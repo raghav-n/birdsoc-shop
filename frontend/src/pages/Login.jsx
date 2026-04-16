@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button, Card, Input, FormGroup, Label, ErrorMessage } from '../styles/GlobalStyles';
 import Alert from '../components/Alert';
+import { getSafeNextPath, redirectToPath } from '../utils/authRedirect';
 
 const LoginContainer = styled.div`
   min-height: calc(100vh - 200px);
@@ -94,11 +95,17 @@ const ForgotPassword = styled(Link)`
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const from = location.state?.from?.pathname || '/';
+  const [searchParams] = useSearchParams();
+  const from = getSafeNextPath(searchParams.get('next') || location.state?.from?.pathname, '/');
+
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
 
   const {
     register,
@@ -113,11 +120,11 @@ const Login = () => {
     setIsLoading(false);
 
     if (result.success) {
-      navigate(from, { replace: true });
+      redirectToPath(from, { replace: true });
     } else {
-      setError('root', { 
-        type: 'manual', 
-        message: result.error 
+      setError('root', {
+        type: 'manual',
+        message: result.error
       });
     }
   };
