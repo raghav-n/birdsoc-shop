@@ -28,6 +28,7 @@ from apps.api.views.auth import (
     EmailTokenObtainPairView,
     PasswordResetView,
     PasswordResetConfirmView,
+    SessionTokenView,
 )
 from apps.api.views.contact import ContactFormAPIView
 from apps.api.views.faq import FAQListView
@@ -58,6 +59,7 @@ urlpatterns = [
     # Auth
     path("auth/token/", EmailTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/session-token/", SessionTokenView.as_view(), name="auth-session-token"),
     path("auth/register/", RegisterView.as_view(), name="auth-register"),
     path("users/me/", MeView.as_view(), name="users-me"),
     path("auth/password/reset/", PasswordResetView.as_view(), name="password-reset"),

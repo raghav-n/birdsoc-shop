@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import axios from 'axios';
 import { authService } from '../services/auth';
 import { tokenManager } from '../services/api';
 import toast from 'react-hot-toast';
@@ -27,10 +28,25 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           setIsAuthenticated(true);
         } catch (error) {
-          // Token is invalid, clear it
+          // Token is invalid, clear it and try session fallback below
           tokenManager.clearTokens();
         }
       }
+
+      // If still not authenticated, try exchanging an existing Django session
+      // (e.g. from Auth0 dashboard login) for JWT tokens.
+      // Use raw axios to bypass the api interceptor (which would redirect on 401).
+      if (!tokenManager.getAccessToken()) {
+        try {
+          const { data } = await axios.get('/api/v1/auth/session-token/');
+          tokenManager.setTokens(data.access, data.refresh);
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } catch {
+          // No session — stay logged out
+        }
+      }
+
       setLoading(false);
     };
 

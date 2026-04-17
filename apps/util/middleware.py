@@ -56,11 +56,20 @@ class LoginRequiredMiddleware:
 
 
 class NoAdminMiddleware:
+    AUTH0_PATHS = ("/dashboard/login/", "/dashboard/logout/", "/dashboard/callback/")
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         if request.path.startswith("/admin/") or request.path.startswith("/dashboard/"):
+            # Always let the Auth0 flow through
+            if any(request.path.startswith(p) for p in self.AUTH0_PATHS):
+                return self.get_response(request)
+            # Unauthenticated → send to Auth0 login
+            if not request.user.is_authenticated:
+                return redirect(f"/dashboard/login/?next={request.path}")
+            # Authenticated but not superuser → 404
             if not request.user.is_superuser:
                 raise Http404()
         response = self.get_response(request)
