@@ -4,16 +4,40 @@
 
 set -e
 
-ssh -L 5432:localhost:5432 birdsociety -Nf
-
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)/.."
+
+# Keep the SSH tunnel alive in the background, restarting on failure
+keep_tunnel_alive() {
+    while true; do
+        ssh -L 5432:localhost:5432 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes birdsociety -N
+        echo "SSH tunnel dropped, restarting in 3s..."
+        sleep 3
+    done
+}
+keep_tunnel_alive &
+TUNNEL_PID=$!
+echo "SSH tunnel watcher started (PID $TUNNEL_PID)"
+
+echo "Waiting for port 5432 to be ready..."
+for i in $(seq 1 30); do
+    if nc -z 127.0.0.1 5432 2>/dev/null; then
+        echo "Port 5432 is ready."
+        break
+    fi
+    if [ "$i" -eq 30 ]; then
+        echo "ERROR: Port 5432 not available after 30s. Check SSH tunnel."
+        exit 1
+    fi
+    sleep 1
+done
+
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 
 cleanup() {
     echo ""
     echo "Shutting down..."
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
-    wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    kill $TUNNEL_PID $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    wait $TUNNEL_PID $BACKEND_PID $FRONTEND_PID 2>/dev/null
     echo "Done."
 }
 trap cleanup EXIT INT TERM
