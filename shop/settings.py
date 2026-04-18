@@ -171,6 +171,7 @@ INSTALLED_APPS = [
     "apps.dashboard.form.apps.FormDashboardConfig",  # Forms dashboard
     "apps.faq.apps.FAQConfig",
     "apps.dashboard.faq.apps.FAQDashboardConfig",
+    "apps.dashboard.donation.apps.DonationDashboardConfig",
     "apps.banner.apps.BannerConfig",
     "apps.dashboard.banner.apps.BannerDashboardConfig",
     "oscar.apps.dashboard.users.apps.UsersDashboardConfig",

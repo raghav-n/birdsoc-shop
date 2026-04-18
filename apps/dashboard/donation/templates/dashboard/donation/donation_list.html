@@ -1,0 +1,86 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block title %}
+    {% trans "Donations" %} | {{ block.super }}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% trans "Donations" %}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block header %}
+    <div class="page-header">
+        <h1>{% trans "Donations" %}</h1>
+    </div>
+{% endblock header %}
+
+{% block dashboard_content %}
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">{% trans "Total Donations" %}</h5>
+                    <p class="card-text display-4">{{ total_count }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">{% trans "Total Amount" %}</h5>
+                    <p class="card-text display-4">${{ total_amount }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-header">
+        <form method="get" class="form-inline mb-3">
+            <input type="text" name="q" value="{{ q }}" class="form-control mr-2" placeholder="{% trans 'Search name, email, reference…' %}">
+            <input type="date" name="start" value="{{ start }}" class="form-control mr-2" title="{% trans 'From' %}">
+            <input type="date" name="end" value="{{ end }}" class="form-control mr-2" title="{% trans 'To' %}">
+            <button type="submit" class="btn btn-secondary">{% trans "Filter" %}</button>
+            {% if q or start or end %}
+                <a href="{% url 'donation-dashboard:donation-list' %}" class="btn btn-link">{% trans "Clear" %}</a>
+            {% endif %}
+        </form>
+        <h3>{% trans "Donation List" %}</h3>
+    </div>
+
+    {% if donations %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>{% trans "Date" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Email" %}</th>
+                    <th>{% trans "Amount" %}</th>
+                    <th>{% trans "Reference" %}</th>
+                    <th>{% trans "Note" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for donation in donations %}
+                    <tr>
+                        <td>{{ donation.created_at|date:"d M Y H:i" }}</td>
+                        <td>{{ donation.name }}</td>
+                        <td>{{ donation.email|default:"—" }}</td>
+                        <td>${{ donation.amount }}</td>
+                        <td><code>{{ donation.reference }}</code></td>
+                        <td>{{ donation.note|default:"—" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{% trans "No donations found." %}</p>
+    {% endif %}
+
+    {% include 'oscar/dashboard/partials/pagination.html' %}
+{% endblock dashboard_content %}
