@@ -55,8 +55,10 @@ class AnalyticsDashboardView(APIView):
             cats = list(p.categories.values_list("name", flat=True))
             category_map[p.id] = cats[0] if cats else ""
 
-        for p in Product.objects.filter(structure="child").values("id", "parent_id"):
+        child_title_map = {}
+        for p in Product.objects.filter(structure="child").values("id", "parent_id", "title"):
             parent_map[p["id"]] = p["parent_id"]
+            child_title_map[p["id"]] = p["title"] or ""
 
         # Ordered list of category names (same order as homepage/products page)
         ordered_categories = list(
@@ -86,6 +88,7 @@ class AnalyticsDashboardView(APIView):
             "revenue": Decimal("0"),
             "cost": Decimal("0"),
             "has_cost": False,
+            "variants": defaultdict(int),
         })
         by_month = defaultdict(lambda: {
             "order_ids": set(),
@@ -126,6 +129,13 @@ class AnalyticsDashboardView(APIView):
             by_product[pid]["cost"] += line_cost
             by_product[pid]["has_cost"] = by_product[pid]["has_cost"] or has_cost
 
+            if raw_pid != pid:
+                child_title = child_title_map.get(raw_pid, "")
+                parent_title = title_map.get(pid, "")
+                sep = f"{parent_title} - "
+                label = child_title[len(sep):] if child_title.startswith(sep) else child_title
+                by_product[pid]["variants"][label] += line.quantity
+
             by_month[month]["order_ids"].add(line.order_id)
             by_month[month]["revenue"] += line_revenue
             by_month[month]["cost"] += line_cost
@@ -143,6 +153,14 @@ class AnalyticsDashboardView(APIView):
         for pid, data in by_product.items():
             profit = data["revenue"] - data["cost"]
             margin = float(profit / data["revenue"] * 100) if data["revenue"] else 0
+            size_order = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"]
+            variants = [
+                {"label": label, "units_sold": qty}
+                for label, qty in sorted(
+                    data["variants"].items(),
+                    key=lambda x: size_order.index(x[0]) if x[0] in size_order else len(size_order),
+                )
+            ]
             products_list.append({
                 "product_id": pid,
                 "title": data["title"],
@@ -153,6 +171,7 @@ class AnalyticsDashboardView(APIView):
                 "cost": str(data["cost"].quantize(Decimal("0.01"))) if data["has_cost"] else None,
                 "profit": str(profit.quantize(Decimal("0.01"))) if data["has_cost"] else None,
                 "margin": round(margin, 1) if data["has_cost"] else None,
+                "variants": variants,
             })
         products_list.sort(key=lambda x: float(x["revenue"]), reverse=True)
 

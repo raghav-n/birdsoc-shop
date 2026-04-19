@@ -248,6 +248,21 @@ const NoCostBadge = styled.span`
   font-style: italic;
 `;
 
+const VariantRow = styled.tr`
+  td { background: #fafafa; border-bottom: none; padding: 2px 12px 2px 28px; }
+  &:last-child td { padding-bottom: 8px; }
+`;
+
+const VariantLabel = styled.span`
+  font-size: 0.75rem;
+  color: #666;
+`;
+
+const VariantQty = styled.span`
+  font-size: 0.75rem;
+  color: #888;
+`;
+
 const NoCostNote = styled.div`
   display: flex;
   align-items: center;
@@ -535,29 +550,44 @@ const Dashboard = () => {
                     {items.map(p => {
                       const margin = p.margin;
                       const profit = parseFloat(p.profit ?? 0);
+                      const colSpan = isFiltered ? 5 : 6;
                       return (
-                        <Tr key={p.product_id}>
-                          <Td>{p.title}</Td>
-                          {!isFiltered && <Td $muted>{p.partner}</Td>}
-                          <Td $right>{p.units_sold}</Td>
-                          <Td $right $bold>{formatSGD(p.revenue)}</Td>
-                          <Td $right>{p.cost != null ? formatSGD(p.cost) : <NoCostBadge>no cost</NoCostBadge>}</Td>
-                          <Td $right $positive={p.profit != null && profit >= 0} $negative={p.profit != null && profit < 0}>
-                            {p.profit != null ? formatSGD(p.profit) : <NoCostBadge>—</NoCostBadge>}
-                          </Td>
-                          <Td $right>
-                            {margin != null ? (
-                              <MarginBar>
-                                <span style={{ color: margin >= 40 ? '#16a34a' : margin >= 20 ? '#d97706' : '#dc2626' }}>
-                                  {margin}%
-                                </span>
-                                <BarTrack>
-                                  <BarFill $pct={margin} />
-                                </BarTrack>
-                              </MarginBar>
-                            ) : <NoCostBadge>—</NoCostBadge>}
-                          </Td>
-                        </Tr>
+                        <React.Fragment key={p.product_id}>
+                          <Tr>
+                            <Td>{p.title}</Td>
+                            {!isFiltered && <Td $muted>{p.partner}</Td>}
+                            <Td $right>{p.units_sold}</Td>
+                            <Td $right $bold>{formatSGD(p.revenue)}</Td>
+                            <Td $right>{p.cost != null ? formatSGD(p.cost) : <NoCostBadge>no cost</NoCostBadge>}</Td>
+                            <Td $right $positive={p.profit != null && profit >= 0} $negative={p.profit != null && profit < 0}>
+                              {p.profit != null ? formatSGD(p.profit) : <NoCostBadge>—</NoCostBadge>}
+                            </Td>
+                            <Td $right>
+                              {margin != null ? (
+                                <MarginBar>
+                                  <span style={{ color: margin >= 40 ? '#16a34a' : margin >= 20 ? '#d97706' : '#dc2626' }}>
+                                    {margin}%
+                                  </span>
+                                  <BarTrack>
+                                    <BarFill $pct={margin} />
+                                  </BarTrack>
+                                </MarginBar>
+                              ) : <NoCostBadge>—</NoCostBadge>}
+                            </Td>
+                          </Tr>
+                          {p.variants && p.variants.length > 0 && (
+                            <VariantRow>
+                              <td colSpan={colSpan + 1}>
+                                {p.variants.map(v => (
+                                  <span key={v.label} style={{ marginRight: '1rem' }}>
+                                    <VariantLabel>{v.label}</VariantLabel>
+                                    <VariantQty> {v.units_sold}</VariantQty>
+                                  </span>
+                                ))}
+                              </td>
+                            </VariantRow>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </React.Fragment>
