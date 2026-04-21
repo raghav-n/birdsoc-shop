@@ -385,8 +385,9 @@ class OnsiteOrderView(APIView):
                 order_number = _generate_onsite_order_number()
                 reference = f"{settings.ORDER_PREFIX}{order_number}"
 
+                is_zero_total = order_total.incl_tax == Decimal("0.00")
+
                 # Place order using OrderCreator (same as OnsitePurchaseView)
-                # Use initial status so Gmail polling can auto-confirm
                 order = OrderCreator().place_order(
                     basket=basket,
                     total=order_total,
@@ -394,38 +395,43 @@ class OnsiteOrderView(APIView):
                     shipping_charge=shipping_charge,
                     user=guest_user,
                     order_number=order_number,
-                    status=settings.OSCAR_INITIAL_ORDER_STATUS,
+                    status=(
+                        settings.NO_PAYMENT_NEEDED_STATUS
+                        if is_zero_total
+                        else settings.OSCAR_INITIAL_ORDER_STATUS
+                    ),
                 )
 
                 # Record voucher usage
                 if voucher:
                     voucher.record_usage(order, request.user)
 
-                # Create PayNow payment source
-                source_type, _ = SourceType.objects.get_or_create(name="PayNow")
-                Source.objects.create(
-                    source_type=source_type,
-                    amount_allocated=order_total.incl_tax,
-                    amount_debited=order_total.incl_tax,
-                    reference=reference,
-                    order=order,
-                )
-
-                # Create paynow-processing event (required for Gmail polling)
-                event_type, _ = PaymentEventType.objects.get_or_create(
-                    name="paynow-processing",
-                    defaults={"code": "paynow-processing"},
-                )
-                event = PaymentEvent.objects.create(
-                    event_type=event_type,
-                    amount=order_total.incl_tax,
-                    reference=reference,
-                    order=order,
-                )
-                for line in order.lines.all():
-                    PaymentEventQuantity.objects.create(
-                        event=event, line=line, quantity=line.quantity
+                if not is_zero_total:
+                    # Create PayNow payment source
+                    source_type, _ = SourceType.objects.get_or_create(name="PayNow")
+                    Source.objects.create(
+                        source_type=source_type,
+                        amount_allocated=order_total.incl_tax,
+                        amount_debited=order_total.incl_tax,
+                        reference=reference,
+                        order=order,
                     )
+
+                    # Create paynow-processing event (required for Gmail polling)
+                    event_type, _ = PaymentEventType.objects.get_or_create(
+                        name="paynow-processing",
+                        defaults={"code": "paynow-processing"},
+                    )
+                    event = PaymentEvent.objects.create(
+                        event_type=event_type,
+                        amount=order_total.incl_tax,
+                        reference=reference,
+                        order=order,
+                    )
+                    for line in order.lines.all():
+                        PaymentEventQuantity.objects.create(
+                            event=event, line=line, quantity=line.quantity
+                        )
 
                 # Decrement stock (same as OnsitePurchaseView)
                 for stockrecord, quantity in stock_updates:

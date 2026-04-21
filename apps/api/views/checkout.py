@@ -333,6 +333,9 @@ class PlaceOrderView(APIView):
                 request=request,
             )
             basket.submit()
+            if total_with_donation == 0:
+                order.set_status(settings.NO_PAYMENT_NEEDED_STATUS)
+                order.save()
             # Clean up pending checkout record
             PendingCheckout.objects.filter(basket_id=basket.id).delete()
         finally:
