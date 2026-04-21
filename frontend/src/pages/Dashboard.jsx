@@ -106,6 +106,7 @@ const CategoryHeader = styled.tr`
     color: var(--link-text);
     padding: 0.5rem 1rem;
     border-bottom: 1px solid #e0e8ff;
+    white-space: nowrap;
   }
 `;
 
@@ -181,6 +182,19 @@ const SectionTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+`;
+
+const ExportButton = styled.button`
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--link-text);
+  background: none;
+  border: 1px solid var(--link-text);
+  border-radius: 6px;
+  padding: 0.2rem 0.65rem;
+  cursor: pointer;
+  &:hover { background: #f0f4ff; }
 `;
 
 const Table = styled.div`
@@ -409,17 +423,65 @@ const Dashboard = () => {
       if (items.length === 0) continue;
       if (seen.has(cat)) continue;
       seen.add(cat);
-      groups.push({ category: cat || 'Other', items });
+      const totals = items.reduce((acc, p) => ({
+        units: acc.units + (p.units_sold || 0),
+        revenue: acc.revenue + parseFloat(p.revenue || 0),
+        cost: acc.cost + (p.cost != null ? parseFloat(p.cost) : 0),
+        hasCost: acc.hasCost || p.cost != null,
+        profit: acc.profit + (p.profit != null ? parseFloat(p.profit) : 0),
+        hasProfit: acc.hasProfit || p.profit != null,
+      }), { units: 0, revenue: 0, cost: 0, hasCost: false, profit: 0, hasProfit: false });
+      totals.margin = totals.hasCost && totals.revenue > 0 ? Math.round(totals.profit / totals.revenue * 1000) / 10 : null;
+      groups.push({ category: cat || 'Other', items, totals });
     }
     // Any products whose category wasn't in orderedCategories
     const remaining = sortedProducts.filter(p => !seen.has(p.category));
     if (remaining.length > 0) {
-      groups.push({ category: 'Other', items: remaining });
+      const totals = remaining.reduce((acc, p) => ({
+        units: acc.units + (p.units_sold || 0),
+        revenue: acc.revenue + parseFloat(p.revenue || 0),
+        cost: acc.cost + (p.cost != null ? parseFloat(p.cost) : 0),
+        hasCost: acc.hasCost || p.cost != null,
+        profit: acc.profit + (p.profit != null ? parseFloat(p.profit) : 0),
+        hasProfit: acc.hasProfit || p.profit != null,
+      }), { units: 0, revenue: 0, cost: 0, hasCost: false, profit: 0, hasProfit: false });
+      totals.margin = totals.hasCost && totals.revenue > 0 ? Math.round(totals.profit / totals.revenue * 1000) / 10 : null;
+      groups.push({ category: 'Other', items: remaining, totals });
     }
     return groups;
   })();
 
   const sortIndicator = (key) => sortKey === key ? (sortDir === 'desc' ? ' ↓' : ' ↑') : '';
+
+  const exportCSV = () => {
+    const rows = [['Category', 'Product', 'Partner', 'Sale Price', 'Units', 'Revenue', 'Cost', 'Profit', 'Margin']];
+    for (const { category, items } of groupedProducts) {
+      for (const p of items) {
+        rows.push([
+          category,
+          p.title,
+          p.partner || '',
+          p.unit_price ?? '',
+          p.units_sold,
+          p.revenue,
+          p.cost ?? '',
+          p.profit ?? '',
+          p.margin != null ? `${p.margin}%` : '',
+        ]);
+        for (const v of p.variants || []) {
+          rows.push([category, `  ${p.title} – ${v.label}`, '', '', v.units_sold, '', '', '', '']);
+        }
+      }
+    }
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics${appliedStart ? `-${appliedStart}` : ''}${appliedEnd ? `-${appliedEnd}` : ''}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Container>
@@ -520,7 +582,7 @@ const Dashboard = () => {
 
       {/* By product */}
       <Section>
-        <SectionTitle>By Product</SectionTitle>
+        <SectionTitle>By Product <ExportButton onClick={exportCSV}>Export CSV</ExportButton></SectionTitle>
         {missingCostCount > 0 && (
           <NoCostNote>
             <AlertCircle size={16} />
@@ -542,10 +604,15 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {groupedProducts.map(({ category, items }) => (
+                {groupedProducts.map(({ category, items, totals }) => (
                   <React.Fragment key={category}>
                     <CategoryHeader>
-                      <td colSpan={isFiltered ? 6 : 7}>{category}</td>
+                      <td colSpan={isFiltered ? 1 : 2}>{category}</td>
+                      <td style={{ textAlign: 'right' }}>{totals.units}</td>
+                      <td style={{ textAlign: 'right' }}>{formatSGD(totals.revenue)}</td>
+                      <td style={{ textAlign: 'right' }}>{totals.hasCost ? formatSGD(totals.cost) : '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{totals.hasProfit ? formatSGD(totals.profit) : '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{totals.margin != null ? `${totals.margin}%` : '—'}</td>
                     </CategoryHeader>
                     {items.map(p => {
                       const margin = p.margin;

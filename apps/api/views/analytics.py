@@ -31,12 +31,15 @@ class AnalyticsDashboardView(APIView):
         except ValueError:
             pass
 
-        # Build product_id -> cost_price / partner_name maps from StockRecords
+        # Build product_id -> cost_price / price / partner_name maps from StockRecords
         cost_map = {}
+        price_map = {}
         partner_map = {}
-        for sr in StockRecord.objects.values("product_id", "cost_price", "partner__name"):
+        for sr in StockRecord.objects.values("product_id", "cost_price", "price", "partner__name"):
             if sr["product_id"] not in cost_map:
                 cost_map[sr["product_id"]] = sr["cost_price"] or Decimal("0")
+            if sr["product_id"] not in price_map:
+                price_map[sr["product_id"]] = sr["price"]
             if sr["product_id"] not in partner_map:
                 partner_map[sr["product_id"]] = sr["partner__name"] or ""
 
@@ -89,6 +92,7 @@ class AnalyticsDashboardView(APIView):
             "cost": Decimal("0"),
             "has_cost": False,
             "variants": defaultdict(int),
+            "unit_price": None,
         })
         by_month = defaultdict(lambda: {
             "order_ids": set(),
@@ -128,6 +132,8 @@ class AnalyticsDashboardView(APIView):
             by_product[pid]["revenue"] += line_revenue
             by_product[pid]["cost"] += line_cost
             by_product[pid]["has_cost"] = by_product[pid]["has_cost"] or has_cost
+            if by_product[pid]["unit_price"] is None and price_map.get(pid) is not None:
+                by_product[pid]["unit_price"] = price_map[pid]
 
             if raw_pid != pid:
                 child_title = child_title_map.get(raw_pid, "")
@@ -171,6 +177,7 @@ class AnalyticsDashboardView(APIView):
                 "cost": str(data["cost"].quantize(Decimal("0.01"))) if data["has_cost"] else None,
                 "profit": str(profit.quantize(Decimal("0.01"))) if data["has_cost"] else None,
                 "margin": round(margin, 1) if data["has_cost"] else None,
+                "unit_price": str(data["unit_price"].quantize(Decimal("0.01"))) if data["unit_price"] is not None else None,
                 "variants": variants,
             })
         products_list.sort(key=lambda x: float(x["revenue"]), reverse=True)
