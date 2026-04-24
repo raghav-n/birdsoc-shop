@@ -430,6 +430,7 @@ TEMPLATES = [
                 "oscar.apps.communication.notifications.context_processors.notifications",
                 "oscar.core.context_processors.metadata",
                 "apps.util.context_processors.whitelist",
+                "apps.util.context_processors.shop_config",
             ],
             "loaders": [
                 (

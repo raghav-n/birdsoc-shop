@@ -4,6 +4,9 @@ import uuid
 from django.conf import settings
 from oscar.core.loading import get_model
 
+from apps.home.forms import ShopConfigForm
+from apps.home.models import ShopConfig
+
 
 def get_valid_shipping_method_ids():
     DynamicShippingMethod = get_model("shipping", "DynamicShippingMethod")
@@ -45,3 +48,10 @@ def whitelist(request):
     }
 
     return result
+
+
+def shop_config(request):
+    if not request.path.startswith("/dashboard"):
+        return {}
+    config = ShopConfig.get()
+    return {"shop_config_form": ShopConfigForm(instance=config)}

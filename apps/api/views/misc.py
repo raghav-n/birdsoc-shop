@@ -4,6 +4,8 @@ from rest_framework.views import APIView
 from rest_framework import permissions
 from oscar.core.loading import get_model
 
+from apps.home.models import ShopConfig
+
 
 class HealthView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -16,10 +18,12 @@ class ConfigView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        config = ShopConfig.get()
         return Response(
             {
-                "shop_open": settings.SHOP_OPEN_PUBLIC,
-                "shop_open_internal": settings.SHOP_OPEN,
+                "shop_open": config.shop_open_public,
+                "shop_open_internal": config.shop_open,
+                "close_datetime": config.close_datetime.isoformat() if config.close_datetime else None,
                 "currency": settings.OSCAR_DEFAULT_CURRENCY,
                 "shop_name": settings.OSCAR_SHOP_NAME,
                 "static_base_url": getattr(settings, "OSCAR_STATIC_BASE_URL", ""),

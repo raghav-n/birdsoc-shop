@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from apps.home.views import ShopConfigUpdateView
 from apps.util.views import verify_payment, verify_event_payment
 from django.apps import apps
 from django.conf import settings
@@ -31,6 +32,7 @@ handler404 = "apps.util.views.handler404"
 handler500 = "apps.util.views.handler500"
 
 urlpatterns = [
+    path("dashboard/shop-config/", ShopConfigUpdateView.as_view(), name="dashboard-shop-config"),
     path("dashboard/login/", views.login, name="dashboard_login"),
     path("dashboard/logout/", views.logout, name="dashboard_logout"),
     path("dashboard/callback/", views.callback, name="dashboard_callback"),
