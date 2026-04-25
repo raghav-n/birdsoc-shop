@@ -5,10 +5,8 @@ import { Package, Eye, Download } from 'lucide-react';
 import { orderService } from '../services/orders';
 import { Button, Card } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
-import Alert from '../components/Alert';
 import { sanitizeText } from '../utils/safeContent';
 import { downloadFile, formatCurrency, formatDate } from '../utils/helpers';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const OrdersContainer = styled.div`
@@ -199,15 +197,10 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloadingReceipts, setDownloadingReceipts] = useState({});
-  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadOrders();
-    } else {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
+    loadOrders();
+  }, []);
 
   const loadOrders = async () => {
     try {
@@ -234,16 +227,6 @@ const Orders = () => {
       setDownloadingReceipts(prev => ({ ...prev, [orderNumber]: false }));
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <OrdersContainer>
-        <Alert variant="info">
-          Please <Link to="/login" style={{ fontWeight: 500 }}>sign in</Link> to view your orders.
-        </Alert>
-      </OrdersContainer>
-    );
-  }
 
   if (loading) {
     return (

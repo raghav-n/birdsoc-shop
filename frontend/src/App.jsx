@@ -53,6 +53,17 @@ const ShopOpenOnly = ({ children }) => {
   return children;
 };
 
+const RequireAuth = ({ children }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return null;
+  if (!user) {
+    const next = location.pathname + location.search + location.hash;
+    return <Navigate to={buildLoginRedirectPath(next)} replace />;
+  }
+  return children;
+};
+
 const StaffOnly = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -93,8 +104,8 @@ function App() {
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<ShopOpenOnly><Cart /></ShopOpenOnly>} />
                 <Route path="/checkout" element={<ShopOpenOnly><Checkout /></ShopOpenOnly>} />
-                <Route path="/orders" element={<ShopOpenOnly><Orders /></ShopOpenOnly>} />
-                <Route path="/orders/:orderNumber" element={<ShopOpenOnly><OrderDetail /></ShopOpenOnly>} />
+                <Route path="/orders" element={<ShopOpenOnly><RequireAuth><Orders /></RequireAuth></ShopOpenOnly>} />
+                <Route path="/orders/:orderNumber" element={<ShopOpenOnly><RequireAuth><OrderDetail /></RequireAuth></ShopOpenOnly>} />
                 <Route path="/order-success" element={<ShopOpenOnly><OrderSuccess /></ShopOpenOnly>} />
                 <Route path="/login" element={<ShopOpenOnly><Login /></ShopOpenOnly>} />
                 <Route path="/register" element={<ShopOpenOnly><Register /></ShopOpenOnly>} />
