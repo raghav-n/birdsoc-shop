@@ -107,7 +107,7 @@ function App() {
                 <Route path="/orders" element={<ShopOpenOnly><RequireAuth><Orders /></RequireAuth></ShopOpenOnly>} />
                 <Route path="/orders/:orderNumber" element={<ShopOpenOnly><RequireAuth><OrderDetail /></RequireAuth></ShopOpenOnly>} />
                 <Route path="/order-success" element={<ShopOpenOnly><OrderSuccess /></ShopOpenOnly>} />
-                <Route path="/login" element={<ShopOpenOnly><Login /></ShopOpenOnly>} />
+                <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<ShopOpenOnly><Register /></ShopOpenOnly>} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
