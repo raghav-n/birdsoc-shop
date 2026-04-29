@@ -7,12 +7,14 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser
 from oscar.core.loading import get_model
 
 from apps.api.permissions import IsEventsStaff
 from apps.event.utils import get_global_registration_closed, set_global_registration_closed
 
 OrganizedEvent = get_model("event", "OrganizedEvent")
+EventImage = get_model("event", "EventImage")
 Participant = get_model("event", "Participant")
 EventParticipant = get_model("event", "EventParticipant")
 EventRegistration = get_model("event", "EventRegistration")
@@ -28,13 +30,17 @@ def _serialize_event(event, include_participants=False):
         "end_date": event.end_date,
         "location": event.location,
         "max_participants": event.max_participants,
+        "max_qty": event.max_qty,
         "is_active": event.is_active,
         "price_incl_tax": str(event.price_incl_tax),
         "currency": event.currency,
         "json_schema": event.json_schema,
         "price_tiers": event.price_tiers,
         "validate_participant_data": event.validate_participant_data,
+        "registration_required": event.registration_required,
         "confirmed_email_template": event.confirmed_email_template,
+        "image_id": event.image_id,
+        "image_url": event.image.file.url if event.image else None,
         "created_at": event.created_at,
         "updated_at": event.updated_at,
         "stats": {
@@ -159,7 +165,7 @@ class ConsoleEventsViewSet(ViewSet):
 
     def list(self, request):
         """List all events (including inactive/past) for management."""
-        qs = OrganizedEvent.objects.order_by("-start_date")
+        qs = OrganizedEvent.objects.select_related("image").order_by("-start_date")
         q = request.query_params.get("q", "").strip()
         if q:
             qs = qs.filter(title__icontains=q)
@@ -168,7 +174,7 @@ class ConsoleEventsViewSet(ViewSet):
     def retrieve(self, request, pk=None):
         """Get a single event with full participant and registration data."""
         try:
-            event = OrganizedEvent.objects.get(pk=pk)
+            event = OrganizedEvent.objects.select_related("image").get(pk=pk)
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response(_serialize_event(event, include_participants=True))
@@ -183,6 +189,13 @@ class ConsoleEventsViewSet(ViewSet):
                     {"detail": f"{field} is required"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+        image_id = data.get("image_id")
+        image = None
+        if image_id:
+            try:
+                image = EventImage.objects.get(id=int(image_id))
+            except EventImage.DoesNotExist:
+                return Response({"detail": "Image not found"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             event = OrganizedEvent.objects.create(
                 title=data["title"],
@@ -191,13 +204,16 @@ class ConsoleEventsViewSet(ViewSet):
                 end_date=data.get("end_date") or None,
                 location=data.get("location", ""),
                 max_participants=data.get("max_participants") or None,
+                max_qty=int(data.get("max_qty") or 5),
                 is_active=bool(data.get("is_active", True)),
                 price_incl_tax=data.get("price_incl_tax", "0"),
                 currency=data.get("currency", "SGD"),
                 json_schema=data.get("json_schema") or None,
                 price_tiers=data.get("price_tiers") or None,
                 validate_participant_data=bool(data.get("validate_participant_data", False)),
+                registration_required=bool(data.get("registration_required", True)),
                 confirmed_email_template=data.get("confirmed_email_template") or None,
+                image=image,
             )
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -213,22 +229,33 @@ class ConsoleEventsViewSet(ViewSet):
         data = request.data
         updatable = [
             "title", "description", "start_date", "end_date", "location",
-            "max_participants", "is_active", "price_incl_tax", "currency",
+            "max_participants", "max_qty", "is_active", "price_incl_tax", "currency",
             "json_schema", "price_tiers", "validate_participant_data",
-            "confirmed_email_template",
+            "registration_required", "confirmed_email_template",
         ]
         for field in updatable:
             if field in data:
                 val = data[field]
-                # Coerce nullable fields
                 if field in ("end_date", "max_participants", "json_schema", "price_tiers", "confirmed_email_template"):
                     if val == "" or val is None:
                         val = None
+                elif field == "max_qty":
+                    val = int(val or 5)
                 setattr(event, field, val)
+        if "image_id" in data:
+            raw = data["image_id"]
+            if not raw:
+                event.image = None
+            else:
+                try:
+                    event.image = EventImage.objects.get(id=int(raw))
+                except EventImage.DoesNotExist:
+                    return Response({"detail": "Image not found"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             event.save()
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        event.refresh_from_db()
         return Response(_serialize_event(event))
 
     def destroy(self, request, pk=None):
@@ -321,3 +348,25 @@ class ConsoleRegistrationToggleView(APIView):
         closed = bool(request.data.get("registration_closed", False))
         set_global_registration_closed(closed)
         return Response({"registration_closed": get_global_registration_closed()})
+
+
+class EventImageView(APIView):
+    permission_classes = [IsEventsStaff]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        images = EventImage.objects.all()
+        return Response([
+            {"id": img.id, "url": img.file.url, "uploaded_at": img.uploaded_at}
+            for img in images
+        ])
+
+    def post(self, request):
+        upload = request.FILES.get("file")
+        if not upload:
+            return Response({"detail": "file is required"}, status=status.HTTP_400_BAD_REQUEST)
+        img = EventImage.objects.create(file=upload)
+        return Response(
+            {"id": img.id, "url": img.file.url, "uploaded_at": img.uploaded_at},
+            status=status.HTTP_201_CREATED,
+        )

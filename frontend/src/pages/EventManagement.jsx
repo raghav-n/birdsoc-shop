@@ -219,6 +219,7 @@ export default function EventManagement() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [showPast, setShowPast] = useState(false);
   const [registrationClosed, setRegistrationClosed] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -282,7 +283,11 @@ export default function EventManagement() {
     }
   };
 
-  const isPast = (event) => event.start_date && new Date(event.start_date) < new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isPast = (event) => event.start_date && new Date(event.start_date) < today;
+
+  const visibleEvents = showPast ? events : events.filter(e => !isPast(e));
 
   return (
     <Page>
@@ -304,6 +309,12 @@ export default function EventManagement() {
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
+        <SecondaryButton
+          style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', whiteSpace: 'nowrap' }}
+          onClick={() => setShowPast(p => !p)}
+        >
+          {showPast ? 'Hide past' : 'Show past'}
+        </SecondaryButton>
         <ToggleRow $closed={registrationClosed}>
           <span>Registrations: <strong>{registrationClosed ? 'CLOSED' : 'Open'}</strong></span>
           <ToggleButton
@@ -318,12 +329,16 @@ export default function EventManagement() {
 
       {loading ? (
         <LoadingText>Loading…</LoadingText>
-      ) : events.length === 0 ? (
+      ) : visibleEvents.length === 0 ? (
         <EmptyState>
-          {query ? 'No events match your search.' : 'No events yet.'}
+          {query
+            ? 'No events match your search.'
+            : showPast
+            ? 'No events yet.'
+            : 'No upcoming events. Use "Show past" to see past events.'}
         </EmptyState>
       ) : (
-        events.map(event => (
+        visibleEvents.map(event => (
           <Card key={event.id}>
             <CardBody>
               <CardMain>

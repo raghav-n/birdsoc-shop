@@ -7,6 +7,14 @@ import json
 import jsonschema
 
 
+class EventImage(models.Model):
+    file = models.ImageField(upload_to="event_images/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+
 class OrganizedEvent(models.Model):
     """
     Model representing an organized event.
@@ -42,11 +50,31 @@ class OrganizedEvent(models.Model):
             '[{"code":"student","name":"Under 19","rule":"age:<19","price_incl_tax":10.0}, {"code":"adult","name":"Adult","rule":"*","price_incl_tax":15.0}]'
         ),
     )
+    max_qty = models.PositiveIntegerField(
+        _("Max quantity per registration"),
+        default=5,
+        help_text=_("Maximum number of tickets a single registration can book"),
+    )
+    image = models.ForeignKey(
+        "EventImage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="events",
+        verbose_name=_("Image"),
+    )
     validate_participant_data = models.BooleanField(
         _("Validate participant data"),
         default=False,
         help_text=_(
             "If true, participant data will be validated against the JSON schema"
+        ),
+    )
+    registration_required = models.BooleanField(
+        _("Registration required"),
+        default=True,
+        help_text=_(
+            "If false, the event page shows info only with no registration form"
         ),
     )
     confirmed_email_template = models.TextField(
@@ -106,10 +134,10 @@ class OrganizedEvent(models.Model):
         """Add a participant to the event"""
         # Check if adding this participant would exceed the limit
         if self.json_schema and self.validate_participant_data:
-            if not kwargs.get("extra_json"):
+            extra = kwargs.get("extra_json")
+            if not extra:
                 raise ValueError("Missing extra_json for participant data validation.")
 
-            # Parse schema if stored as text
             try:
                 schema = (
                     json.loads(self.json_schema)
@@ -119,12 +147,12 @@ class OrganizedEvent(models.Model):
             except json.JSONDecodeError:
                 raise ValueError("Invalid JSON schema configured.")
 
-            try:
-                jsonschema.validate(
-                    instance=kwargs.get("extra_json", {}), schema=schema
-                )
-            except jsonschema.ValidationError:
-                raise ValueError("Participant data is invalid.")
+            items = extra if isinstance(extra, list) else [extra]
+            for item in items:
+                try:
+                    jsonschema.validate(instance=item, schema=schema)
+                except jsonschema.ValidationError:
+                    raise ValueError("Participant data is invalid.")
 
         if self.max_participants is not None:
             current_count = self.participant_count

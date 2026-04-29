@@ -52,4 +52,38 @@ export const eventService = {
     const response = await api.post(`/events/${eventId}/register`, registrationData);
     return response.data;
   },
+
+  // Compute price breakdown without registering
+  priceBreakdown: async (eventId, payload) => {
+    const response = await api.post(`/events/${eventId}/price-breakdown`, payload);
+    return response.data;
+  },
+
+  // Upload PayNow proof for an individual event registration
+  uploadEventProof: async (regId, formData) => {
+    const response = await api.post(`/event-registrations/${regId}/payment/paynow-proof`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Poll Gmail for PayNow confirmation of an individual event registration
+  checkEventPayNowEmail: async (regId) => {
+    const response = await api.get(`/event-registrations/${regId}/payment/paynow-email-check`);
+    return response.data;
+  },
+
+  // Upload PayNow proof for a group event registration
+  uploadEventGroupProof: async (groupId, formData) => {
+    const response = await api.post(`/event-registration-groups/${groupId}/payment/paynow-proof`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Poll Gmail for PayNow confirmation of a group event registration
+  checkEventGroupPayNowEmail: async (groupId) => {
+    const response = await api.get(`/event-registration-groups/${groupId}/payment/paynow-email-check`);
+    return response.data;
+  },
 };

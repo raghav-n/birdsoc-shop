@@ -39,4 +39,13 @@ export const consoleEventService = {
 
   setRegistrationClosed: (closed) =>
     api.post('/console/registration-toggle', { registration_closed: closed }).then(r => r.data),
+
+  // Event images
+  listImages: () =>
+    api.get('/console/event-images').then(r => r.data),
+
+  uploadImage: (formData) =>
+    api.post('/console/event-images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data),
 };
