@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { consoleEventService } from '../services/consoleEvents';
+import HelpModal from '../components/HelpModal';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -800,6 +801,28 @@ export default function EventManagementEdit() {
 
   return (
     <Page>
+      <HelpModal title="How to use: Event Form">
+        <h3>Overview</h3>
+        <p>Use this form to create a new event or edit an existing one.</p>
+        <h3>Basic info</h3>
+        <ul>
+          <li><strong>Title</strong> and <strong>Start Date</strong> are required.</li>
+          <li><strong>Active</strong> — uncheck to hide the event from the public events page without deleting it.</li>
+          <li><strong>Registration required</strong> — uncheck for info-only events with no sign-up form (e.g. drop-in sessions).</li>
+          <li><strong>Total participants</strong> — leave blank for unlimited capacity.</li>
+          <li><strong>Max participants per registration</strong> — the most tickets one person can claim in a single registration.</li>
+        </ul>
+        <h3>Registration form fields</h3>
+        <p>Add custom questions collected from each participant at sign-up (e.g. T-shirt size, dietary requirements). Supported types: text, number, dropdown, checkbox.</p>
+        <h3>Pricing</h3>
+        <ul>
+          <li>Set the <strong>Base Price</strong> to 0 for a free event.</li>
+          <li><strong>Pricing tiers</strong> let you charge different amounts based on a participant's answer to one of your form fields. Rules are checked top-to-bottom — first match wins. Add a catch-all tier last.</li>
+        </ul>
+        <h3>Advanced settings</h3>
+        <p>Paste a custom HTML email template to override the default payment confirmation email. Available variables: <code>{'{{first_name}}'}</code>, <code>{'{{event_title}}'}</code>, <code>{'{{amount}}'}</code>, and more (shown in the placeholder text).</p>
+      </HelpModal>
+
       <BackLink to={backPath}>{backLabel}</BackLink>
       <Title>{isNew ? 'New Event' : 'Edit Event'}</Title>
 
@@ -848,7 +871,7 @@ export default function EventManagementEdit() {
 
           <Row $cols="1fr 1fr">
             <Field>
-              <Label>Max Participants</Label>
+              <Label>Total participants</Label>
               <Input
                 type="number"
                 min="1"
@@ -858,7 +881,7 @@ export default function EventManagementEdit() {
               />
             </Field>
             <Field>
-              <Label>Max Qty per Registration</Label>
+              <Label>Max participants per registration</Label>
               <Input
                 type="number"
                 min="1"
@@ -1001,14 +1024,18 @@ export default function EventManagementEdit() {
             </Field>
           </Row>
 
-          <Label style={{ display: 'block', marginBottom: '0.5rem', marginTop: '0.25rem' }}>
-            Pricing Tiers
-          </Label>
-          <Hint style={{ marginBottom: '0.75rem' }}>
-            Optional. Add tiers with different prices based on participant data.
-            The base price above is used when no tiers are defined.
-          </Hint>
-          <TierBuilder tiers={tierEntries} onChange={setTierEntries} schemaFields={schemaFields} />
+          {parseFloat(form.price_incl_tax) > 0 && (
+            <>
+              <Label style={{ display: 'block', marginBottom: '0.5rem', marginTop: '0.25rem' }}>
+                Pricing Tiers
+              </Label>
+              <Hint style={{ marginBottom: '0.75rem' }}>
+                Optional. Add tiers with different prices based on participant data.
+                The base price above is used when no tiers are defined.
+              </Hint>
+              <TierBuilder tiers={tierEntries} onChange={setTierEntries} schemaFields={schemaFields} />
+            </>
+          )}
         </Section>}
 
         {/* Advanced */}

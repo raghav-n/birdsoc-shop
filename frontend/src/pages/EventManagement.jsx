@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { consoleEventService } from '../services/consoleEvents';
+import HelpModal from '../components/HelpModal';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,26 @@ export default function EventManagement() {
 
   return (
     <Page>
+      <HelpModal title="How to use: Event Management">
+        <h3>Overview</h3>
+        <p>This page lists all events and lets you manage registrations globally.</p>
+        <h3>Finding events</h3>
+        <ul>
+          <li>Use the <strong>search bar</strong> to filter events by name.</li>
+          <li>Click <strong>Show past</strong> to include events whose start date has already passed.</li>
+        </ul>
+        <h3>Registrations toggle</h3>
+        <p>The <strong>Registrations: Open / CLOSED</strong> indicator controls whether new sign-ups are accepted across <em>all</em> events. Use it to pause registrations site-wide without editing individual events.</p>
+        <h3>Managing an event</h3>
+        <ul>
+          <li>Click an event's title to open its detail page (participants, payment verification).</li>
+          <li>Use <strong>Edit</strong> to change event details.</li>
+          <li>Use <strong>Delete</strong> to permanently remove an event — this cannot be undone.</li>
+        </ul>
+        <h3>Creating an event</h3>
+        <p>Click <strong>+ New Event</strong> in the top-right to open the event creation form.</p>
+      </HelpModal>
+
       <HeaderRow>
         <TitleGroup>
           <BackLink to="/console">← Console</BackLink>

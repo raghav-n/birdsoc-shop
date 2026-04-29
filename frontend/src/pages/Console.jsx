@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import CollectionQrScanner from '../components/CollectionQrScanner';
 import { buildOrderLookupPath } from '../utils/collectionQr';
+import HelpModal from '../components/HelpModal';
 
 const Page = styled.div`
   max-width: 480px;
@@ -86,6 +87,23 @@ const Console = () => {
 
   return (
     <Page>
+      <HelpModal title="How to use: Console">
+        <h3>Overview</h3>
+        <p>The Console is the staff hub. The tools shown depend on your group membership.</p>
+        <h3>Merch tools</h3>
+        <ul>
+          <li><strong>Onsite Purchase</strong> — process in-person sales at the booth and generate a PayNow QR code for the customer.</li>
+          <li><strong>Order Lookup</strong> — search for an online order by order number or customer name, then mark it as collected when the customer picks up.</li>
+          <li><strong>Analytics</strong> — sales dashboard with revenue, cost, and profit breakdowns (superusers only).</li>
+        </ul>
+        <h3>QR scanner</h3>
+        <p>Use <strong>Scan collection QR</strong> to scan a customer's QR code and jump straight to their order in Order Lookup.</p>
+        <h3>Events tools</h3>
+        <ul>
+          <li><strong>Event Management</strong> — create and manage events, verify payments, and track attendance.</li>
+        </ul>
+      </HelpModal>
+
       <Title>Console</Title>
       <Subtitle>Logged in as {user?.email}</Subtitle>
 

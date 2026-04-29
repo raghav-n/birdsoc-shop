@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, BarChart2, AlertCirc
 import { dashboardService } from '../services/dashboard';
 import { Card } from '../styles/GlobalStyles';
 import Loading from '../components/Loading';
+import HelpModal from '../components/HelpModal';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -485,6 +486,26 @@ const Dashboard = () => {
 
   return (
     <Container>
+      <HelpModal title="How to use: Sales Dashboard">
+        <h3>Date filter</h3>
+        <p>Set a <strong>From</strong> and <strong>To</strong> date and click <strong>Apply</strong> to scope all figures to that range. Click <strong>This Month</strong> for a quick preset, or <strong>Clear</strong> to reset.</p>
+        <h3>Partner filter</h3>
+        <p>If there are multiple partners, click a partner badge to filter the product table to that partner's items. Click <strong>All</strong> to show everyone. Note: the monthly breakdown always shows all-partner totals.</p>
+        <h3>Summary cards</h3>
+        <ul>
+          <li><strong>Total Revenue</strong> — merchandise revenue only (excl. donations).</li>
+          <li><strong>Total Cost / Profit</strong> — only populated when cost prices are entered on products in the backend.</li>
+        </ul>
+        <h3>By Product table</h3>
+        <ul>
+          <li>Click any column header (Units, Revenue, Cost, Profit, Margin) to sort.</li>
+          <li>Expand a product row to see per-variant unit counts.</li>
+          <li>Click <strong>Export CSV</strong> to download the full table.</li>
+        </ul>
+        <h3>By Month table</h3>
+        <p>Shows orders, revenue, donations, collected total, cost, and profit per calendar month in reverse chronological order.</p>
+      </HelpModal>
+
       <Link to="/console" style={{ fontSize: '0.8rem', color: 'var(--link-text)', display: 'inline-block', marginBottom: '0.5rem' }}>← Back to Console</Link>
       <PageTitle>Sales Dashboard</PageTitle>
       <PageSubtitle>

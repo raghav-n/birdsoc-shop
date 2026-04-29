@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { consoleEventService } from '../services/consoleEvents';
+import HelpModal from '../components/HelpModal';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -415,6 +416,34 @@ export default function EventManagementDetail() {
 
   return (
     <Page>
+      <HelpModal title="How to use: Event Detail">
+        <h3>Overview</h3>
+        <p>This page shows a full breakdown of one event — stats, attendees, and payment records.</p>
+        <h3>Stats row</h3>
+        <ul>
+          <li><strong>Confirmed</strong> — paid registrants whose spot is secured.</li>
+          <li><strong>Pending</strong> — registrants awaiting payment verification.</li>
+          <li><strong>Spots left</strong> — only shown when a max capacity is set.</li>
+          <li><strong>Awaiting verification</strong> — payment proofs that need your review.</li>
+        </ul>
+        <h3>Participants tab</h3>
+        <ul>
+          <li>Lists all confirmed, pending, and cancelled participants.</li>
+          <li>Click <strong>Mark</strong> (or ✓ Attended) in the Attended column to record physical attendance on the day.</li>
+          <li>Click the notes cell to add or edit a free-text note for any participant.</li>
+        </ul>
+        <h3>Registrations tab</h3>
+        <ul>
+          <li>Shows individual payment records. Pending ones include a <strong>View proof</strong> link.</li>
+          <li>Click <strong>Verify payment</strong> after confirming the proof to move the registration to Paid and confirm the participant.</li>
+        </ul>
+        <h3>Group Registrations tab</h3>
+        <ul>
+          <li>Groups are submitted by a single payer covering multiple participants.</li>
+          <li>Verify the group payment once — all participants in the group are confirmed together.</li>
+        </ul>
+      </HelpModal>
+
       <BackLink to="/console/events">← Events</BackLink>
 
       <HeaderRow>

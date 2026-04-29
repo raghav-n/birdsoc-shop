@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import CollectionQrScanner from '../components/CollectionQrScanner';
 import { buildOrderLookupPath } from '../utils/collectionQr';
+import HelpModal from '../components/HelpModal';
 
 const Page = styled.div`
   max-width: 640px;
@@ -266,6 +267,22 @@ const OrderLookup = () => {
 
   return (
     <Page>
+      <HelpModal title="How to use: Order Lookup">
+        <h3>Searching</h3>
+        <ul>
+          <li>Type an <strong>order number</strong> (5+ digits) or a <strong>customer name</strong> (4+ characters) — results appear automatically.</li>
+          <li>Click an order card to expand it and see the item list.</li>
+        </ul>
+        <h3>QR scan</h3>
+        <p>Click <strong>Scan collection QR</strong> to use the camera. Scanning a customer's QR code loads their order instantly without typing.</p>
+        <h3>Marking as collected</h3>
+        <ul>
+          <li>Click <strong>Mark as collected</strong> on an open order card.</li>
+          <li>A confirm / cancel prompt appears — click <strong>Confirm</strong> to finalise. This cannot be undone.</li>
+          <li>Collected orders are greyed out but remain visible in search results.</li>
+        </ul>
+      </HelpModal>
+
       <Link to="/console" style={{ fontSize: '0.8rem', color: 'var(--link-text)', display: 'inline-block', marginBottom: '0.5rem' }}>← Back to Console</Link>
       <HeaderRow>
         <Title>Order lookup</Title>

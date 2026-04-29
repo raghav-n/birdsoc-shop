@@ -8,6 +8,7 @@ import { checkoutService } from '../services/checkout';
 import PayNowQR from '../components/PayNowQR';
 import { formatCurrency } from '../utils/helpers';
 import toast from 'react-hot-toast';
+import HelpModal from '../components/HelpModal';
 
 // ── Layout ───────────────────────────────────────────────────────────────────
 
@@ -1260,6 +1261,25 @@ export default function OnsitePurchase() {
 
   return (
     <Page>
+      <HelpModal title="How to use: Onsite Purchase">
+        <h3>Building the cart</h3>
+        <ul>
+          <li>Tap any product card on the left to add it to the cart. A blue badge shows the quantity in cart.</li>
+          <li>For products with variants (e.g. sizes), tap the individual variant button instead.</li>
+          <li>Adjust quantities with the +/− buttons in the cart, or remove an item with the trash icon.</li>
+        </ul>
+        <h3>Vouchers</h3>
+        <p>Enter a voucher code and click <strong>Apply</strong> before proceeding. Click <strong>Applied</strong> to remove it.</p>
+        <h3>Payment</h3>
+        <ul>
+          <li>Click <strong>Proceed to Payment</strong> to generate a PayNow QR code for the customer.</li>
+          <li>The page polls automatically — once payment is detected the order is confirmed and a success banner appears.</li>
+          <li>If the customer can't pay, click <strong>Back to Cart</strong> to edit the order without losing it.</li>
+        </ul>
+        <h3>New sale</h3>
+        <p>Click <strong>New Sale</strong> at any time to clear everything and start fresh.</p>
+      </HelpModal>
+
       <LeftPanel>
         <ProductBrowserHeader>
           <Link to="/console" style={{ fontSize: '0.8rem', color: 'var(--link-text)', display: 'inline-block', marginBottom: '0.3rem' }}>← Back to Console</Link>
