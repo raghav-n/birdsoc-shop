@@ -143,8 +143,8 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/refund" element={<Refund />} />
-                <Route path="/events" element={<Events />} />
-                <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="/events" element={<EventsGroupOnly><Events /></EventsGroupOnly>} />
+                <Route path="/events/:id" element={<EventsGroupOnly><EventDetail /></EventsGroupOnly>} />
                 <Route path="/donate" element={<Donate />} />
                 <Route path="/donate/success" element={<DonationSuccess />} />
                 <Route path="/console" element={<StaffOnly><Console /></StaffOnly>} />
