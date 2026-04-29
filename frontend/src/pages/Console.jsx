@@ -59,9 +59,17 @@ const CardDescription = styled.div`
   color: var(--text-secondary);
 `;
 
-const AnalyticsCard = styled(Card)`
-  opacity: ${props => props.disabled ? 0.45 : 1};
-  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+const SectionTitle = styled.h2`
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+`;
+
+const Section = styled.div`
+  margin-bottom: 2rem;
 `;
 
 const Console = () => {
@@ -73,35 +81,52 @@ const Console = () => {
     toast.success(`Opened order ${number}`);
   };
 
+  const canMerchandise = user?.is_superuser || user?.groups?.includes('Merchandise');
+  const canEvents = user?.is_superuser || user?.groups?.includes('Events');
+
   return (
     <Page>
       <Title>Console</Title>
       <Subtitle>Logged in as {user?.email}</Subtitle>
 
-      <CardGrid>
-        <Card to="/console/onsite-purchase">
-          <CardTitle>Onsite purchase</CardTitle>
-          <CardDescription>Process in-person sales at the booth</CardDescription>
-        </Card>
+      {canMerchandise && (
+        <Section>
+          <SectionTitle>Merch</SectionTitle>
+          <CardGrid>
+            <Card to="/console/onsite-purchase">
+              <CardTitle>Onsite purchase</CardTitle>
+              <CardDescription>Process in-person sales at the booth</CardDescription>
+            </Card>
+            <Card to="/console/order-lookup">
+              <CardTitle>Order lookup</CardTitle>
+              <CardDescription>Search and mark orders as collected</CardDescription>
+            </Card>
+            {user?.is_superuser && (
+              <Card to="/console/analytics">
+                <CardTitle>Analytics</CardTitle>
+                <CardDescription>Sales dashboard and revenue breakdown</CardDescription>
+              </Card>
+            )}
+          </CardGrid>
+          <CollectionQrScanner
+            title="Scan collection QR"
+            buttonLabel="Scan QR code"
+            onScan={handleScannedLookup}
+          />
+        </Section>
+      )}
 
-        <Card to="/console/order-lookup">
-          <CardTitle>Order lookup</CardTitle>
-          <CardDescription>Search and mark orders as collected</CardDescription>
-        </Card>
-
-        {user?.is_superuser && (
-          <Card to="/console/analytics">
-            <CardTitle>Analytics</CardTitle>
-            <CardDescription>Sales dashboard and revenue breakdown</CardDescription>
-          </Card>
-        )}
-      </CardGrid>
-
-      <CollectionQrScanner
-        title="Scan collection QR"
-        buttonLabel="Scan QR code"
-        onScan={handleScannedLookup}
-      />
+      {canEvents && (
+        <Section>
+          <SectionTitle>Events</SectionTitle>
+          <CardGrid>
+            <Card to="/console/events">
+              <CardTitle>Event management</CardTitle>
+              <CardDescription>Create events, manage registrations and attendance</CardDescription>
+            </Card>
+          </CardGrid>
+        </Section>
+      )}
     </Page>
   );
 };

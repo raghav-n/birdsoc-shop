@@ -212,3 +212,99 @@ def find_paynow_email_for_order(
             continue
 
     return None
+
+
+def find_paynow_email_for_event_registration(
+    service,
+    reference: str,
+    subject_query: Optional[str] = None,
+    max_age_minutes: int = 60,
+    max_results: int = 10,
+) -> Optional[dict[str, str | datetime]]:
+    """
+    Search Gmail for a recent PayNow notification for an event registration.
+
+    Event registration references have the format EV-{event_id}-{reg_id} or
+    EVG-{event_id}-{group_id}. The bank email body is expected to contain the
+    reference under the OTHR-EV- prefix, e.g. "OTHR-EV-12-45".
+    """
+    if not reference:
+        return None
+
+    base_q = subject_query or getattr(
+        settings,
+        "GMAIL_POLL_QUERY",
+        'subject:"PayNow Alert - You have received a payment via PayNow" newer_than:1d',
+    )
+
+    # Determine whether this is a group or individual registration so we use
+    # the correct bank-email prefix in both the Gmail query and body regex.
+    is_group = reference.upper().startswith("EVG-")
+    bank_prefix = "OTHR-EVG-" if is_group else "OTHR-EV-"
+    q = f'{base_q} "{bank_prefix}"'
+
+    now = datetime.now(timezone.utc)
+    min_dt = now - timedelta(minutes=max_age_minutes)
+
+    try:
+        msgs = (
+            service.users()
+            .messages()
+            .list(userId="me", q=q, maxResults=max_results)
+            .execute()
+            or {}
+        )
+    except Exception as e:
+        raise GmailClientError(f"Error querying Gmail API: {e}") from e
+
+    # Strip leading "EV-" / "EVG-" to get the bare ID portion for matching
+    bare_ref = re.sub(r"^EV[G]?-", "", reference)
+    escaped_prefix = re.escape(bank_prefix)
+    pattern = re.compile(rf"{escaped_prefix}([A-Za-z0-9\-]+)", re.IGNORECASE)
+    amount_pattern = re.compile(r"S\$\s*([\d,]+(?:\.[\d]{1,2})?)")
+
+    for item in msgs.get("messages") or []:
+        try:
+            msg = (
+                service.users()
+                .messages()
+                .get(userId="me", id=item["id"], format="full")
+                .execute()
+            )
+            internal_ms = int(msg.get("internalDate", 0))
+            received_at = datetime.fromtimestamp(internal_ms / 1000.0, tz=timezone.utc)
+            if received_at < min_dt:
+                continue
+
+            payload = msg.get("payload", {})
+            headers = _get_headers(payload)
+            from_header = headers.get("from", "")
+            from_email = parseaddr(from_header)[1].lower()
+            if not _sender_matches_allowlist(from_email):
+                continue
+
+            body_text = _extract_body(payload)
+            if not body_text:
+                continue
+
+            ref_match = pattern.search(body_text)
+            amount_match = amount_pattern.search(body_text)
+            if not ref_match or not amount_match:
+                continue
+
+            # Match either the full reference or just the bare ID portion
+            found = ref_match.group(1).strip()
+            if found != bare_ref and found != reference:
+                continue
+
+            amount = amount_match.group(1).replace(",", "").strip()
+            return {
+                "amount": amount,
+                "received_at": received_at,
+                "from_header": from_header,
+                "from_email": from_email,
+            }
+        except Exception:
+            continue
+
+    return None

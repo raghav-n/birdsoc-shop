@@ -24,7 +24,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     def list(self, request):
-        qs = OrganizedEvent._default_manager.filter(
+        qs = OrganizedEvent._default_manager.select_related("image").filter(
             is_active=True, start_date__gte=timezone.now()
         ).order_by("start_date")
         closed = get_global_registration_closed()
@@ -43,7 +43,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "currency": e.currency,
                 "json_schema": e.json_schema,
                 "price_tiers": e.price_tiers,
+                "max_qty": e.max_qty,
                 "validate_participant_data": e.validate_participant_data,
+                "registration_required": e.registration_required,
+                "image_url": e.image.file.url if e.image else None,
                 "global_registration_closed": closed,
             }
             for e in qs
@@ -52,7 +55,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
 
     def retrieve(self, request, pk=None):
         try:
-            e = OrganizedEvent._default_manager.get(pk=pk)
+            e = OrganizedEvent._default_manager.select_related("image").get(pk=pk)
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         data = {
@@ -64,12 +67,16 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "location": e.location,
             "participant_count": e.participant_count,
             "max_participants": e.max_participants,
+            "is_active": e.is_active,
             "is_full": e.is_full,
             "price_incl_tax": str(e.price_incl_tax),
             "currency": e.currency,
             "json_schema": e.json_schema,
             "price_tiers": e.price_tiers,
+            "max_qty": e.max_qty,
             "validate_participant_data": e.validate_participant_data,
+            "registration_required": e.registration_required,
+            "image_url": e.image.file.url if e.image else None,
             "global_registration_closed": get_global_registration_closed(),
         }
         return Response(data)
@@ -128,6 +135,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         if quantity <= 0:
             return Response(
                 {"detail": "quantity must be >= 1"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        if quantity > event.max_qty:
+            return Response(
+                {"detail": f"Maximum {event.max_qty} tickets per registration"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Duplicate email check: reject if this email is already registered for the same event
@@ -256,7 +268,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             donation_amount=Decimal(donation_int or 0),
         )
         # Set deterministic reference now that we have an ID
-        reg.reference = f"EV{event.id}-{reg.id}"
+        reg.reference = f"EV-{event.id}-{reg.id}"
         reg.save(update_fields=["reference"])
 
         upload = request.FILES.get("payment_proof")
@@ -531,7 +543,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 donation_amount=_D(str(donation_int or 0)),
             )
             if not provided_reference:
-                group.reference = f"EVG{event.id}-{group.id}"
+                group.reference = f"EVG-{event.id}-{group.id}"
                 group.save(update_fields=["reference"])
 
             # Attach optional payment proof to group
@@ -598,7 +610,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     emergency_contact_phone=item.get("emergency_contact_phone", ""),
                     group=group,
                 )
-                reg.reference = f"EV{event.id}-{reg.id}"
+                reg.reference = f"EV-{event.id}-{reg.id}"
                 reg.save(update_fields=["reference"])
                 entry["registration"] = {
                     "id": reg.id,

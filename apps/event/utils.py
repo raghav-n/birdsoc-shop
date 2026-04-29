@@ -45,6 +45,72 @@ def set_global_registration_closed(closed: bool) -> None:
         f.write("1" if closed else "0")
 
 
+def send_slot_released_email(registration=None, group=None):
+    """
+    Send a "slot released" notification email when payment wasn't received in time.
+    Exactly one of `registration` (individual) or `group` must be provided.
+    """
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    if registration is not None:
+        event = registration.event
+        participant = registration.participant
+        to_email = participant.email
+        first_name = participant.first_name
+        quantity = participant.quantity
+        subject = f"Slot released – {event.title}"
+    elif group is not None:
+        event = group.event
+        to_email = group.payer_email
+        first_name = group.payer_name.split()[0] if group.payer_name else "there"
+        quantity = sum(r.participant.quantity for r in group.registrations.select_related("participant").all())
+        subject = f"Slot released – {event.title}"
+    else:
+        return
+
+    slot_word = "slot" if quantity == 1 else "slots"
+    html_content = f"""
+<p>Hi {first_name},</p>
+
+<p>We haven't received payment for <strong>{event.title}</strong> within 15 minutes of your registration.
+Due to high demand, we've had to release your {slot_word}.</p>
+
+<p>If you'd still like to attend, please <a href="https://shop.birdsociety.sg/events/{event.id}">register again</a>
+while spots are available.</p>
+
+<p>Sorry for the inconvenience — we hope to see you there!</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {first_name},\n\n"
+        f"We haven't received payment for {event.title} within 15 minutes of your registration. "
+        f"Due to high demand, we've had to release your {slot_word}.\n\n"
+        f"If you'd still like to attend, please register again at https://shop.birdsociety.sg/events/{event.id} "
+        f"while spots are available.\n\n"
+        f"Sorry for the inconvenience — we hope to see you there!\n\n"
+        f"— Bird Society of Singapore"
+    )
+
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[to_email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(
+            f"Slot released email sent to {to_email} "
+            f"({'reg ' + str(registration.id) if registration else 'group ' + str(group.id)})"
+        )
+    except Exception as exc:
+        logger.error(f"Failed to send slot released email: {exc}")
+
+
 def send_payment_confirmation_email(event_registration):
     """
     Send payment confirmation email for an event registration.
