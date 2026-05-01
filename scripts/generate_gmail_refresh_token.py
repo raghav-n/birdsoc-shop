@@ -6,10 +6,19 @@ from dotenv import load_dotenv
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES_READ = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES_SEND = ["https://www.googleapis.com/auth/gmail.send"]
 
 
 def main():
+    import sys
+    mode = sys.argv[1] if len(sys.argv) > 1 else "send"
+    if mode not in ("read", "send"):
+        raise SystemExit("Usage: generate_gmail_refresh_token.py [read|send]")
+
+    scopes = SCOPES_SEND if mode == "send" else SCOPES_READ
+    env_key = "GMAIL_SEND_REFRESH_TOKEN" if mode == "send" else "GMAIL_REFRESH_TOKEN"
+
     project_root = Path(__file__).resolve().parent.parent
     load_dotenv(project_root / ".env")
 
@@ -36,7 +45,7 @@ def main():
         }
     }
 
-    flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+    flow = InstalledAppFlow.from_client_config(client_config, scopes)
     creds = flow.run_local_server(
         host="127.0.0.1",
         port=0,
@@ -58,7 +67,7 @@ def main():
     print("\nNew Gmail refresh token:\n")
     print(creds.refresh_token)
     print("\nUpdate .env with:")
-    print(f"GMAIL_REFRESH_TOKEN={creds.refresh_token}")
+    print(f"{env_key}={creds.refresh_token}")
 
 
 if __name__ == "__main__":

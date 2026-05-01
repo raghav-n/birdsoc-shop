@@ -29,6 +29,9 @@ export const consoleEventService = {
   removeParticipant: (eventId, epId) =>
     api.delete(`${BASE}/${eventId}/participants/${epId}/remove`).then(r => r.data),
 
+  promoteFromWaitlist: (eventId, epId) =>
+    api.post(`${BASE}/${eventId}/participants/${epId}/promote-from-waitlist`).then(r => r.data),
+
   // Registration verification
   verifyRegistration: (regId) =>
     api.post(`/console/event-registrations/${regId}/verify`).then(r => r.data),

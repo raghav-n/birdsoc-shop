@@ -46,10 +46,13 @@ def _serialize_event(event, include_participants=False):
         "image_url": event.image.file.url if event.image else None,
         "created_at": event.created_at,
         "updated_at": event.updated_at,
+        "waitlist_enabled": event.waitlist_enabled,
+        "waitlist_count": event.waitlist_count,
         "stats": {
             "confirmed": event.participant_count,
             "pending": event.pending_count,
             "total_unique": event.unique_participant_count,
+            "waitlisted": event.waitlist_count,
         },
     }
     if include_participants:
@@ -110,6 +113,7 @@ def _serialize_bookings(event):
             "registered_at": ep.registered_at,
             "is_confirmed": ep.is_confirmed,
             "is_cancelled": ep.is_cancelled,
+            "is_waitlisted": ep.is_waitlisted,
             "is_main_contact": ep.is_main_contact,
             "attended": ep.attended,
             "notes": ep.notes,
@@ -166,6 +170,7 @@ class ConsoleEventsViewSet(ViewSet):
                 max_qty=int(data.get("max_qty") or 5),
                 is_active=bool(data.get("is_active", True)),
                 registration_open=bool(data.get("registration_open", True)),
+                waitlist_enabled=bool(data.get("waitlist_enabled", False)),
                 price_incl_tax=data.get("price_incl_tax", "0"),
                 currency=data.get("currency", "SGD"),
                 json_schema=data.get("json_schema") or None,
@@ -192,7 +197,7 @@ class ConsoleEventsViewSet(ViewSet):
         updatable = [
             "title", "description", "start_date", "end_date", "location",
             "max_participants", "max_qty", "is_active", "registration_open",
-            "price_incl_tax", "currency", "json_schema", "price_tiers",
+            "waitlist_enabled", "price_incl_tax", "currency", "json_schema", "price_tiers",
             "validate_participant_data", "registration_required",
             "confirmed_email_template", "post_registration_message", "tags",
         ]
@@ -267,11 +272,13 @@ class ConsoleEventsViewSet(ViewSet):
     def remove_participant(self, request, pk=None, ep_id=None):
         """Cancel and remove a participant from an event."""
         try:
-            ep = EventParticipant.objects.select_related("participant").get(
+            ep = EventParticipant.objects.select_related("participant", "event").get(
                 id=ep_id, event_id=pk
             )
         except EventParticipant.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        was_waitlisted = ep.is_waitlisted
 
         # Cancel their registration(s) if pending
         EventRegistration.objects.filter(
@@ -281,9 +288,70 @@ class ConsoleEventsViewSet(ViewSet):
         # Mark the EventParticipant as cancelled
         ep.is_cancelled = True
         ep.is_confirmed = False
-        ep.save(update_fields=["is_cancelled", "is_confirmed"])
+        ep.is_waitlisted = False
+        ep.save(update_fields=["is_cancelled", "is_confirmed", "is_waitlisted"])
+
+        # Trigger waitlist promotion if a real slot was freed (not just a waitlist removal)
+        if not was_waitlisted and ep.event.waitlist_enabled:
+            from apps.event.utils import promote_from_waitlist
+            promote_from_waitlist(ep.event)
 
         return Response({"ep_id": ep.id, "is_cancelled": True})
+
+    @action(detail=True, methods=["post"], url_path="participants/(?P<ep_id>[0-9]+)/promote-from-waitlist")
+    def promote_from_waitlist(self, request, pk=None, ep_id=None):
+        """Manually promote a specific participant from the waitlist."""
+        try:
+            ep = EventParticipant.objects.select_related("participant", "event").get(
+                id=ep_id, event_id=pk
+            )
+        except EventParticipant.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not ep.is_waitlisted or ep.is_cancelled:
+            return Response(
+                {"detail": "This participant is not on the waitlist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        event = ep.event
+        if event.max_participants is not None:
+            available = event.max_participants - event.participant_count - event.pending_count
+            if ep.participant.quantity > available:
+                return Response(
+                    {"detail": f"Not enough spots available. Only {available} spot(s) free."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        p = ep.participant
+        ep.is_waitlisted = False
+        is_paid_event = event.price_incl_tax > 0
+
+        if not is_paid_event:
+            ep.is_confirmed = True
+            ep.save(update_fields=["is_waitlisted", "is_confirmed"])
+            from apps.event.utils import send_waitlist_promoted_free_email
+            send_waitlist_promoted_free_email(event, p)
+        else:
+            ep.save(update_fields=["is_waitlisted"])
+            from decimal import Decimal as _D
+            from apps.event.utils import send_waitlist_promoted_paid_email
+            unit_price = event.get_unit_price_from_tiers({})
+            amount = unit_price * _D(str(p.quantity))
+            reg = EventRegistration.objects.create(
+                event=event,
+                participant=p,
+                amount=amount,
+                currency=event.currency,
+                reference="",
+                emergency_contact_name=p.emergency_contact_name,
+                emergency_contact_phone=p.emergency_contact_phone,
+            )
+            reg.reference = f"EV-{event.id}-{reg.id}"
+            reg.save(update_fields=["reference"])
+            send_waitlist_promoted_paid_email(event, p, reg)
+
+        return Response({"ep_id": ep.id, "is_waitlisted": False, "is_confirmed": ep.is_confirmed})
 
 
 class ConsoleVerifyRegistrationView(APIView):

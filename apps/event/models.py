@@ -108,6 +108,13 @@ class OrganizedEvent(models.Model):
             "Use this to manually pause registrations for a specific event."
         ),
     )
+    waitlist_enabled = models.BooleanField(
+        _("Waitlist enabled"),
+        default=False,
+        help_text=_(
+            "When enabled, users can join a waiting list when the event is full."
+        ),
+    )
 
     class Meta:
         ordering = ["-start_date"]
@@ -152,6 +159,11 @@ class OrganizedEvent(models.Model):
         if self.max_participants is None:
             return False
         return (self.participant_count + self.pending_count) >= self.max_participants
+
+    @property
+    def waitlist_count(self):
+        """Number of non-cancelled waitlisted entries."""
+        return self.eventparticipant_set.filter(is_waitlisted=True, is_cancelled=False).count()
 
     def add_participant(self, participant, **kwargs):
         """Add a participant to the event"""
@@ -339,6 +351,7 @@ class EventParticipant(models.Model):
         default=True,
         help_text=_("Only main contacts receive payment confirmation emails"),
     )
+    is_waitlisted = models.BooleanField(_("On waitlist"), default=False)
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
     extra_json = models.JSONField(_("Extra data"), blank=True, null=True)

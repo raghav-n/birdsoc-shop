@@ -716,7 +716,7 @@ export default function EventDetail() {
       const res = await eventService.registerForEvent(id, payload);
       setResult(res);
       setStep('success');
-      showToast.success('Registration confirmed!');
+      showToast.success(res.waitlisted ? "You're on the waitlist!" : 'Registration confirmed!');
     } catch (err) {
       const msg = err.response?.data?.detail || 'Registration failed. Please try again.';
       showToast.error(msg);
@@ -767,7 +767,11 @@ export default function EventDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <EventTitle>{event.title}</EventTitle>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {event.is_full && <SpotsBadge $full>Full</SpotsBadge>}
+            {event.is_full && (
+              <SpotsBadge $full>
+                {event.waitlist_enabled ? 'Full – join waitlist' : 'Full'}
+              </SpotsBadge>
+            )}
             {spotsLeft !== null && !event.is_full && spotsLeft <= 8 && (
               <SpotsBadge $low><Users size={11} />{spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left</SpotsBadge>
             )}
@@ -807,9 +811,11 @@ export default function EventDetail() {
         if (event.registration_open === false) {
           return <Alert variant="warning">Registration for this event is currently closed.</Alert>;
         }
-        if (event.is_full) {
+        if (event.is_full && !event.waitlist_enabled) {
           return <Alert variant="error">This event is full.</Alert>;
         }
+
+        const isWaitlistMode = event.is_full && event.waitlist_enabled;
 
         return (
           <>
@@ -831,6 +837,11 @@ export default function EventDetail() {
             )}
 
             {/* ── Step 1: Form ─────────────────────────────────────────────── */}
+            {step === 'form' && isWaitlistMode && (
+              <Alert variant="warning">
+                This event is full. Fill in your details below to join the waitlist — you'll be notified by email if a spot opens up.
+              </Alert>
+            )}
             {step === 'form' && (
               <Card>
                 <Section>
@@ -1057,7 +1068,7 @@ export default function EventDetail() {
                         <span>Total</span>
                         <span>{grandTotal === 0 ? 'Free' : fmtAmt(grandTotal)}</span>
                       </PriceLine>
-                      {priceData.capacity && !priceData.capacity.available && (
+                      {priceData.capacity && !priceData.capacity.available && !isWaitlistMode && (
                         <CapWarning $danger>Not enough spots available for this quantity.</CapWarning>
                       )}
                       {priceData.capacity?.available && priceData.capacity.remaining <= 8 && (
@@ -1090,8 +1101,8 @@ export default function EventDetail() {
                 </Section>
 
                 <BtnRow>
-                  <PrimaryBtn onClick={handleReview} disabled={!capacityAvailable}>
-                    Review →
+                  <PrimaryBtn onClick={handleReview} disabled={!isWaitlistMode && !capacityAvailable}>
+                    {isWaitlistMode ? 'Join waitlist →' : 'Review →'}
                   </PrimaryBtn>
                 </BtnRow>
               </Card>
@@ -1166,7 +1177,9 @@ export default function EventDetail() {
 
                 <BtnRow>
                   <PrimaryBtn onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? 'Confirming…' : 'Confirm registration'}
+                    {submitting
+                      ? (isWaitlistMode ? 'Joining waitlist…' : 'Confirming…')
+                      : (isWaitlistMode ? 'Join waitlist' : 'Confirm registration')}
                   </PrimaryBtn>
                   <SecondaryBtn onClick={() => setStep('form')}>← Back</SecondaryBtn>
                 </BtnRow>
@@ -1174,7 +1187,19 @@ export default function EventDetail() {
             )}
 
             {/* ── Success ───────────────────────────────────────────────────── */}
-            {step === 'success' && result && (
+            {step === 'success' && result && result.waitlisted && (
+              <Card style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>⏳</div>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  You're on the waitlist!
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+                  We'll email {result.participant?.email} if a spot becomes available — no action needed from you right now.
+                </p>
+              </Card>
+            )}
+
+            {step === 'success' && result && !result.waitlisted && (
               <>
                 <Card style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>
@@ -1283,6 +1308,13 @@ export default function EventDetail() {
                   </Link>
                 </div>
               </>
+            )}
+            {step === 'success' && result && result.waitlisted && (
+              <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  ← Back to events
+                </Link>
+              </div>
             )}
           </>
         );

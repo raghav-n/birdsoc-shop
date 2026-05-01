@@ -863,6 +863,7 @@ const EMPTY_FORM = {
   is_active: true,
   registration_open: true,
   registration_required: true,
+  waitlist_enabled: false,
   price_incl_tax: '0.00',
   confirmed_email_template: DEFAULT_EMAIL_TEMPLATE,
   post_registration_message: '',
@@ -914,6 +915,7 @@ export default function EventManagementEdit() {
           is_active: event.is_active,
           registration_open: event.registration_open ?? true,
           registration_required: event.registration_required ?? true,
+          waitlist_enabled: event.waitlist_enabled ?? false,
           price_incl_tax: event.price_incl_tax || '0.00',
           confirmed_email_template: event.confirmed_email_template || DEFAULT_EMAIL_TEMPLATE,
           post_registration_message: event.post_registration_message || '',
@@ -986,6 +988,7 @@ export default function EventManagementEdit() {
       is_active: form.is_active,
       registration_open: form.registration_open,
       registration_required: form.registration_required,
+      waitlist_enabled: form.waitlist_enabled,
       price_incl_tax: form.price_incl_tax,
       currency: 'SGD',
       json_schema: fieldsToSchema(schemaFields),
@@ -1244,6 +1247,17 @@ export default function EventManagementEdit() {
                   Registration open
                 </CheckboxRow>
                 <Hint>Uncheck to close registration while keeping the event visible. Useful for pausing sign-ups for a specific event.</Hint>
+              </Field>
+            </Row>
+          )}
+          {form.registration_required && (
+            <Row>
+              <Field>
+                <CheckboxRow>
+                  <input type="checkbox" checked={form.waitlist_enabled} onChange={set('waitlist_enabled')} />
+                  Enable waitlist
+                </CheckboxRow>
+                <Hint>When enabled and the event is full, users can join a waitlist and are automatically promoted when spots open up.</Hint>
               </Field>
             </Row>
           )}

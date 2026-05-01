@@ -46,6 +46,191 @@ def set_global_registration_closed(closed: bool) -> None:
         f.write("1" if closed else "0")
 
 
+def promote_from_waitlist(event):
+    """
+    Greedy waitlist promotion: walk the waitlist in join order and promote anyone
+    whose full quantity fits in the currently available slots. Stops when no slots
+    remain or no remaining entry fits.
+
+    For free events the participant is auto-confirmed.
+    For paid events an EventRegistration is created and a payment-request email sent.
+    """
+    from oscar.core.loading import get_model
+    EventParticipant = get_model("event", "EventParticipant")
+    EventRegistration = get_model("event", "EventRegistration")
+
+    if event.max_participants is None:
+        return
+
+    available = event.max_participants - event.participant_count - event.pending_count
+    if available <= 0:
+        return
+
+    waitlisted = (
+        EventParticipant.objects.select_related("participant")
+        .filter(event=event, is_waitlisted=True, is_cancelled=False)
+        .order_by("registered_at")
+    )
+
+    is_paid_event = event.price_incl_tax > 0
+
+    for ep in waitlisted:
+        qty = ep.participant.quantity
+        if qty > available:
+            continue
+
+        p = ep.participant
+        ep.is_waitlisted = False
+
+        if not is_paid_event:
+            ep.is_confirmed = True
+            ep.save(update_fields=["is_waitlisted", "is_confirmed"])
+            send_waitlist_promoted_free_email(event, p)
+        else:
+            ep.save(update_fields=["is_waitlisted"])
+            from decimal import Decimal as _D
+            unit_price = event.get_unit_price_from_tiers({})
+            amount = unit_price * _D(str(qty))
+            reg = EventRegistration.objects.create(
+                event=event,
+                participant=p,
+                amount=amount,
+                currency=event.currency,
+                reference="",
+                emergency_contact_name=p.emergency_contact_name,
+                emergency_contact_phone=p.emergency_contact_phone,
+            )
+            reg.reference = f"EV-{event.id}-{reg.id}"
+            reg.save(update_fields=["reference"])
+            send_waitlist_promoted_paid_email(event, p, reg)
+
+        available -= qty
+        if available <= 0:
+            break
+
+
+def send_waitlist_joined_email(event, participant, position):
+    """Notify a participant that they have joined the waitlist."""
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    subject = f"You're on the waitlist – {event.title}"
+    slot_word = "spot" if participant.quantity == 1 else "spots"
+    html_content = f"""
+<p>Hi {participant.first_name},</p>
+
+<p>Thanks for your interest in <strong>{event.title}</strong>! Unfortunately all spots are currently
+taken, but you've been added to the waitlist at <strong>position {position}</strong>.</p>
+
+<p>We'll email you if a {slot_word} become{'s' if participant.quantity == 1 else ''} available. No action is needed from you right now.</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {participant.first_name},\n\n"
+        f"Thanks for your interest in {event.title}! You've been added to the waitlist "
+        f"at position {position}.\n\n"
+        f"We'll email you if a {slot_word} become{'s' if participant.quantity == 1 else ''} available.\n\n"
+        f"— Bird Society of Singapore"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(f"Waitlist joined email sent to {participant.email} for event {event.id} (position {position})")
+    except Exception as exc:
+        logger.error(f"Failed to send waitlist joined email: {exc}")
+
+
+def send_waitlist_promoted_free_email(event, participant):
+    """Notify a participant that they've been promoted from the waitlist (free event)."""
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    subject = f"Great news — you're confirmed for {event.title}!"
+    slot_word = "slot" if participant.quantity == 1 else "slots"
+    html_content = f"""
+<p>Hi {participant.first_name},</p>
+
+<p>Good news! A {slot_word} opened up for <strong>{event.title}</strong> and you've been
+moved off the waitlist. Your registration is now <strong>confirmed</strong>.</p>
+
+<p>We look forward to seeing you there!</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {participant.first_name},\n\n"
+        f"Good news! A {slot_word} opened up for {event.title} and you've been moved off "
+        f"the waitlist. Your registration is now confirmed.\n\n"
+        f"We look forward to seeing you there!\n\n"
+        f"— Bird Society of Singapore"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(f"Waitlist promoted (free) email sent to {participant.email} for event {event.id}")
+    except Exception as exc:
+        logger.error(f"Failed to send waitlist promoted (free) email: {exc}")
+
+
+def send_waitlist_promoted_paid_email(event, participant, registration):
+    """Notify a participant that a spot opened up and they need to pay to confirm."""
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    subject = f"A spot opened up — complete payment for {event.title}"
+    total = registration.amount + (registration.donation_amount or 0)
+    html_content = f"""
+<p>Hi {participant.first_name},</p>
+
+<p>Good news! A spot opened up for <strong>{event.title}</strong> and you're next on the waitlist.</p>
+
+<p>To confirm your place, please complete payment of <strong>{event.currency} {total:.2f}</strong>
+using reference <strong>{registration.reference}</strong>.</p>
+
+<p>Please note: if payment is not received within 15 minutes your spot will be released to the
+next person on the waitlist.</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {participant.first_name},\n\n"
+        f"Good news! A spot opened up for {event.title} and you're next on the waitlist.\n\n"
+        f"To confirm your place, please complete payment of {event.currency} {total:.2f} "
+        f"using reference {registration.reference}.\n\n"
+        f"Please note: if payment is not received within 15 minutes your spot will be released "
+        f"to the next person on the waitlist.\n\n"
+        f"— Bird Society of Singapore"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(f"Waitlist promoted (paid) email sent to {participant.email} for event {event.id}")
+    except Exception as exc:
+        logger.error(f"Failed to send waitlist promoted (paid) email: {exc}")
+
+
 def send_slot_released_email(registration=None, group=None):
     """
     Send a "slot released" notification email when payment wasn't received in time.

@@ -23,11 +23,7 @@ def _require_google_libs():
         ) from e
 
 
-def build_gmail_service():
-    """
-    Build an authenticated Gmail API service using OAuth2 refresh token credentials
-    provided via environment variables.
-    """
+def _build_service(refresh_token: str, scopes: list[str]):
     _require_google_libs()
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
@@ -35,27 +31,38 @@ def build_gmail_service():
 
     client_id = getattr(settings, "GMAIL_CLIENT_ID", "")
     client_secret = getattr(settings, "GMAIL_CLIENT_SECRET", "")
-    refresh_token = getattr(settings, "GMAIL_REFRESH_TOKEN", "")
 
     if not client_id or not client_secret or not refresh_token:
         raise GmailClientError(
-            "Missing Gmail credentials. Set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN in environment/.env."
+            "Missing Gmail credentials. Set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and the relevant refresh token in environment/.env."
         )
 
     creds = Credentials(
-        token=None,  # will be fetched via refresh
+        token=None,
         refresh_token=refresh_token,
         client_id=client_id,
         client_secret=client_secret,
         token_uri="https://oauth2.googleapis.com/token",
+        scopes=scopes,
+    )
+    creds.refresh(Request())
+    return build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+
+def build_gmail_service():
+    """Authenticated Gmail API service for reading (PayNow polling)."""
+    return _build_service(
+        refresh_token=getattr(settings, "GMAIL_REFRESH_TOKEN", ""),
         scopes=["https://www.googleapis.com/auth/gmail.readonly"],
     )
 
-    # Ensure we have an access token now
-    creds.refresh(Request())
 
-    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
-    return service
+def build_gmail_send_service():
+    """Authenticated Gmail API service for sending email via sales@birdsociety.sg."""
+    return _build_service(
+        refresh_token=getattr(settings, "GMAIL_SEND_REFRESH_TOKEN", ""),
+        scopes=["https://www.googleapis.com/auth/gmail.send"],
+    )
 
 
 def _extract_body(payload) -> str:

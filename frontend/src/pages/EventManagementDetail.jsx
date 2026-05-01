@@ -647,6 +647,7 @@ export default function EventManagementDetail() {
   const [removing, setRemoving] = useState(null);
   const [togglingReg, setTogglingReg] = useState(false);
   const [selectedEpId, setSelectedEpId] = useState(null);
+  const [promoting, setPromoting] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -714,6 +715,20 @@ export default function EventManagementDetail() {
     }
   };
 
+  const handlePromote = async (booking) => {
+    if (!window.confirm(`Promote ${booking.first_name} ${booking.last_name} from the waitlist?`)) return;
+    setPromoting(booking.ep_id);
+    try {
+      await consoleEventService.promoteFromWaitlist(id, booking.ep_id);
+      toast.success('Participant promoted from waitlist');
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to promote participant');
+    } finally {
+      setPromoting(null);
+    }
+  };
+
   const handleNotesSaved = (epId, value) => {
     setEvent(prev => ({
       ...prev,
@@ -740,9 +755,10 @@ export default function EventManagementDetail() {
   if (!event) return <Page><LoadingText>Event not found.</LoadingText></Page>;
 
   const bookings = event.bookings || [];
-  const active = bookings.filter(b => !b.is_cancelled);
+  const active = bookings.filter(b => !b.is_cancelled && !b.is_waitlisted);
   const confirmed = active.filter(b => b.is_confirmed);
   const pending = active.filter(b => !b.is_confirmed);
+  const waitlisted = bookings.filter(b => b.is_waitlisted && !b.is_cancelled);
   const cancelled = bookings.filter(b => b.is_cancelled);
   const awaitingVerification = active.filter(b => b.payment?.status === 'pending');
 
@@ -983,6 +999,12 @@ export default function EventManagementDetail() {
             <StatLabel>Spots left</StatLabel>
           </StatCard>
         )}
+        {event.waitlist_enabled && (
+          <StatCard>
+            <StatNum $color="#6d28d9">{waitlisted.length}</StatNum>
+            <StatLabel>On waitlist</StatLabel>
+          </StatCard>
+        )}
         {awaitingVerification.length > 0 && (
           <StatCard>
             <StatNum $color="#dc2626">{awaitingVerification.length}</StatNum>
@@ -1016,6 +1038,64 @@ export default function EventManagementDetail() {
             <Table>
               <thead>{bookingTableHeaders}</thead>
               <tbody>{pending.map(renderBookingRow)}</tbody>
+            </Table>
+          </TableScroll>
+        </TableCard>
+      )}
+
+      {/* ── Waitlist ────────────────────────────────────────────────────────── */}
+      {event.waitlist_enabled && waitlisted.length > 0 && (
+        <TableCard>
+          <TableCardHeader>
+            <TableCardTitle style={{ color: '#6d28d9' }}>Waitlist ({waitlisted.length})</TableCardTitle>
+          </TableCardHeader>
+          <TableScroll>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Participant</Th>
+                  <Th $mobileHide>Email</Th>
+                  <Th>Phone</Th>
+                  <Th $mobileHide>Qty</Th>
+                  <Th $mobileHide>Joined</Th>
+                  <Th></Th>
+                </tr>
+              </thead>
+              <tbody>
+                {waitlisted.map((booking, idx) => (
+                  <Tr key={booking.ep_id}>
+                    <Td>
+                      <div style={{ fontWeight: 500 }}>
+                        <Badge $v="purple" style={{ marginRight: '0.4rem' }}>#{idx + 1}</Badge>
+                        {booking.first_name} {booking.last_name}
+                        {booking.quantity > 1 && (
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{booking.quantity - 1}</span>
+                        )}
+                      </div>
+                    </Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
+                    <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
+                    <Td>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        <GreenBtn
+                          onClick={() => handlePromote(booking)}
+                          disabled={promoting === booking.ep_id}
+                        >
+                          {promoting === booking.ep_id ? '…' : 'Promote'}
+                        </GreenBtn>
+                        <DangerBtn
+                          onClick={() => handleRemove(booking)}
+                          disabled={removing === booking.ep_id}
+                        >
+                          {removing === booking.ep_id ? '…' : 'Remove'}
+                        </DangerBtn>
+                      </div>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
             </Table>
           </TableScroll>
         </TableCard>

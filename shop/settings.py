@@ -60,7 +60,6 @@ en_formats.DATE_FORMAT = "d M Y"
 # Get database credentials from environment variables with fallback to files
 DB_USER = os.environ.get("DB_USER", "")
 DB_PASS = os.environ.get("DB_PASS", "")
-MAILERSEND_KEY = os.environ.get("MAILERSEND_KEY", "")
 SESSION_ENVIRONMENT_PRODUCTION = os.environ.get("ENVIRONMENT", "False") == "True"
 
 SALES_EMAIL = os.environ.get("SALES_EMAIL", "")
@@ -89,6 +88,7 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "")
 GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
 GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+GMAIL_SEND_REFRESH_TOKEN = os.environ.get("GMAIL_SEND_REFRESH_TOKEN", "")
 GMAIL_TEST_RECIPIENT = os.environ.get("GMAIL_TEST_RECIPIENT", "")
 GMAIL_ALLOWED_FROM_ADDRESSES = os.environ.get("GMAIL_ALLOWED_FROM_ADDRESSES", "")
 GMAIL_ALLOWED_FROM_DOMAINS = os.environ.get("GMAIL_ALLOWED_FROM_DOMAINS", "")
@@ -147,7 +147,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "django.contrib.flatpages",
-    "anymail",
     "rest_framework",
     "oscar.config.Shop",
     "apps.order.apps.OrderConfig",
@@ -206,12 +205,7 @@ INSTALLED_APPS = [
 
 FILE_UPLOAD_PERMISSIONS = 0o666
 
-ANYMAIL = {
-    "MAILERSEND_API_TOKEN": MAILERSEND_KEY,
-    "MAILERSEND_SENDER_DOMAIN": os.environ.get("MAILERSEND_SENDER_DOMAIN"), 
-}
-
-EMAIL_BACKEND = "anymail.backends.mailersend.EmailBackend"
+EMAIL_BACKEND = "apps.util.gmail_email_backend.GmailApiEmailBackend"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 OSCAR_FROM_EMAIL = DEFAULT_FROM_EMAIL
 REPLY_TO_EMAIL = os.environ.get("REPLY_TO_EMAIL")

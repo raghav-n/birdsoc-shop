@@ -71,6 +71,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "validate_participant_data": e.validate_participant_data,
                 "registration_required": e.registration_required,
                 "registration_open": e.registration_open,
+                "waitlist_enabled": e.waitlist_enabled,
+                "waitlist_count": e.waitlist_count,
                 "image_url": e.image.file.url if e.image else None,
                 "global_registration_closed": closed,
                 "tags": e.tags or [],
@@ -103,6 +105,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "validate_participant_data": e.validate_participant_data,
             "registration_required": e.registration_required,
             "registration_open": e.registration_open,
+            "waitlist_enabled": e.waitlist_enabled,
+            "waitlist_count": e.waitlist_count,
             "image_url": e.image.file.url if e.image else None,
             "global_registration_closed": get_global_registration_closed(),
             "post_registration_message": e.post_registration_message or "",
@@ -244,6 +248,43 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             confirmed = event.participant_count
             pending = event.pending_count if is_paid else 0
             if confirmed + pending + quantity > event.max_participants:
+                if event.waitlist_enabled:
+                    # Join the waitlist instead
+                    event_participant = EventParticipant.objects.create(
+                        event=event,
+                        participant=participant,
+                        is_confirmed=False,
+                        is_waitlisted=True,
+                        extra_json=extra_json,
+                    )
+                    waitlist_position = EventParticipant.objects.filter(
+                        event=event,
+                        is_waitlisted=True,
+                        is_cancelled=False,
+                        registered_at__lte=event_participant.registered_at,
+                    ).count()
+                    from apps.event.utils import send_waitlist_joined_email
+                    send_waitlist_joined_email(event, participant, waitlist_position)
+                    return Response(
+                        {
+                            "event": event.id,
+                            "participant": {
+                                "id": participant.id,
+                                "first_name": participant.first_name,
+                                "last_name": participant.last_name,
+                                "email": participant.email,
+                                "phone_number": participant.phone_number,
+                                "emergency_contact_name": participant.emergency_contact_name,
+                                "emergency_contact_phone": participant.emergency_contact_phone,
+                                "quantity": participant.quantity,
+                            },
+                            "registered_at": event_participant.registered_at,
+                            "confirmed": False,
+                            "waitlisted": True,
+                            "waitlist_position": waitlist_position,
+                        },
+                        status=status.HTTP_201_CREATED,
+                    )
                 remaining = max(event.max_participants - confirmed - pending, 0)
                 return Response(
                     {
