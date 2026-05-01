@@ -33,6 +33,9 @@ def _serialize_event(event, include_participants=False):
         "max_qty": event.max_qty,
         "is_active": event.is_active,
         "registration_open": event.registration_open,
+        "is_registration_open": event.is_registration_open,
+        "registration_start": event.registration_start,
+        "registration_end": event.registration_end,
         "price_incl_tax": str(event.price_incl_tax),
         "currency": event.currency,
         "json_schema": event.json_schema,
@@ -170,6 +173,8 @@ class ConsoleEventsViewSet(ViewSet):
                 max_qty=int(data.get("max_qty") or 5),
                 is_active=bool(data.get("is_active", True)),
                 registration_open=bool(data.get("registration_open", True)),
+                registration_start=data.get("registration_start") or None,
+                registration_end=data.get("registration_end") or None,
                 waitlist_enabled=bool(data.get("waitlist_enabled", False)),
                 price_incl_tax=data.get("price_incl_tax", "0"),
                 currency=data.get("currency", "SGD"),
@@ -197,6 +202,7 @@ class ConsoleEventsViewSet(ViewSet):
         updatable = [
             "title", "description", "start_date", "end_date", "location",
             "max_participants", "max_qty", "is_active", "registration_open",
+            "registration_start", "registration_end",
             "waitlist_enabled", "price_incl_tax", "currency", "json_schema", "price_tiers",
             "validate_participant_data", "registration_required",
             "confirmed_email_template", "post_registration_message", "tags",
@@ -205,7 +211,8 @@ class ConsoleEventsViewSet(ViewSet):
             if field in data:
                 val = data[field]
                 if field in ("end_date", "max_participants", "json_schema", "price_tiers",
-                             "confirmed_email_template", "post_registration_message"):
+                             "confirmed_email_template", "post_registration_message",
+                             "registration_start", "registration_end"):
                     if val == "" or val is None:
                         val = None
                 elif field == "max_qty":

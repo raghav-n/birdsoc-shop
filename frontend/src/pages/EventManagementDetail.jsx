@@ -951,8 +951,8 @@ export default function EventManagementDetail() {
               {event.is_active ? 'Active' : 'Inactive'}
             </Badge>
             {event.registration_required && (
-              <Badge $v={event.registration_open ? 'blue' : 'yellow'}>
-                Registration {event.registration_open ? 'open' : 'closed'}
+              <Badge $v={event.is_registration_open ? 'blue' : 'yellow'}>
+                Registration {event.is_registration_open ? 'open' : 'closed'}
               </Badge>
             )}
             {event.tags?.map(t => (

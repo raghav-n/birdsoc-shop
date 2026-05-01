@@ -70,7 +70,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "max_qty": e.max_qty,
                 "validate_participant_data": e.validate_participant_data,
                 "registration_required": e.registration_required,
-                "registration_open": e.registration_open,
+                "registration_open": e.is_registration_open,
+                "registration_start": e.registration_start,
+                "registration_end": e.registration_end,
                 "waitlist_enabled": e.waitlist_enabled,
                 "waitlist_count": e.waitlist_count,
                 "image_url": e.image.file.url if e.image else None,
@@ -104,7 +106,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "max_qty": e.max_qty,
             "validate_participant_data": e.validate_participant_data,
             "registration_required": e.registration_required,
-            "registration_open": e.registration_open,
+            "registration_open": e.is_registration_open,
+            "registration_start": e.registration_start,
+            "registration_end": e.registration_end,
             "waitlist_enabled": e.waitlist_enabled,
             "waitlist_count": e.waitlist_count,
             "image_url": e.image.file.url if e.image else None,
@@ -135,8 +139,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Per-event registration open/closed toggle
-        if not event.registration_open:
+        # Per-event registration open/closed (manual toggle + date range)
+        if not event.is_registration_open:
             return Response(
                 {
                     "detail": "Registration for this event is currently closed",
@@ -419,8 +423,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Per-event registration open/closed toggle
-        if not event.registration_open:
+        # Per-event registration open/closed (manual toggle + date range)
+        if not event.is_registration_open:
             return Response(
                 {
                     "detail": "Registration for this event is currently closed",

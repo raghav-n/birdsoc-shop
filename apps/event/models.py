@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, InvalidOperation
 
@@ -115,6 +116,22 @@ class OrganizedEvent(models.Model):
             "When enabled, users can join a waiting list when the event is full."
         ),
     )
+    registration_start = models.DateTimeField(
+        _("Registration start"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "If set, registration opens at this date/time. Before this, registration is closed regardless of the manual toggle."
+        ),
+    )
+    registration_end = models.DateTimeField(
+        _("Registration end"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "If set, registration closes at this date/time. After this, registration is closed regardless of the manual toggle."
+        ),
+    )
 
     class Meta:
         ordering = ["-start_date"]
@@ -123,6 +140,17 @@ class OrganizedEvent(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_registration_open(self):
+        if not self.registration_open:
+            return False
+        now = timezone.now()
+        if self.registration_start and now < self.registration_start:
+            return False
+        if self.registration_end and now > self.registration_end:
+            return False
+        return True
 
     @property
     def participant_count(self):

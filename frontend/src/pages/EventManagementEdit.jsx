@@ -862,6 +862,8 @@ const EMPTY_FORM = {
   max_qty: 5,
   is_active: true,
   registration_open: true,
+  registration_start: '',
+  registration_end: '',
   registration_required: true,
   waitlist_enabled: false,
   price_incl_tax: '0.00',
@@ -914,6 +916,8 @@ export default function EventManagementEdit() {
           max_qty: event.max_qty ?? 5,
           is_active: event.is_active,
           registration_open: event.registration_open ?? true,
+          registration_start: toLocalDatetimeInput(event.registration_start),
+          registration_end: toLocalDatetimeInput(event.registration_end),
           registration_required: event.registration_required ?? true,
           waitlist_enabled: event.waitlist_enabled ?? false,
           price_incl_tax: event.price_incl_tax || '0.00',
@@ -987,6 +991,8 @@ export default function EventManagementEdit() {
       max_qty: form.max_qty !== '' ? Number(form.max_qty) : 5,
       is_active: form.is_active,
       registration_open: form.registration_open,
+      registration_start: form.registration_start || null,
+      registration_end: form.registration_end || null,
       registration_required: form.registration_required,
       waitlist_enabled: parseFloat(form.price_incl_tax) > 0 ? false : form.waitlist_enabled,
       price_incl_tax: form.price_incl_tax,
@@ -1248,6 +1254,20 @@ export default function EventManagementEdit() {
                   Registration open
                 </CheckboxRow>
                 <Hint>Uncheck to close registration while keeping the event visible. Useful for pausing sign-ups for a specific event.</Hint>
+              </Field>
+            </Row>
+          )}
+          {form.registration_required && (
+            <Row $cols="1fr 1fr">
+              <Field>
+                <Label>Registration opens</Label>
+                <Input type="datetime-local" value={form.registration_start} onChange={set('registration_start')} />
+                <Hint>Leave blank to allow registration immediately. If set, registration is closed before this time even if the checkbox above is checked.</Hint>
+              </Field>
+              <Field>
+                <Label>Registration closes</Label>
+                <Input type="datetime-local" value={form.registration_end} onChange={set('registration_end')} />
+                <Hint>Leave blank for no automatic closing. If set, registration closes at this time regardless of the checkbox above.</Hint>
               </Field>
             </Row>
           )}
