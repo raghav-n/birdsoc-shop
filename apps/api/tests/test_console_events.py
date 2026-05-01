@@ -105,9 +105,7 @@ class ConsoleEventsRetrieveTests(APITestCase):
         r = self.client.get(f"/api/v1/console/events/{e.id}")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["id"], e.id)
-        self.assertIn("participants", r.data)
-        self.assertIn("registrations", r.data)
-        self.assertIn("groups", r.data)
+        self.assertIn("bookings", r.data)
         self.assertIn("stats", r.data)
 
     def test_retrieve_lists_free_participants(self):
@@ -121,8 +119,8 @@ class ConsoleEventsRetrieveTests(APITestCase):
         )
         r = self.client.get(f"/api/v1/console/events/{e.id}")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.data["participants"]), 1)
-        self.assertEqual(r.data["participants"][0]["email"], "jo@test.com")
+        self.assertEqual(len(r.data["bookings"]), 1)
+        self.assertEqual(r.data["bookings"][0]["email"], "jo@test.com")
 
     def test_retrieve_not_found(self):
         r = self.client.get("/api/v1/console/events/999999")
