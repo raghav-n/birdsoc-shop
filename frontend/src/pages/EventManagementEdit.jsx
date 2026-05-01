@@ -988,7 +988,7 @@ export default function EventManagementEdit() {
       is_active: form.is_active,
       registration_open: form.registration_open,
       registration_required: form.registration_required,
-      waitlist_enabled: form.waitlist_enabled,
+      waitlist_enabled: parseFloat(form.price_incl_tax) > 0 ? false : form.waitlist_enabled,
       price_incl_tax: form.price_incl_tax,
       currency: 'SGD',
       json_schema: fieldsToSchema(schemaFields),
@@ -1039,6 +1039,7 @@ export default function EventManagementEdit() {
           <li><strong>Registration open</strong> — uncheck to pause sign-ups for this event while keeping it visible. Only shown when registration is required.</li>
           <li><strong>Total participants</strong> — leave blank for unlimited capacity.</li>
           <li><strong>Max participants per registration</strong> — the most tickets one person can claim in a single registration.</li>
+          <li><strong>Enable waitlist</strong> — only available for free events. When enabled, if a registration would exceed available spots the participant is added to a waitlist and automatically promoted (and notified by email) when a spot opens. Waitlist is not supported for paid events.</li>
         </ul>
         <h3>Registration form fields</h3>
         <p>Add custom questions collected from each participant at sign-up (e.g. T-shirt size, dietary requirements). Supported types: text, number, dropdown, checkbox.</p>
@@ -1250,17 +1251,29 @@ export default function EventManagementEdit() {
               </Field>
             </Row>
           )}
-          {form.registration_required && (
-            <Row>
-              <Field>
-                <CheckboxRow>
-                  <input type="checkbox" checked={form.waitlist_enabled} onChange={set('waitlist_enabled')} />
-                  Enable waitlist
-                </CheckboxRow>
-                <Hint>When enabled and the event is full, users can join a waitlist and are automatically promoted when spots open up.</Hint>
-              </Field>
-            </Row>
-          )}
+          {form.registration_required && (() => {
+            const isPaidEvent = parseFloat(form.price_incl_tax || '0') > 0;
+            return (
+              <Row>
+                <Field>
+                  <CheckboxRow style={isPaidEvent ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+                    <input
+                      type="checkbox"
+                      checked={!isPaidEvent && form.waitlist_enabled}
+                      onChange={isPaidEvent ? undefined : set('waitlist_enabled')}
+                      disabled={isPaidEvent}
+                    />
+                    Enable waitlist
+                  </CheckboxRow>
+                  <Hint>
+                    {isPaidEvent
+                      ? 'Waitlist is only available for free events. Set the base price to 0 to enable this option.'
+                      : 'When enabled and the event is full, or when a registration requests more spots than are available, participants are added to a waitlist and notified by email when spots open up.'}
+                  </Hint>
+                </Field>
+              </Row>
+            );
+          })()}
         </Section>
 
         {/* Registration form fields */}

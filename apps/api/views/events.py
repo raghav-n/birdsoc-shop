@@ -248,7 +248,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             confirmed = event.participant_count
             pending = event.pending_count if is_paid else 0
             if confirmed + pending + quantity > event.max_participants:
-                if event.waitlist_enabled:
+                if event.waitlist_enabled and not is_paid:
                     # Join the waitlist instead
                     event_participant = EventParticipant.objects.create(
                         event=event,

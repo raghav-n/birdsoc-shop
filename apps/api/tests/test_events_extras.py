@@ -165,3 +165,67 @@ class EventMaxQtyTests(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
+
+
+class WaitlistTests(APITestCase):
+    def test_partial_capacity_exceeded_routes_to_waitlist(self):
+        """Requesting more spots than remain on a free event routes to waitlist when enabled."""
+        from unittest import mock
+        e = create_event(max_participants=2)
+        e.waitlist_enabled = True
+        e.save()
+        # Fill 1 spot
+        r = self.client.post(
+            f"/api/v1/events/{e.id}/register",
+            {"first_name": "A", "last_name": "B", "email": "a@b.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201)
+        # Request 2 spots (only 1 remains) — goes to waitlist
+        with mock.patch("apps.event.utils.send_waitlist_joined_email"):
+            r = self.client.post(
+                f"/api/v1/events/{e.id}/register",
+                {"first_name": "C", "last_name": "D", "email": "c@d.com", "quantity": 2},
+                format="json",
+            )
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertTrue(r.data.get("waitlisted"))
+        self.assertEqual(r.data.get("waitlist_position"), 1)
+
+    def test_full_event_without_waitlist_rejected(self):
+        """Full free event without waitlist enabled rejects additional registrations."""
+        e = create_event(max_participants=1)
+        self.client.post(
+            f"/api/v1/events/{e.id}/register",
+            {"first_name": "A", "last_name": "B", "email": "a@b.com", "quantity": 1},
+            format="json",
+        )
+        r = self.client.post(
+            f"/api/v1/events/{e.id}/register",
+            {"first_name": "C", "last_name": "D", "email": "c@d.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertNotIn("waitlisted", r.data)
+
+    def test_paid_event_full_rejects_even_with_waitlist_enabled(self):
+        """Paid event at capacity rejects registration even when waitlist is enabled."""
+        e = create_event(max_participants=1)
+        e.waitlist_enabled = True
+        e.price_incl_tax = Decimal("10.00")
+        e.save()
+        # First registration occupies the pending slot
+        r = self.client.post(
+            f"/api/v1/events/{e.id}/register",
+            {"first_name": "A", "last_name": "B", "email": "a@b.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201)
+        # Second registration is rejected, not waitlisted
+        r = self.client.post(
+            f"/api/v1/events/{e.id}/register",
+            {"first_name": "C", "last_name": "D", "email": "c@d.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertNotIn("waitlisted", r.data)

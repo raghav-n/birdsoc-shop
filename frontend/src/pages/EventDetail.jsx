@@ -815,7 +815,9 @@ export default function EventDetail() {
           return <Alert variant="error">This event is full.</Alert>;
         }
 
-        const isWaitlistMode = event.is_full && event.waitlist_enabled;
+        const isWaitlistMode = event.waitlist_enabled && (
+          event.is_full || (priceData?.capacity != null && !priceData.capacity.available)
+        );
 
         return (
           <>
@@ -831,7 +833,7 @@ export default function EventDetail() {
                 <StepLine />
                 <StepItem $active={step === 'review'}>
                   <StepNum $active={step === 'review'}>2</StepNum>
-                  Review & pay
+                  {isWaitlistMode ? 'Review' : 'Review & pay'}
                 </StepItem>
               </Steps>
             )}
@@ -839,7 +841,11 @@ export default function EventDetail() {
             {/* ── Step 1: Form ─────────────────────────────────────────────── */}
             {step === 'form' && isWaitlistMode && (
               <Alert variant="warning">
-                This event is full. Fill in your details below to join the waitlist — you'll be notified by email if a spot opens up.
+                {event.is_full
+                  ? 'This event is full.'
+                  : `Not enough spots for the requested quantity (${priceData?.capacity?.remaining ?? spotsLeft ?? 0} remaining).`
+                }{' '}
+                Fill in your details below to join the waitlist — you'll be notified by email if enough spots become available.
               </Alert>
             )}
             {step === 'form' && (
@@ -1068,8 +1074,10 @@ export default function EventDetail() {
                         <span>Total</span>
                         <span>{grandTotal === 0 ? 'Free' : fmtAmt(grandTotal)}</span>
                       </PriceLine>
-                      {priceData.capacity && !priceData.capacity.available && !isWaitlistMode && (
-                        <CapWarning $danger>Not enough spots available for this quantity.</CapWarning>
+                      {priceData.capacity && !priceData.capacity.available && (
+                        isWaitlistMode
+                          ? <CapWarning>Not enough spots — your registration will go on the waitlist.</CapWarning>
+                          : <CapWarning $danger>Not enough spots available for this quantity.</CapWarning>
                       )}
                       {priceData.capacity?.available && priceData.capacity.remaining <= 8 && (
                         <CapWarning>
@@ -1168,7 +1176,7 @@ export default function EventDetail() {
                     <RKey style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Total</RKey>
                     <RVal style={{ fontSize: '1.05rem' }}>{grandTotal === 0 ? 'Free' : fmtAmt(grandTotal)}</RVal>
                   </ReviewRow>
-                  {grandTotal > 0 && (
+                  {grandTotal > 0 && !isWaitlistMode && (
                     <div style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                       After confirming, you'll be shown a PayNow QR code to complete payment.
                     </div>
