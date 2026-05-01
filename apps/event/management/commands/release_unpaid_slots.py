@@ -14,7 +14,7 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from oscar.core.loading import get_model
 
@@ -58,7 +58,12 @@ class Command(BaseCommand):
             .exclude(amount__lte=Decimal("0"))
         )
 
-        # Paid group registrations: amount_total > 0, pending, no proof, old enough
+        # Subquery: any child registration for this group that has payment proof
+        _children_with_proof = EventRegistration.objects.filter(
+            group=OuterRef("pk")
+        ).exclude(Q(payment_proof__isnull=True) | Q(payment_proof=""))
+
+        # Paid group registrations: amount_total > 0, pending, no proof on group OR any child, old enough
         stale_groups = (
             EventRegistrationGroup._default_manager
             .prefetch_related("registrations__participant")
@@ -69,6 +74,7 @@ class Command(BaseCommand):
                 payment_verified=False,
                 created_at__lt=cutoff,
             )
+            .filter(~Exists(_children_with_proof))
             .exclude(amount_total__lte=Decimal("0"))
         )
 
@@ -110,7 +116,11 @@ class Command(BaseCommand):
                 send_slot_released_email(registration=reg)
 
             for grp in stale_groups.select_for_update():
-                child_qs = grp.registrations.filter(status="pending", payment_verified=False)
+                child_qs = grp.registrations.filter(
+                    Q(payment_proof__isnull=True) | Q(payment_proof=""),
+                    status="pending",
+                    payment_verified=False,
+                )
                 part_ids = list(child_qs.values_list("participant_id", flat=True))
                 if part_ids:
                     EventParticipant._default_manager.filter(

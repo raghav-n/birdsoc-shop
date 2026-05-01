@@ -26,6 +26,9 @@ export const consoleEventService = {
   updateParticipant: (eventId, epId, data) =>
     api.patch(`${BASE}/${eventId}/participants/${epId}`, data).then(r => r.data),
 
+  removeParticipant: (eventId, epId) =>
+    api.delete(`${BASE}/${eventId}/participants/${epId}/remove`).then(r => r.data),
+
   // Registration verification
   verifyRegistration: (regId) =>
     api.post(`/console/event-registrations/${regId}/verify`).then(r => r.data),
@@ -48,4 +51,8 @@ export const consoleEventService = {
     api.post('/console/event-images', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data),
+
+  // Tags
+  listTags: () =>
+    api.get('/console/event-tags').then(r => r.data),
 };

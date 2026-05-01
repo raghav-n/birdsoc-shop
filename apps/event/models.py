@@ -85,6 +85,29 @@ class OrganizedEvent(models.Model):
             "HTML email template sent when payment is confirmed. Available variables: {{first_name}}, {{last_name}}, {{email}}, {{phone_number}}, {{quantity}}, {{event_title}}, {{event_date}}, {{event_location}}, {{amount}}, {{currency}}, {{participant_details}}"
         ),
     )
+    post_registration_message = models.TextField(
+        _("Post-registration message"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "Custom message shown on the confirmation page after a participant registers (plain text or simple HTML)."
+        ),
+    )
+    tags = models.JSONField(
+        _("Tags"),
+        blank=True,
+        null=True,
+        default=list,
+        help_text=_("List of tag strings for categorising this event"),
+    )
+    registration_open = models.BooleanField(
+        _("Registration open"),
+        default=True,
+        help_text=_(
+            "When unchecked, the registration form is closed even if the event is active. "
+            "Use this to manually pause registrations for a specific event."
+        ),
+    )
 
     class Meta:
         ordering = ["-start_date"]

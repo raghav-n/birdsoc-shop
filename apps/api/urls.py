@@ -53,6 +53,7 @@ from apps.api.views.console_events import (
     ConsoleVerifyRegistrationView,
     ConsoleVerifyGroupView,
     ConsoleRegistrationToggleView,
+    ConsoleEventTagsView,
     EventImageView,
 )
 
@@ -197,6 +198,11 @@ urlpatterns = [
         "console/event-images",
         EventImageView.as_view(),
         name="console-event-images",
+    ),
+    path(
+        "console/event-tags",
+        ConsoleEventTagsView.as_view(),
+        name="console-event-tags",
     ),
     # Routers
     path("", include(router.urls)),

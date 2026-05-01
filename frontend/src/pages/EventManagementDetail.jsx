@@ -8,7 +8,7 @@ import HelpModal from '../components/HelpModal';
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
 const Page = styled.div`
-  max-width: 920px;
+  max-width: 980px;
   margin: 2rem auto;
   padding: 0 1rem 4rem;
 `;
@@ -43,12 +43,14 @@ const MetaLine = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 1rem;
+  align-items: center;
 `;
 
 const Actions = styled.div`
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
 `;
 
 // ─── Stats ───────────────────────────────────────────────────────────────────
@@ -86,60 +88,7 @@ const StatLabel = styled.div`
   margin-top: 0.2rem;
 `;
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
-
-const TabBar = styled.div`
-  display: flex;
-  gap: 0;
-  border-bottom: 2px solid #e5e7eb;
-  margin-bottom: 1.25rem;
-`;
-
-const Tab = styled.button`
-  background: none;
-  border: none;
-  padding: 0.6rem 1.1rem;
-  font-size: 0.875rem;
-  font-weight: ${p => p.$active ? '600' : '400'};
-  color: ${p => p.$active ? 'var(--link-text)' : 'var(--text-secondary)'};
-  border-bottom: 2px solid ${p => p.$active ? 'var(--link-text)' : 'transparent'};
-  margin-bottom: -2px;
-  cursor: pointer;
-  transition: color 0.15s;
-  &:hover { color: var(--text-primary); }
-`;
-
-// ─── Participants table ───────────────────────────────────────────────────────
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-`;
-
-const Th = styled.th`
-  text-align: left;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-  white-space: nowrap;
-`;
-
-const Td = styled.td`
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid #f3f4f6;
-  vertical-align: top;
-`;
-
-const Tr = styled.tr`
-  &:last-child td { border-bottom: none; }
-  &:hover { background: #fafafa; }
-`;
+// ─── Table ───────────────────────────────────────────────────────────────────
 
 const TableCard = styled.div`
   background: #fff;
@@ -155,6 +104,7 @@ const TableCardHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #fafafa;
 `;
 
 const TableCardTitle = styled.div`
@@ -162,13 +112,35 @@ const TableCardTitle = styled.div`
   font-size: 0.875rem;
 `;
 
-const EmptyRow = styled.tr`
-  td {
-    padding: 1.5rem;
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-  }
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+`;
+
+const Th = styled.th`
+  text-align: left;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+`;
+
+const Td = styled.td`
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+`;
+
+const Tr = styled.tr`
+  background: ${p => p.$sub ? '#fafbfc' : '#fff'};
+  &:last-child td { border-bottom: none; }
+  &:hover { background: ${p => p.$sub ? '#f3f6f9' : '#fafafa'}; }
 `;
 
 // ─── Badges & buttons ────────────────────────────────────────────────────────
@@ -178,29 +150,30 @@ const Badge = styled.span`
   font-weight: 600;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
+  white-space: nowrap;
   background: ${p =>
-    p.$variant === 'green' ? '#dcfce7' :
-    p.$variant === 'red' ? '#fee2e2' :
-    p.$variant === 'yellow' ? '#fef9c3' :
-    p.$variant === 'blue' ? '#dbeafe' :
+    p.$v === 'green' ? '#dcfce7' :
+    p.$v === 'red' ? '#fee2e2' :
+    p.$v === 'yellow' ? '#fef9c3' :
+    p.$v === 'blue' ? '#dbeafe' :
+    p.$v === 'purple' ? '#ede9fe' :
     '#f3f4f6'};
   color: ${p =>
-    p.$variant === 'green' ? '#15803d' :
-    p.$variant === 'red' ? '#b91c1c' :
-    p.$variant === 'yellow' ? '#854d0e' :
-    p.$variant === 'blue' ? '#1d4ed8' :
+    p.$v === 'green' ? '#15803d' :
+    p.$v === 'red' ? '#b91c1c' :
+    p.$v === 'yellow' ? '#854d0e' :
+    p.$v === 'blue' ? '#1d4ed8' :
+    p.$v === 'purple' ? '#6d28d9' :
     '#374151'};
-  white-space: nowrap;
 `;
 
 const Btn = styled.button`
-  padding: 0.3rem 0.65rem;
+  padding: 0.28rem 0.6rem;
   border-radius: 5px;
-  font-size: 0.78rem;
+  font-size: 0.77rem;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: opacity 0.15s;
   white-space: nowrap;
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
@@ -225,6 +198,13 @@ const GreenBtn = styled(Btn)`
   &:hover:not(:disabled) { background: #bbf7d0; }
 `;
 
+const DangerBtn = styled(Btn)`
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  &:hover:not(:disabled) { background: #fecaca; }
+`;
+
 const Button = styled.button`
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -232,7 +212,6 @@ const Button = styled.button`
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: opacity 0.15s;
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
@@ -266,11 +245,13 @@ function fmtDate(d) {
   });
 }
 
-function statusBadge(s) {
-  if (s === 'paid') return <Badge $variant="green">Paid</Badge>;
-  if (s === 'pending') return <Badge $variant="yellow">Pending</Badge>;
-  if (s === 'cancelled') return <Badge $variant="red">Cancelled</Badge>;
-  return <Badge>{s}</Badge>;
+function paymentStatusBadge(booking) {
+  if (!booking.payment) return null;
+  const s = booking.payment.status;
+  if (s === 'paid') return <Badge $v="green">Paid</Badge>;
+  if (s === 'pending') return <Badge $v="yellow">Pending payment</Badge>;
+  if (s === 'cancelled') return <Badge $v="red">Payment cancelled</Badge>;
+  return null;
 }
 
 // ─── Notes editor (inline) ───────────────────────────────────────────────────
@@ -322,18 +303,64 @@ function NotesCell({ epId, eventId, initialNotes, onSaved }) {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Extra info renderer ──────────────────────────────────────────────────────
 
-const TABS = ['Participants', 'Registrations', 'Group Registrations'];
+function renderExtra(extra, schemaProps) {
+  if (!extra || (Array.isArray(extra) ? extra.length === 0 : Object.keys(extra).length === 0)) return null;
+  const items = Array.isArray(extra) ? extra[0] : extra;
+  if (!items || Object.keys(items).length === 0) return null;
+  return (
+    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+      {Object.entries(items)
+        .filter(([k]) => !k.startsWith('_'))
+        .map(([k, v]) => (
+          <span key={k}>{schemaProps?.[k]?.title || k}: {String(v)}  </span>
+        ))}
+    </div>
+  );
+}
+
+// ─── Sub-participant row ──────────────────────────────────────────────────────
+
+function SubParticipantRow({ index, slotData, mainEmail, mainPhone, schemaProps }) {
+  const name = slotData?._name || `Participant ${index + 2}`;
+  const email = slotData?._email || mainEmail;
+  const phone = slotData?._phone || mainPhone;
+  const extra = slotData ? Object.fromEntries(Object.entries(slotData).filter(([k]) => !k.startsWith('_'))) : {};
+
+  return (
+    <Tr $sub>
+      <Td>
+        <div style={{ paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>└</span>
+          <span style={{ fontWeight: 500, fontSize: '0.82rem' }}>{name}</span>
+        </div>
+        {Object.keys(extra).length > 0 && (
+          <div style={{ paddingLeft: '2.5rem' }}>{renderExtra(extra, schemaProps)}</div>
+        )}
+      </Td>
+      <Td style={{ fontSize: '0.82rem', color: '#6b7280' }}>{email}</Td>
+      <Td style={{ fontSize: '0.82rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{phone || '—'}</Td>
+      <Td></Td>
+      <Td></Td>
+      <Td></Td>
+      <Td></Td>
+      <Td></Td>
+    </Tr>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function EventManagementDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState(0);
   const [verifying, setVerifying] = useState(null);
   const [togglingAttendance, setTogglingAttendance] = useState(null);
+  const [removing, setRemoving] = useState(null);
+  const [togglingReg, setTogglingReg] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -348,14 +375,14 @@ export default function EventManagementDetail() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleToggleAttendance = async (ep) => {
-    setTogglingAttendance(ep.ep_id);
+  const handleToggleAttendance = async (booking) => {
+    setTogglingAttendance(booking.ep_id);
     try {
-      const updated = await consoleEventService.toggleAttendance(id, ep.ep_id);
+      const updated = await consoleEventService.toggleAttendance(id, booking.ep_id);
       setEvent(prev => ({
         ...prev,
-        participants: prev.participants.map(p =>
-          p.ep_id === ep.ep_id ? { ...p, attended: updated.attended } : p
+        bookings: prev.bookings.map(b =>
+          b.ep_id === booking.ep_id ? { ...b, attended: updated.attended } : b
         ),
       }));
     } catch {
@@ -365,11 +392,18 @@ export default function EventManagementDetail() {
     }
   };
 
-  const handleVerifyRegistration = async (reg) => {
-    if (!window.confirm(`Verify payment for ${reg.participant.first_name} ${reg.participant.last_name} (${reg.reference})?`)) return;
-    setVerifying(reg.id);
+  const handleVerify = async (booking) => {
+    const reg = booking.payment;
+    if (!reg) return;
+    const label = reg.is_group ? `group ${reg.group_reference}` : reg.reference;
+    if (!window.confirm(`Verify payment for ${booking.first_name} ${booking.last_name} (${label})?`)) return;
+    setVerifying(booking.ep_id);
     try {
-      await consoleEventService.verifyRegistration(reg.id);
+      if (reg.is_group) {
+        await consoleEventService.verifyGroup(reg.group_id);
+      } else {
+        await consoleEventService.verifyRegistration(reg.id);
+      }
       toast.success('Payment verified');
       load();
     } catch (err) {
@@ -379,69 +413,219 @@ export default function EventManagementDetail() {
     }
   };
 
-  const handleVerifyGroup = async (grp) => {
-    if (!window.confirm(`Verify payment for group ${grp.reference}?`)) return;
-    setVerifying(`g${grp.id}`);
+  const handleRemove = async (booking) => {
+    if (!window.confirm(`Remove ${booking.first_name} ${booking.last_name} from this event? This cannot be undone.`)) return;
+    setRemoving(booking.ep_id);
     try {
-      await consoleEventService.verifyGroup(grp.id);
-      toast.success('Group payment verified');
+      await consoleEventService.removeParticipant(id, booking.ep_id);
+      toast.success('Participant removed');
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to verify group payment');
+      toast.error(err?.response?.data?.detail || 'Failed to remove participant');
     } finally {
-      setVerifying(null);
+      setRemoving(null);
     }
   };
 
   const handleNotesSaved = (epId, value) => {
     setEvent(prev => ({
       ...prev,
-      participants: prev.participants.map(p =>
-        p.ep_id === epId ? { ...p, notes: value } : p
+      bookings: prev.bookings.map(b =>
+        b.ep_id === epId ? { ...b, notes: value } : b
       ),
     }));
+  };
+
+  const handleToggleRegistrationOpen = async () => {
+    setTogglingReg(true);
+    try {
+      await consoleEventService.updateEvent(id, { registration_open: !event.registration_open });
+      setEvent(prev => ({ ...prev, registration_open: !prev.registration_open }));
+      toast.success(event.registration_open ? 'Registration closed' : 'Registration opened');
+    } catch {
+      toast.error('Failed to update registration status');
+    } finally {
+      setTogglingReg(false);
+    }
   };
 
   if (loading) return <Page><LoadingText>Loading…</LoadingText></Page>;
   if (!event) return <Page><LoadingText>Event not found.</LoadingText></Page>;
 
-  const confirmed = event.participants?.filter(p => p.is_confirmed && !p.is_cancelled) || [];
-  const pending = event.participants?.filter(p => !p.is_confirmed && !p.is_cancelled) || [];
-  const cancelled = event.participants?.filter(p => p.is_cancelled) || [];
-  const pendingRegs = event.registrations?.filter(r => r.status === 'pending') || [];
-  const paidRegs = event.registrations?.filter(r => r.status === 'paid') || [];
-  const pendingGroups = event.groups?.filter(g => g.status === 'pending') || [];
+  const bookings = event.bookings || [];
+  const active = bookings.filter(b => !b.is_cancelled);
+  const confirmed = active.filter(b => b.is_confirmed);
+  const pending = active.filter(b => !b.is_confirmed);
+  const cancelled = bookings.filter(b => b.is_cancelled);
+  const awaitingVerification = active.filter(b => b.payment?.status === 'pending');
 
-  const tabBadge = (n) => n > 0 ? ` (${n})` : '';
+  const schemaProps = event.json_schema?.properties || {};
+
+  const renderBookingRow = (booking) => {
+    const isCancelled = booking.is_cancelled;
+    const reg = booking.payment;
+    const hasPendingPayment = reg?.status === 'pending';
+    const slots = Array.isArray(booking.extra_json) ? booking.extra_json : [];
+
+    return (
+      <React.Fragment key={booking.ep_id}>
+        <Tr style={{ opacity: isCancelled ? 0.55 : 1 }}>
+          <Td>
+            <div style={{ fontWeight: 500 }}>
+              {booking.first_name} {booking.last_name}
+              {booking.quantity > 1 && (
+                <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{booking.quantity - 1}</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.73rem', color: '#9ca3af' }}>
+              {fmtDate(booking.registered_at)}
+              {booking.emergency_contact_name && ` · EC: ${booking.emergency_contact_name} ${booking.emergency_contact_phone || ''}`}
+            </div>
+            {renderExtra(slots[0], schemaProps)}
+          </Td>
+          <Td style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
+          <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
+          <Td>
+            {isCancelled
+              ? <Badge $v="red">Removed</Badge>
+              : booking.is_confirmed
+                ? <Badge $v="green">Confirmed</Badge>
+                : reg
+                  ? paymentStatusBadge(booking)
+                  : <Badge $v="blue">Free — confirmed</Badge>
+            }
+            {reg?.is_group && (
+              <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.2rem' }}>
+                Group: {reg.group_reference}
+              </div>
+            )}
+          </Td>
+          <Td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+            {reg && parseFloat(reg.amount) > 0 ? (
+              <span>
+                {reg.currency} {parseFloat(reg.amount_total).toFixed(2)}
+                {parseFloat(reg.donation_amount) > 0 && (
+                  <div style={{ fontSize: '0.71rem', color: '#6b7280' }}>
+                    incl. {parseFloat(reg.donation_amount).toFixed(2)} donation
+                  </div>
+                )}
+              </span>
+            ) : reg ? 'Free' : '—'}
+          </Td>
+          <Td>
+            {hasPendingPayment && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                {reg.payment_proof_url && (
+                  <a href={reg.payment_proof_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.77rem', color: 'var(--link-text)' }}>
+                    View proof
+                  </a>
+                )}
+                {reg.payment_proof_url ? (
+                  <img
+                    src={reg.payment_proof_url}
+                    alt="proof"
+                    style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer' }}
+                    onClick={() => window.open(reg.payment_proof_url, '_blank')}
+                  />
+                ) : (
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>No proof</span>
+                )}
+                <GreenBtn
+                  onClick={() => handleVerify(booking)}
+                  disabled={verifying === booking.ep_id}
+                >
+                  {verifying === booking.ep_id ? 'Verifying…' : 'Verify payment'}
+                </GreenBtn>
+              </div>
+            )}
+            {reg?.status === 'paid' && (
+              <span style={{ fontSize: '0.75rem', color: '#15803d' }}>
+                Verified {fmt(reg.payment_verified_on)}
+              </span>
+            )}
+          </Td>
+          <Td>
+            {!isCancelled && (
+              <GreenBtn
+                style={!booking.attended ? { background: '#f9fafb', borderColor: '#d1d5db', color: '#374151' } : {}}
+                onClick={() => handleToggleAttendance(booking)}
+                disabled={togglingAttendance === booking.ep_id}
+              >
+                {togglingAttendance === booking.ep_id ? '…' : booking.attended ? '✓ Attended' : 'Mark'}
+              </GreenBtn>
+            )}
+          </Td>
+          <Td style={{ minWidth: 130 }}>
+            {!isCancelled && (
+              <NotesCell
+                epId={booking.ep_id}
+                eventId={id}
+                initialNotes={booking.notes}
+                onSaved={v => handleNotesSaved(booking.ep_id, v)}
+              />
+            )}
+          </Td>
+          <Td>
+            {!isCancelled && (
+              <DangerBtn
+                onClick={() => handleRemove(booking)}
+                disabled={removing === booking.ep_id}
+              >
+                {removing === booking.ep_id ? '…' : 'Remove'}
+              </DangerBtn>
+            )}
+          </Td>
+        </Tr>
+        {/* Sub-participant rows for qty>1 */}
+        {!isCancelled && booking.quantity > 1 && slots.slice(1).map((slot, i) => (
+          <SubParticipantRow
+            key={`${booking.ep_id}_sub_${i}`}
+            index={i}
+            slotData={slot}
+            mainEmail={booking.email}
+            mainPhone={booking.phone_number}
+            schemaProps={schemaProps}
+          />
+        ))}
+      </React.Fragment>
+    );
+  };
+
+  const bookingTableHeaders = (
+    <tr>
+      <Th>Participant</Th>
+      <Th>Email</Th>
+      <Th>Phone</Th>
+      <Th>Status</Th>
+      <Th>Amount</Th>
+      <Th>Payment</Th>
+      <Th>Attended</Th>
+      <Th>Notes</Th>
+      <Th></Th>
+    </tr>
+  );
 
   return (
     <Page>
       <HelpModal title="How to use: Event Detail">
         <h3>Overview</h3>
-        <p>This page shows a full breakdown of one event — stats, attendees, and payment records.</p>
-        <h3>Stats row</h3>
+        <p>This page shows a full breakdown of one event — stats, attendees, and payment records. Tags are shown in the event header alongside the active/inactive status.</p>
+        <h3>Participants</h3>
         <ul>
-          <li><strong>Confirmed</strong> — paid registrants whose spot is secured.</li>
-          <li><strong>Pending</strong> — registrants awaiting payment verification.</li>
-          <li><strong>Spots left</strong> — only shown when a max capacity is set.</li>
-          <li><strong>Awaiting verification</strong> — payment proofs that need your review.</li>
-        </ul>
-        <h3>Participants tab</h3>
-        <ul>
-          <li>Lists all confirmed, pending, and cancelled participants.</li>
-          <li>Click <strong>Mark</strong> (or ✓ Attended) in the Attended column to record physical attendance on the day.</li>
+          <li>All bookings are listed in one table. Participants 2+ are shown as indented sub-rows under the main contact.</li>
+          <li>Click <strong>Mark</strong> (or ✓ Attended) to record physical attendance.</li>
           <li>Click the notes cell to add or edit a free-text note for any participant.</li>
+          <li>Click <strong>Remove</strong> to cancel a participant's spot.</li>
         </ul>
-        <h3>Registrations tab</h3>
+        <h3>Payment verification</h3>
         <ul>
-          <li>Shows individual payment records. Pending ones include a <strong>View proof</strong> link.</li>
-          <li>Click <strong>Verify payment</strong> after confirming the proof to move the registration to Paid and confirm the participant.</li>
+          <li>Free-event registrations are confirmed automatically and shown as <strong>Free — confirmed</strong> — no verification needed.</li>
+          <li>Pending payments show a proof thumbnail (if uploaded) and a <strong>Verify payment</strong> button.</li>
+          <li>Verifying confirms the participant's spot and sends them a confirmation email.</li>
+          <li>Group payments are verified once — all participants in the group are confirmed together.</li>
         </ul>
-        <h3>Group Registrations tab</h3>
-        <ul>
-          <li>Groups are submitted by a single payer covering multiple participants.</li>
-          <li>Verify the group payment once — all participants in the group are confirmed together.</li>
-        </ul>
+        <h3>Registration open/closed</h3>
+        <p>Use the <strong>Close registration</strong> / <strong>Open registration</strong> button to pause or resume sign-ups for this specific event without deactivating it.</p>
       </HelpModal>
 
       <BackLink to="/console/events">← Events</BackLink>
@@ -455,12 +639,32 @@ export default function EventManagementDetail() {
             {parseFloat(event.price_incl_tax) > 0 && (
               <span>{event.currency} {parseFloat(event.price_incl_tax).toFixed(2)}</span>
             )}
-            <Badge $variant={event.is_active ? 'green' : 'red'}>
+            <Badge $v={event.is_active ? 'green' : 'red'}>
               {event.is_active ? 'Active' : 'Inactive'}
             </Badge>
+            {event.registration_required && (
+              <Badge $v={event.registration_open ? 'blue' : 'yellow'}>
+                Registration {event.registration_open ? 'open' : 'closed'}
+              </Badge>
+            )}
+            {event.tags?.map(t => (
+              <Badge key={t} $v="purple">{t}</Badge>
+            ))}
           </MetaLine>
         </TitleBlock>
         <Actions>
+          {event.registration_required && (
+            <SecondaryButton
+              onClick={handleToggleRegistrationOpen}
+              disabled={togglingReg}
+              style={event.registration_open
+                ? { borderColor: '#fca5a5', color: '#b91c1c' }
+                : { borderColor: '#86efac', color: '#15803d' }
+              }
+            >
+              {togglingReg ? '…' : event.registration_open ? 'Close registration' : 'Open registration'}
+            </SecondaryButton>
+          )}
           <SecondaryButton onClick={() => navigate(`/console/events/${id}/edit`)}>
             Edit event
           </SecondaryButton>
@@ -479,358 +683,67 @@ export default function EventManagementDetail() {
         </StatCard>
         <StatCard>
           <StatNum>{event.stats.total_unique}</StatNum>
-          <StatLabel>Total registrations</StatLabel>
+          <StatLabel>Total bookings</StatLabel>
         </StatCard>
         {event.max_participants && (
           <StatCard>
-            <StatNum>{event.max_participants - event.stats.confirmed}</StatNum>
+            <StatNum>{Math.max(0, event.max_participants - event.stats.confirmed)}</StatNum>
             <StatLabel>Spots left</StatLabel>
           </StatCard>
         )}
-        {pendingRegs.length + pendingGroups.length > 0 && (
+        {awaitingVerification.length > 0 && (
           <StatCard>
-            <StatNum $color="#dc2626">{pendingRegs.length + pendingGroups.length}</StatNum>
-            <StatLabel>Awaiting payment verification</StatLabel>
+            <StatNum $color="#dc2626">{awaitingVerification.length}</StatNum>
+            <StatLabel>Awaiting verification</StatLabel>
           </StatCard>
         )}
       </StatsRow>
 
-      {/* Tabs */}
-      <TabBar>
-        {TABS.map((t, i) => (
-          <Tab key={t} $active={tab === i} onClick={() => setTab(i)}>
-            {t}
-            {i === 0 ? tabBadge(event.participants?.length || 0) :
-             i === 1 ? tabBadge(event.registrations?.length || 0) :
-                       tabBadge(event.groups?.length || 0)}
-          </Tab>
-        ))}
-      </TabBar>
-
-      {/* Tab 0: Participants */}
-      {tab === 0 && (
-        <>
-          {confirmed.length > 0 && (
-            <TableCard>
-              <TableCardHeader>
-                <TableCardTitle>Confirmed ({confirmed.length})</TableCardTitle>
-              </TableCardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Name</Th>
-                    <Th>Email</Th>
-                    <Th>Phone</Th>
-                    <Th>Qty</Th>
-                    <Th>Attended</Th>
-                    <Th>Notes</Th>
-                    <Th>Extra</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {confirmed.map(p => (
-                    <Tr key={p.ep_id}>
-                      <Td>
-                        <div style={{ fontWeight: 500 }}>{p.first_name} {p.last_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {p.is_main_contact ? 'main contact' : 'additional'}
-                        </div>
-                      </Td>
-                      <Td>{p.email}</Td>
-                      <Td style={{ whiteSpace: 'nowrap' }}>{p.phone_number || '—'}</Td>
-                      <Td>{p.quantity}</Td>
-                      <Td>
-                        <GreenBtn
-                          style={!p.attended ? { background: '#f9fafb', borderColor: '#d1d5db', color: '#374151' } : {}}
-                          onClick={() => handleToggleAttendance(p)}
-                          disabled={togglingAttendance === p.ep_id}
-                        >
-                          {togglingAttendance === p.ep_id ? '…' : p.attended ? '✓ Attended' : 'Mark'}
-                        </GreenBtn>
-                      </Td>
-                      <Td style={{ minWidth: 140 }}>
-                        <NotesCell
-                          epId={p.ep_id}
-                          eventId={id}
-                          initialNotes={p.notes}
-                          onSaved={(v) => handleNotesSaved(p.ep_id, v)}
-                        />
-                      </Td>
-                      <Td>
-                        {p.extra_json ? (
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280', wordBreak: 'break-all' }}>
-                            {Object.entries(p.extra_json).map(([k, v]) => `${k}: ${v}`).join(', ')}
-                          </span>
-                        ) : '—'}
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableCard>
-          )}
-
-          {pending.length > 0 && (
-            <TableCard>
-              <TableCardHeader>
-                <TableCardTitle>Pending confirmation ({pending.length})</TableCardTitle>
-              </TableCardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Name</Th>
-                    <Th>Email</Th>
-                    <Th>Registered</Th>
-                    <Th>Qty</Th>
-                    <Th>Extra</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pending.map(p => (
-                    <Tr key={p.ep_id}>
-                      <Td style={{ fontWeight: 500 }}>{p.first_name} {p.last_name}</Td>
-                      <Td>{p.email}</Td>
-                      <Td style={{ whiteSpace: 'nowrap' }}>{fmtDate(p.registered_at)}</Td>
-                      <Td>{p.quantity}</Td>
-                      <Td>
-                        {p.extra_json ? (
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                            {Object.entries(p.extra_json).map(([k, v]) => `${k}: ${v}`).join(', ')}
-                          </span>
-                        ) : '—'}
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableCard>
-          )}
-
-          {cancelled.length > 0 && (
-            <TableCard>
-              <TableCardHeader>
-                <TableCardTitle style={{ color: '#9ca3af' }}>Cancelled ({cancelled.length})</TableCardTitle>
-              </TableCardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Name</Th>
-                    <Th>Email</Th>
-                    <Th>Qty</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cancelled.map(p => (
-                    <Tr key={p.ep_id} style={{ opacity: 0.6 }}>
-                      <Td>{p.first_name} {p.last_name}</Td>
-                      <Td>{p.email}</Td>
-                      <Td>{p.quantity}</Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableCard>
-          )}
-
-          {!event.participants?.length && (
-            <TableCard>
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
-                No participants yet.
-              </div>
-            </TableCard>
-          )}
-        </>
+      {/* ── Confirmed participants ───────────────────────────────────────────── */}
+      {confirmed.length > 0 && (
+        <TableCard>
+          <TableCardHeader>
+            <TableCardTitle>Confirmed ({confirmed.length})</TableCardTitle>
+          </TableCardHeader>
+          <Table>
+            <thead>{bookingTableHeaders}</thead>
+            <tbody>{confirmed.map(renderBookingRow)}</tbody>
+          </Table>
+        </TableCard>
       )}
 
-      {/* Tab 1: Individual Registrations */}
-      {tab === 1 && (
-        <>
-          {pendingRegs.length > 0 && (
-            <TableCard>
-              <TableCardHeader>
-                <TableCardTitle>Awaiting payment verification ({pendingRegs.length})</TableCardTitle>
-              </TableCardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Reference</Th>
-                    <Th>Participant</Th>
-                    <Th>Amount</Th>
-                    <Th>Proof</Th>
-                    <Th>Registered</Th>
-                    <Th>Action</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingRegs.map(reg => (
-                    <Tr key={reg.id}>
-                      <Td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{reg.reference}</Td>
-                      <Td>
-                        <div style={{ fontWeight: 500 }}>{reg.participant.first_name} {reg.participant.last_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{reg.participant.email}</div>
-                      </Td>
-                      <Td style={{ whiteSpace: 'nowrap' }}>
-                        {reg.currency} {parseFloat(reg.amount_with_donation).toFixed(2)}
-                        {parseFloat(reg.donation_amount) > 0 && (
-                          <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>
-                            incl. {reg.currency} {parseFloat(reg.donation_amount).toFixed(2)} donation
-                          </div>
-                        )}
-                      </Td>
-                      <Td>
-                        {reg.payment_proof_url ? (
-                          <a href={reg.payment_proof_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--link-text)' }}>
-                            View proof
-                          </a>
-                        ) : (
-                          <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>None uploaded</span>
-                        )}
-                      </Td>
-                      <Td style={{ whiteSpace: 'nowrap' }}>{fmtDate(reg.created_at)}</Td>
-                      <Td>
-                        <GreenBtn
-                          onClick={() => handleVerifyRegistration(reg)}
-                          disabled={verifying === reg.id}
-                        >
-                          {verifying === reg.id ? 'Verifying…' : 'Verify payment'}
-                        </GreenBtn>
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableCard>
-          )}
-
-          {paidRegs.length > 0 && (
-            <TableCard>
-              <TableCardHeader>
-                <TableCardTitle>Paid ({paidRegs.length})</TableCardTitle>
-              </TableCardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Reference</Th>
-                    <Th>Participant</Th>
-                    <Th>Amount</Th>
-                    <Th>Verified on</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paidRegs.map(reg => (
-                    <Tr key={reg.id}>
-                      <Td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{reg.reference}</Td>
-                      <Td>
-                        <div style={{ fontWeight: 500 }}>{reg.participant.first_name} {reg.participant.last_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{reg.participant.email}</div>
-                      </Td>
-                      <Td style={{ whiteSpace: 'nowrap' }}>
-                        {reg.currency} {parseFloat(reg.amount_with_donation).toFixed(2)}
-                      </Td>
-                      <Td style={{ whiteSpace: 'nowrap' }}>{fmt(reg.payment_verified_on)}</Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableCard>
-          )}
-
-          {!event.registrations?.length && (
-            <TableCard>
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
-                No individual registrations yet.
-              </div>
-            </TableCard>
-          )}
-        </>
+      {/* ── Pending ─────────────────────────────────────────────────────────── */}
+      {pending.length > 0 && (
+        <TableCard>
+          <TableCardHeader>
+            <TableCardTitle>Pending ({pending.length})</TableCardTitle>
+          </TableCardHeader>
+          <Table>
+            <thead>{bookingTableHeaders}</thead>
+            <tbody>{pending.map(renderBookingRow)}</tbody>
+          </Table>
+        </TableCard>
       )}
 
-      {/* Tab 2: Group Registrations */}
-      {tab === 2 && (
-        <>
-          {event.groups?.length === 0 && (
-            <TableCard>
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
-                No group registrations yet.
-              </div>
-            </TableCard>
-          )}
+      {/* ── Cancelled ───────────────────────────────────────────────────────── */}
+      {cancelled.length > 0 && (
+        <TableCard>
+          <TableCardHeader>
+            <TableCardTitle style={{ color: '#9ca3af' }}>Removed ({cancelled.length})</TableCardTitle>
+          </TableCardHeader>
+          <Table>
+            <thead>{bookingTableHeaders}</thead>
+            <tbody>{cancelled.map(renderBookingRow)}</tbody>
+          </Table>
+        </TableCard>
+      )}
 
-          {event.groups?.map(grp => (
-            <TableCard key={grp.id}>
-              <TableCardHeader>
-                <div>
-                  <TableCardTitle style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{grp.reference}</span>
-                    {statusBadge(grp.status)}
-                  </TableCardTitle>
-                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.2rem' }}>
-                    {grp.payer_name || '—'} · {grp.payer_email || '—'} · {grp.payer_phone || '—'}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                    {grp.currency} {parseFloat(grp.amount_total_with_donation).toFixed(2)}
-                  </div>
-                  {parseFloat(grp.donation_amount) > 0 && (
-                    <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>
-                      incl. {grp.currency} {parseFloat(grp.donation_amount).toFixed(2)} donation
-                    </div>
-                  )}
-                  {grp.status === 'pending' && (
-                    <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                      {grp.payment_proof_url && (
-                        <SecondaryBtn as="a" href={grp.payment_proof_url} target="_blank" rel="noopener noreferrer">
-                          View proof
-                        </SecondaryBtn>
-                      )}
-                      {!grp.payment_proof_url && (
-                        <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>No proof uploaded</span>
-                      )}
-                      <GreenBtn
-                        onClick={() => handleVerifyGroup(grp)}
-                        disabled={verifying === `g${grp.id}`}
-                      >
-                        {verifying === `g${grp.id}` ? 'Verifying…' : 'Verify payment'}
-                      </GreenBtn>
-                    </div>
-                  )}
-                  {grp.status === 'paid' && (
-                    <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.2rem' }}>
-                      Verified {fmt(grp.payment_verified_on)}
-                    </div>
-                  )}
-                </div>
-              </TableCardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Participant</Th>
-                    <Th>Email</Th>
-                    <Th>Qty</Th>
-                    <Th>Amount</Th>
-                    <Th>Ref</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grp.participants.length === 0 ? (
-                    <EmptyRow><td colSpan={5}>No participants in this group.</td></EmptyRow>
-                  ) : (
-                    grp.participants.map(p => (
-                      <Tr key={p.registration_id}>
-                        <Td style={{ fontWeight: 500 }}>{p.first_name} {p.last_name}</Td>
-                        <Td>{p.email}</Td>
-                        <Td>{p.quantity}</Td>
-                        <Td style={{ whiteSpace: 'nowrap' }}>{grp.currency} {parseFloat(p.amount).toFixed(2)}</Td>
-                        <Td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{p.reference}</Td>
-                      </Tr>
-                    ))
-                  )}
-                </tbody>
-              </Table>
-            </TableCard>
-          ))}
-        </>
+      {bookings.length === 0 && (
+        <TableCard>
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
+            No participants yet.
+          </div>
+        </TableCard>
       )}
     </Page>
   );

@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { consoleEventService } from '../services/consoleEvents';
 import HelpModal from '../components/HelpModal';
+import RichTextEditor from '../components/RichTextEditor';
+import { X } from 'lucide-react';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -138,19 +140,21 @@ const SecondaryButton = styled(Button)`
   &:hover:not(:disabled) { background: #f9fafb; }
 `;
 
-const AdvancedToggle = styled.button`
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-bottom: 1rem;
-  &:hover { color: var(--text-primary); }
-`;
+const DEFAULT_EMAIL_TEMPLATE = `<p>Dear {{first_name}},</p>
+
+<p>Your registration for <strong>{{event_title}}</strong> has been confirmed.</p>
+
+<p>
+  <strong>Date:</strong> {{event_date}}<br>
+  <strong>Location:</strong> {{event_location}}
+</p>
+
+<p>{{participant_details}}</p>
+
+<p>We look forward to seeing you at the event!</p>
+
+<p>Best regards,<br>
+Bird Society of Singapore</p>`;
 
 const LoadingText = styled.div`
   text-align: center;
@@ -373,6 +377,7 @@ function SchemaFieldBuilder({ fields, onChange }) {
                   placeholder="e.g. Small, Medium, Large, XL"
                   value={f.options}
                   onChange={e => update(f.id, { options: e.target.value })}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
                 />
               </div>
             )}
@@ -484,37 +489,36 @@ function TierBuilder({ tiers, onChange, schemaFields }) {
             {t.ruleType === 'condition' && (
               <>
                 {fieldOptions.length > 0 ? (
-                  <SmallSelect
-                    value={t.ruleField}
-                    onChange={e => update(t.id, { ruleField: e.target.value })}
-                  >
-                    <option value="">Select field…</option>
-                    {fieldOptions.map(o => (
-                      <option key={o.key} value={o.key}>{o.label}</option>
-                    ))}
-                  </SmallSelect>
+                  <>
+                    <SmallSelect
+                      value={t.ruleField}
+                      onChange={e => update(t.id, { ruleField: e.target.value })}
+                    >
+                      <option value="">Select field…</option>
+                      {fieldOptions.map(o => (
+                        <option key={o.key} value={o.key}>{o.label}</option>
+                      ))}
+                    </SmallSelect>
+                    <SmallSelect
+                      value={t.ruleOp}
+                      onChange={e => update(t.id, { ruleOp: e.target.value })}
+                    >
+                      {RULE_OPERATORS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </SmallSelect>
+                    <SmallInput
+                      placeholder="Value"
+                      value={t.ruleValue}
+                      style={{ width: '80px' }}
+                      onChange={e => update(t.id, { ruleValue: e.target.value })}
+                    />
+                  </>
                 ) : (
-                  <SmallInput
-                    placeholder="Field name"
-                    value={t.ruleField}
-                    style={{ width: '120px' }}
-                    onChange={e => update(t.id, { ruleField: e.target.value })}
-                  />
+                  <span style={{ fontSize: '0.78rem', color: '#dc2626' }}>
+                    Add registration form fields above before using conditions.
+                  </span>
                 )}
-                <SmallSelect
-                  value={t.ruleOp}
-                  onChange={e => update(t.id, { ruleOp: e.target.value })}
-                >
-                  {RULE_OPERATORS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </SmallSelect>
-                <SmallInput
-                  placeholder="Value"
-                  value={t.ruleValue}
-                  style={{ width: '80px' }}
-                  onChange={e => update(t.id, { ruleValue: e.target.value })}
-                />
               </>
             )}
           </TierRuleRow>
@@ -642,6 +646,212 @@ function toLocalDatetimeInput(iso) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// ─── Tag picker ──────────────────────────────────────────────────────────────
+
+const TagsWrap = styled.div`
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 38px;
+  align-items: center;
+  cursor: text;
+  background: #fff;
+`;
+
+const TagChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+`;
+
+const TagInput = styled.input`
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  min-width: 120px;
+  flex: 1;
+  background: transparent;
+`;
+
+const TagDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 2px;
+`;
+
+const TagDropdownItem = styled.div`
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  &:hover { background: #f0f9ff; }
+`;
+
+function TagPicker({ tags, onChange, existingTags }) {
+  const [input, setInput] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const suggestions = existingTags.filter(t =>
+    !tags.includes(t) && t.toLowerCase().includes(input.toLowerCase())
+  );
+
+  const add = (tag) => {
+    const t = tag.trim();
+    if (t && !tags.includes(t)) onChange([...tags, t]);
+    setInput('');
+    setOpen(false);
+  };
+
+  const remove = (tag) => onChange(tags.filter(t => t !== tag));
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      if (input.trim()) add(input);
+    } else if (e.key === 'Backspace' && !input && tags.length) {
+      remove(tags[tags.length - 1]);
+    }
+  };
+
+  useEffect(() => {
+    const handleClick = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <TagsWrap onClick={() => wrapRef.current.querySelector('input')?.focus()}>
+        {tags.map(t => (
+          <TagChip key={t}>
+            {t}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); remove(t); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#1d4ed8' }}
+            >
+              <X size={11} />
+            </button>
+          </TagChip>
+        ))}
+        <TagInput
+          value={input}
+          onChange={e => { setInput(e.target.value); setOpen(true); }}
+          onKeyDown={handleKey}
+          onFocus={() => setOpen(true)}
+          placeholder={tags.length ? '' : 'Type a tag and press Enter…'}
+        />
+      </TagsWrap>
+      {open && (input || suggestions.length > 0) && (
+        <TagDropdown>
+          {suggestions.map(s => (
+            <TagDropdownItem key={s} onMouseDown={() => add(s)}>{s}</TagDropdownItem>
+          ))}
+          {input.trim() && !tags.includes(input.trim()) && !suggestions.includes(input.trim()) && (
+            <TagDropdownItem onMouseDown={() => add(input)}>
+              Create "<strong>{input.trim()}</strong>"
+            </TagDropdownItem>
+          )}
+        </TagDropdown>
+      )}
+    </div>
+  );
+}
+
+// ─── Confirmation page preview modal ─────────────────────────────────────────
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+`;
+
+const ModalBox = styled.div`
+  background: #fff;
+  border-radius: 12px;
+  max-width: 540px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+`;
+
+function ConfirmationPreviewModal({ message, onClose }) {
+  return (
+    <ModalOverlay onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <ModalBox>
+        <ModalHeader>
+          <strong style={{ fontSize: '0.9rem' }}>Confirmation page preview</strong>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+            <X size={18} />
+          </button>
+        </ModalHeader>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '1.5rem 1.75rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>✅</div>
+          <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: '#111' }}>You're registered!</h2>
+          <p style={{ color: '#666', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+            A confirmation email has been sent to your email address.
+          </p>
+          {message && (
+            <div style={{
+              marginTop: '0.75rem',
+              padding: '0.75rem 1rem',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              fontSize: '0.9rem',
+              color: '#111',
+              textAlign: 'left',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+            }}>
+              {message || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No message yet</span>}
+            </div>
+          )}
+          {!message && (
+            <p style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+              (Your custom message will appear here)
+            </p>
+          )}
+        </div>
+      </ModalBox>
+    </ModalOverlay>
+  );
+}
+
+// ─── Component constants ──────────────────────────────────────────────────────
+
 const EMPTY_FORM = {
   title: '',
   description: '',
@@ -651,9 +861,12 @@ const EMPTY_FORM = {
   max_participants: '',
   max_qty: 5,
   is_active: true,
+  registration_open: true,
   registration_required: true,
   price_incl_tax: '0.00',
-  confirmed_email_template: '',
+  confirmed_email_template: DEFAULT_EMAIL_TEMPLATE,
+  post_registration_message: '',
+  tags: [],
   image_id: null,
   image_url: null,
 };
@@ -668,7 +881,8 @@ export default function EventManagementEdit() {
   const [tierEntries, setTierEntries] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [existingTags, setExistingTags] = useState([]);
 
   const [imageLibrary, setImageLibrary] = useState([]);
   const [showImagePicker, setShowImagePicker] = useState(false);
@@ -679,6 +893,9 @@ export default function EventManagementEdit() {
   useEffect(() => {
     consoleEventService.listImages()
       .then(imgs => setImageLibrary(Array.isArray(imgs) ? imgs : []))
+      .catch(() => {});
+    consoleEventService.listTags()
+      .then(tags => setExistingTags(Array.isArray(tags) ? tags : []))
       .catch(() => {});
   }, []);
 
@@ -695,15 +912,17 @@ export default function EventManagementEdit() {
           max_participants: event.max_participants ?? '',
           max_qty: event.max_qty ?? 5,
           is_active: event.is_active,
+          registration_open: event.registration_open ?? true,
           registration_required: event.registration_required ?? true,
           price_incl_tax: event.price_incl_tax || '0.00',
-          confirmed_email_template: event.confirmed_email_template || '',
+          confirmed_email_template: event.confirmed_email_template || DEFAULT_EMAIL_TEMPLATE,
+          post_registration_message: event.post_registration_message || '',
+          tags: event.tags || [],
           image_id: event.image_id || null,
           image_url: event.image_url || null,
         });
         setSchemaFields(schemaToFields(event.json_schema));
         setTierEntries(tiersToEntries(event.price_tiers));
-        if (event.confirmed_email_template) setShowAdvanced(true);
       })
       .catch(() => toast.error('Failed to load event'))
       .finally(() => setLoading(false));
@@ -765,6 +984,7 @@ export default function EventManagementEdit() {
       max_participants: form.max_participants !== '' ? Number(form.max_participants) : null,
       max_qty: form.max_qty !== '' ? Number(form.max_qty) : 5,
       is_active: form.is_active,
+      registration_open: form.registration_open,
       registration_required: form.registration_required,
       price_incl_tax: form.price_incl_tax,
       currency: 'SGD',
@@ -772,6 +992,8 @@ export default function EventManagementEdit() {
       price_tiers: entriesToTiers(tierEntries),
       validate_participant_data: true,
       confirmed_email_template: form.confirmed_email_template.trim() || null,
+      post_registration_message: form.post_registration_message.trim() || null,
+      tags: form.tags,
       image_id: form.image_id || null,
     };
 
@@ -807,8 +1029,11 @@ export default function EventManagementEdit() {
         <h3>Basic info</h3>
         <ul>
           <li><strong>Title</strong> and <strong>Start Date</strong> are required.</li>
+          <li><strong>Description</strong> supports rich text — use the toolbar to add headings, bold, lists, etc.</li>
+          <li><strong>Tags</strong> — type a tag and press Enter, or pick from existing ones. Used to filter events on the public page.</li>
           <li><strong>Active</strong> — uncheck to hide the event from the public events page without deleting it.</li>
           <li><strong>Registration required</strong> — uncheck for info-only events with no sign-up form (e.g. drop-in sessions).</li>
+          <li><strong>Registration open</strong> — uncheck to pause sign-ups for this event while keeping it visible. Only shown when registration is required.</li>
           <li><strong>Total participants</strong> — leave blank for unlimited capacity.</li>
           <li><strong>Max participants per registration</strong> — the most tickets one person can claim in a single registration.</li>
         </ul>
@@ -818,9 +1043,12 @@ export default function EventManagementEdit() {
         <ul>
           <li>Set the <strong>Base Price</strong> to 0 for a free event.</li>
           <li><strong>Pricing tiers</strong> let you charge different amounts based on a participant's answer to one of your form fields. Rules are checked top-to-bottom — first match wins. Add a catch-all tier last.</li>
+          <li>The <strong>Applies when…</strong> condition requires at least one registration form field to be defined first.</li>
         </ul>
-        <h3>Advanced settings</h3>
-        <p>Paste a custom HTML email template to override the default payment confirmation email. Available variables: <code>{'{{first_name}}'}</code>, <code>{'{{event_title}}'}</code>, <code>{'{{amount}}'}</code>, and more (shown in the placeholder text).</p>
+        <h3>Confirmation page message</h3>
+        <p>Optional text shown to participants on the "You're registered!" screen immediately after signing up. Good for what-to-bring notes, meeting point details, etc.</p>
+        <h3>Registration confirmation email</h3>
+        <p>Sent automatically when a participant registers for a free event, or when their payment is verified for a paid event. Use the toolbar to format it and insert variables like <code>{'{{first_name}}'}</code> and <code>{'{{event_title}}'}</code> anywhere in the text.</p>
       </HelpModal>
 
       <BackLink to={backPath}>{backLabel}</BackLink>
@@ -841,12 +1069,9 @@ export default function EventManagementEdit() {
           <Row>
             <Field>
               <Label>Description</Label>
-              <Textarea
-                rows={4}
-                style={{ fontFamily: 'inherit' }}
+              <RichTextEditor
                 value={form.description}
-                onChange={set('description')}
-                placeholder="Event description (shown to attendees)"
+                onChange={val => setForm(prev => ({ ...prev, description: val }))}
               />
             </Field>
           </Row>
@@ -974,6 +1199,21 @@ export default function EventManagementEdit() {
                   </ImagePickerBody>
                 )}
               </ImagePickerWrap>
+              <Hint style={{ marginTop: '0.4rem' }}>
+                Recommended: <strong>1200 × 800 px</strong> (3:2 landscape), JPG or PNG. Keep the main subject centred — images are cropped to fill. Portrait images will be cropped significantly.
+              </Hint>
+            </Field>
+          </Row>
+
+          <Row>
+            <Field>
+              <Label>Tags</Label>
+              <TagPicker
+                tags={form.tags}
+                onChange={tags => setForm(prev => ({ ...prev, tags }))}
+                existingTags={existingTags}
+              />
+              <Hint>Press Enter or comma to add a tag. Select from existing tags or create new ones.</Hint>
             </Field>
           </Row>
 
@@ -995,6 +1235,18 @@ export default function EventManagementEdit() {
               <Hint>Uncheck to show an info-only page with no registration form.</Hint>
             </Field>
           </Row>
+
+          {form.registration_required && (
+            <Row>
+              <Field>
+                <CheckboxRow>
+                  <input type="checkbox" checked={form.registration_open} onChange={set('registration_open')} />
+                  Registration open
+                </CheckboxRow>
+                <Hint>Uncheck to close registration while keeping the event visible. Useful for pausing sign-ups for a specific event.</Hint>
+              </Field>
+            </Row>
+          )}
         </Section>
 
         {/* Registration form fields */}
@@ -1038,26 +1290,55 @@ export default function EventManagementEdit() {
           )}
         </Section>}
 
-        {/* Advanced */}
-        <Section>
-          <AdvancedToggle type="button" onClick={() => setShowAdvanced(v => !v)}>
-            {showAdvanced ? '▾' : '▸'} Advanced settings
-          </AdvancedToggle>
-
-          {showAdvanced && (
+        {/* Confirmation message */}
+        {form.registration_required && (
+          <Section>
+            <SectionTitle>Confirmation Page Message</SectionTitle>
+            <Hint style={{ marginBottom: '0.875rem' }}>
+              Shown to participants on the "You're registered!" page after signing up. Use this for any event-specific instructions, what to bring, location tips, etc.
+            </Hint>
             <Row>
               <Field>
-                <Label>Payment Confirmation Email Template (HTML)</Label>
                 <Textarea
-                  rows={10}
-                  value={form.confirmed_email_template}
-                  onChange={set('confirmed_email_template')}
-                  placeholder="Leave blank to use the default template. Available variables: {{first_name}}, {{last_name}}, {{email}}, {{event_title}}, {{event_date}}, {{event_location}}, {{amount}}, {{currency}}, {{registration_reference}}"
+                  rows={5}
+                  style={{ fontFamily: 'inherit' }}
+                  value={form.post_registration_message}
+                  onChange={set('post_registration_message')}
+                  placeholder="e.g. Please meet at the main entrance at 7:45am. Bring water and wear comfortable shoes."
                 />
               </Field>
             </Row>
-          )}
-        </Section>
+            <SecondaryButton
+              type="button"
+              style={{ fontSize: '0.82rem', padding: '0.3rem 0.75rem' }}
+              onClick={() => setShowPreview(true)}
+            >
+              Preview confirmation page
+            </SecondaryButton>
+          </Section>
+        )}
+
+        {/* Confirmation email */}
+        {form.registration_required && (
+          <Section>
+            <SectionTitle>Registration Confirmation Email</SectionTitle>
+            <Hint style={{ marginBottom: '0.875rem' }}>
+              Sent when a participant registers (free events) or when their payment is verified (paid events).
+              Use the toolbar to format content. You can insert these variables anywhere in the text:{' '}
+              <code>{'{{first_name}}'}</code>, <code>{'{{last_name}}'}</code>, <code>{'{{event_title}}'}</code>,{' '}
+              <code>{'{{event_date}}'}</code>, <code>{'{{event_location}}'}</code>, <code>{'{{amount}}'}</code>,{' '}
+              <code>{'{{currency}}'}</code>, <code>{'{{registration_reference}}'}</code>, <code>{'{{participant_details}}'}</code>.
+            </Hint>
+            <Row>
+              <Field>
+                <RichTextEditor
+                  value={form.confirmed_email_template}
+                  onChange={val => setForm(prev => ({ ...prev, confirmed_email_template: val }))}
+                />
+              </Field>
+            </Row>
+          </Section>
+        )}
 
         <ButtonRow>
           <PrimaryButton type="submit" disabled={saving}>
@@ -1068,6 +1349,13 @@ export default function EventManagementEdit() {
           </SecondaryButton>
         </ButtonRow>
       </form>
+
+      {showPreview && (
+        <ConfirmationPreviewModal
+          message={form.post_registration_message}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </Page>
   );
 }

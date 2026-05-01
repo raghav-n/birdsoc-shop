@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from oscar.core.loading import get_model
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 
 EventRegistration = get_model("event", "EventRegistration")
@@ -44,7 +44,12 @@ class Command(BaseCommand):
             )
         )
 
-        # Select groups: pending, not verified, older than cutoff, no payment proof
+        # Subquery: any child registration for this group that has payment proof
+        _children_with_proof = EventRegistration.objects.filter(
+            group=OuterRef("pk")
+        ).exclude(Q(payment_proof__isnull=True) | Q(payment_proof=""))
+
+        # Select groups: pending, not verified, older than cutoff, no proof on group OR any child
         stale_groups = EventRegistrationGroup._default_manager.select_related(
             "event"
         ).filter(
@@ -52,7 +57,7 @@ class Command(BaseCommand):
             status="pending",
             payment_verified=False,
             created_at__lt=cutoff,
-        )
+        ).filter(~Exists(_children_with_proof))
 
         # Select individual regs (not part of a group): pending, not verified, older, no proof
         stale_regs = EventRegistration._default_manager.select_related(
@@ -78,9 +83,11 @@ class Command(BaseCommand):
         with transaction.atomic():
             # Cancel groups first, then child regs
             for grp in stale_groups.select_for_update():
-                # Cancel child regs that are still pending
+                # Cancel child regs that are still pending and have no payment proof
                 child_qs = grp.registrations.select_related("participant").filter(
-                    status="pending", payment_verified=False
+                    Q(payment_proof__isnull=True) | Q(payment_proof=""),
+                    status="pending",
+                    payment_verified=False,
                 )
                 # Mark corresponding EventParticipants as cancelled for this event
                 part_ids = list(child_qs.values_list("participant_id", flat=True))

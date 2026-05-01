@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import styled from 'styled-components';
 import { useParams, Link } from 'react-router-dom';
 import { Calendar, MapPin, Users } from 'lucide-react';
@@ -30,7 +31,7 @@ const EventHeroImage = styled.img`
   display: block;
   width: calc(100% + 3.5rem);
   margin: -1.5rem -1.75rem 1.25rem;
-  height: 220px;
+  aspect-ratio: 3 / 2;
   object-fit: cover;
 `;
 
@@ -72,10 +73,19 @@ const SpotsBadge = styled.span`
 `;
 
 const Description = styled.div`
-  white-space: pre-wrap;
   line-height: 1.7;
   color: var(--text-primary);
   font-size: 0.95rem;
+
+  & > * + * { margin-top: 0.6em; }
+  p { margin: 0; }
+  h2 { font-size: 1.15em; font-weight: 700; }
+  h3 { font-size: 1em; font-weight: 600; }
+  ul, ol { padding-left: 1.4em; }
+  li + li { margin-top: 0.15em; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75em 0; }
 `;
 
 const PriceTag = styled.div`
@@ -194,7 +204,7 @@ const FHint = styled.div`
   margin-top: 0.25rem;
 `;
 
-const FError = styled.div`
+const FError = styled.div.attrs(() => ({ 'data-field-error': '' }))`
   font-size: 0.75rem;
   color: #dc2626;
   margin-top: 0.25rem;
@@ -441,10 +451,14 @@ function ExtraField({ fieldKey, schema, value, onChange, error }) {
     );
   }
 
+  const isNumeric = schema.type === 'number' || schema.type === 'integer';
+
   return (
     <Field>
       <FLabel>{label}</FLabel>
       <FInput
+        type={isNumeric ? 'number' : 'text'}
+        inputMode={isNumeric ? 'numeric' : undefined}
         $err={!!error}
         value={value || ''}
         placeholder={schema.description || ''}
@@ -477,6 +491,8 @@ export default function EventDetail() {
     quantity: 1, donation: '',
   });
   const [extraFields, setExtraFields] = useState([{}]);
+  // extra participants for qty>1: array of {name, sameEmail, email, samePhone, phone}
+  const [extraParticipants, setExtraParticipants] = useState([]);
   const [pdpaAgreed, setPdpaAgreed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -536,6 +552,14 @@ export default function EventDetail() {
       if (prev.length === n) return prev;
       const arr = prev.slice(0, n);
       while (arr.length < n) arr.push({});
+      return arr;
+    });
+    // Extra participants for slots 2..n (index 0 = participant 2)
+    setExtraParticipants(prev => {
+      const needed = n - 1;
+      if (prev.length === needed) return prev;
+      const arr = prev.slice(0, needed);
+      while (arr.length < needed) arr.push({ name: '', sameEmail: true, email: '', samePhone: true, phone: '' });
       return arr;
     });
   }, [form.quantity]);
@@ -606,6 +630,8 @@ export default function EventDetail() {
     setFieldErrors(p => ({ ...p, [field]: null }));
   };
 
+  const isValidPhone = (v) => /^[0-9+\-\s().]{6,20}$/.test(v.trim());
+
   const validate = () => {
     const errs = {};
     if (!form.first_name.trim()) errs.first_name = 'Required';
@@ -613,8 +639,23 @@ export default function EventDetail() {
     if (!form.email.trim()) errs.email = 'Required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Invalid email address';
     if (!form.phone_number.trim()) errs.phone_number = 'Required';
-    const required = event?.json_schema?.required || [];
+    else if (!isValidPhone(form.phone_number)) errs.phone_number = 'Enter a valid phone number (digits only)';
+    if (!form.emergency_contact_name.trim()) errs.emergency_contact_name = 'Required';
+    if (!form.emergency_contact_phone.trim()) errs.emergency_contact_phone = 'Required';
+    else if (!isValidPhone(form.emergency_contact_phone)) errs.emergency_contact_phone = 'Enter a valid phone number (digits only)';
+
     const qtyNum = Number(form.quantity) || 1;
+    // Validate extra participants (qty>1)
+    for (let i = 0; i < qtyNum - 1; i++) {
+      const ep = extraParticipants[i] || {};
+      if (!ep.name?.trim()) errs[`ep_${i}_name`] = 'Required';
+      if (!ep.sameEmail && !ep.email?.trim()) errs[`ep_${i}_email`] = 'Required';
+      if (!ep.sameEmail && ep.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ep.email)) errs[`ep_${i}_email`] = 'Invalid email';
+      if (!ep.samePhone && !ep.phone?.trim()) errs[`ep_${i}_phone`] = 'Required';
+      if (!ep.samePhone && ep.phone && !isValidPhone(ep.phone)) errs[`ep_${i}_phone`] = 'Enter a valid phone number';
+    }
+
+    const required = event?.json_schema?.required || [];
     for (let i = 0; i < qtyNum; i++) {
       for (const [k, prop] of Object.entries(jsonProps)) {
         const val = extraFields[i]?.[k];
@@ -638,13 +679,29 @@ export default function EventDetail() {
   };
 
   const handleReview = () => {
-    if (validate()) setStep('review');
+    if (validate()) {
+      setStep('review');
+    } else {
+      setTimeout(() => {
+        document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
   };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const extraJson = extraFields.map(pf => ({ ...pf }));
+      const qtyNum = Number(form.quantity) || 1;
+      const extraJson = extraFields.map((pf, i) => {
+        if (i === 0) return { ...pf };
+        const ep = extraParticipants[i - 1] || {};
+        return {
+          _name: ep.name?.trim() || '',
+          _email: ep.sameEmail ? undefined : ep.email?.trim() || undefined,
+          _phone: ep.samePhone ? undefined : ep.phone?.trim() || undefined,
+          ...pf,
+        };
+      });
       const payload = {
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
@@ -652,7 +709,7 @@ export default function EventDetail() {
         phone_number: form.phone_number.trim(),
         emergency_contact_name: form.emergency_contact_name.trim(),
         emergency_contact_phone: form.emergency_contact_phone.trim(),
-        quantity: Number(form.quantity) || 1,
+        quantity: qtyNum,
         donation: form.donation ? Math.round(parseFloat(form.donation) * 100) : 0,
       };
       if (extraJson.some(o => Object.keys(o).length > 0)) payload.extra_json = extraJson;
@@ -682,7 +739,6 @@ export default function EventDetail() {
     : null;
 
   const jsonProps = event.json_schema?.properties || {};
-  const jsonRequired = event.json_schema?.required || [];
 
   const priceTotal = priceData
     ? parseFloat(priceData.totals.amount)
@@ -699,6 +755,12 @@ export default function EventDetail() {
 
   return (
     <Page>
+      <div style={{ marginBottom: '0.75rem' }}>
+        <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
+          ← Back to events
+        </Link>
+      </div>
+
       {/* ── Event info ─────────────────────────────────────────────────────── */}
       <Card>
         {event.image_url && <EventHeroImage src={event.image_url} alt={event.title} />}
@@ -719,7 +781,9 @@ export default function EventDetail() {
             <MetaItem><Users size={14} />{spotsLeft} spots remaining</MetaItem>
           )}
         </MetaRow>
-        {event.description && <Description>{event.description}</Description>}
+        {event.description && (
+          <Description dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(event.description) }} />
+        )}
         <PriceTag>
           {unitPrice > 0 ? `${fmtAmt(unitPrice)} per person` : 'Free'}
         </PriceTag>
@@ -739,6 +803,9 @@ export default function EventDetail() {
         }
         if (event.is_active === false) {
           return <Alert variant="info">This event is not currently open for registration.</Alert>;
+        }
+        if (event.registration_open === false) {
+          return <Alert variant="warning">Registration for this event is currently closed.</Alert>;
         }
         if (event.is_full) {
           return <Alert variant="error">This event is full.</Alert>;
@@ -802,12 +869,14 @@ export default function EventDetail() {
                   <SectionLabel>Emergency contact</SectionLabel>
                   <FieldGrid $cols="1fr 1fr">
                     <Field>
-                      <FLabel>Name</FLabel>
-                      <FInput value={form.emergency_contact_name} onChange={set('emergency_contact_name')} />
+                      <FLabel>Name *</FLabel>
+                      <FInput $err={!!fieldErrors.emergency_contact_name} value={form.emergency_contact_name} onChange={set('emergency_contact_name')} />
+                      {fieldErrors.emergency_contact_name && <FError>{fieldErrors.emergency_contact_name}</FError>}
                     </Field>
                     <Field>
-                      <FLabel>Phone</FLabel>
-                      <FInput type="tel" value={form.emergency_contact_phone} onChange={set('emergency_contact_phone')} />
+                      <FLabel>Phone *</FLabel>
+                      <FInput type="tel" $err={!!fieldErrors.emergency_contact_phone} value={form.emergency_contact_phone} onChange={set('emergency_contact_phone')} />
+                      {fieldErrors.emergency_contact_phone && <FError>{fieldErrors.emergency_contact_phone}</FError>}
                     </Field>
                   </FieldGrid>
                 </Section>
@@ -825,39 +894,121 @@ export default function EventDetail() {
                   </FieldGrid>
                 </Section>
 
-                {Object.keys(jsonProps).length > 0 && (
+                {(qty > 1 || Object.keys(jsonProps).length > 0) && (
                   <>
                     <Divider />
                     <Section>
                       <SectionLabel>Additional information</SectionLabel>
-                      {Array.from({ length: qty }, (_, i) => (
-                        <div key={i} style={qty > 1 ? { marginBottom: '1rem' } : undefined}>
-                          {qty > 1 && (
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                              Participant {i + 1}
-                            </div>
-                          )}
-                          <FieldGrid>
-                            {Object.entries(jsonProps).map(([key, schema]) => (
-                              <ExtraField
-                                key={key}
-                                fieldKey={key}
-                                schema={schema}
-                                value={extraFields[i]?.[key]}
-                                error={fieldErrors[`extra_${i}_${key}`]}
-                                onChange={val => {
-                                  setExtraFields(prev => {
-                                    const arr = [...prev];
-                                    arr[i] = { ...arr[i], [key]: val };
-                                    return arr;
-                                  });
-                                  setFieldErrors(p => ({ ...p, [`extra_${i}_${key}`]: null }));
-                                }}
-                              />
-                            ))}
-                          </FieldGrid>
-                        </div>
-                      ))}
+                      {Array.from({ length: qty }, (_, i) => {
+                        const isExtra = i > 0;
+                        const epIdx = i - 1;
+                        const ep = isExtra ? (extraParticipants[epIdx] || {}) : null;
+                        const setEp = isExtra ? (patch) => setExtraParticipants(prev => {
+                          const arr = [...prev];
+                          arr[epIdx] = { ...arr[epIdx], ...patch };
+                          return arr;
+                        }) : null;
+                        const hasSchema = Object.keys(jsonProps).length > 0;
+                        return (
+                          <div key={i} style={{ marginBottom: i < qty - 1 ? '1.25rem' : 0 }}>
+                            {qty > 1 && (
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                Participant {i + 1}
+                              </div>
+                            )}
+                            {i === 0 && qty > 1 && (
+                              <div style={{
+                                background: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                padding: '0.5rem 0.75rem',
+                                fontSize: '0.82rem',
+                                color: '#374151',
+                                marginBottom: hasSchema ? '0.75rem' : 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.2rem',
+                              }}>
+                                <span>{form.first_name} {form.last_name}</span>
+                                <span style={{ color: '#6b7280' }}>{form.email}</span>
+                                {form.phone_number && <span style={{ color: '#6b7280' }}>{form.phone_number}</span>}
+                              </div>
+                            )}
+                            {isExtra && (
+                              <>
+                                <FieldGrid>
+                                  <Field>
+                                    <FLabel>Full name *</FLabel>
+                                    <FInput
+                                      $err={!!fieldErrors[`ep_${epIdx}_name`]}
+                                      value={ep.name || ''}
+                                      onChange={e => { setEp({ name: e.target.value }); setFieldErrors(p => ({ ...p, [`ep_${epIdx}_name`]: null })); }}
+                                    />
+                                    {fieldErrors[`ep_${epIdx}_name`] && <FError>{fieldErrors[`ep_${epIdx}_name`]}</FError>}
+                                  </Field>
+                                </FieldGrid>
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  <CheckRow>
+                                    <input type="checkbox" checked={ep.sameEmail !== false} onChange={e => setEp({ sameEmail: e.target.checked })} />
+                                    Use same email as main contact
+                                  </CheckRow>
+                                  {ep.sameEmail === false && (
+                                    <Field style={{ marginTop: '0.5rem' }}>
+                                      <FLabel>Email *</FLabel>
+                                      <FInput
+                                        type="email"
+                                        $err={!!fieldErrors[`ep_${epIdx}_email`]}
+                                        value={ep.email || ''}
+                                        onChange={e => { setEp({ email: e.target.value }); setFieldErrors(p => ({ ...p, [`ep_${epIdx}_email`]: null })); }}
+                                      />
+                                      {fieldErrors[`ep_${epIdx}_email`] && <FError>{fieldErrors[`ep_${epIdx}_email`]}</FError>}
+                                    </Field>
+                                  )}
+                                </div>
+                                <div style={{ marginTop: '0.4rem', marginBottom: hasSchema ? '0.75rem' : 0 }}>
+                                  <CheckRow>
+                                    <input type="checkbox" checked={ep.samePhone !== false} onChange={e => setEp({ samePhone: e.target.checked })} />
+                                    Use same phone number as main contact
+                                  </CheckRow>
+                                  {ep.samePhone === false && (
+                                    <Field style={{ marginTop: '0.5rem' }}>
+                                      <FLabel>Phone *</FLabel>
+                                      <FInput
+                                        type="tel"
+                                        $err={!!fieldErrors[`ep_${epIdx}_phone`]}
+                                        value={ep.phone || ''}
+                                        onChange={e => { setEp({ phone: e.target.value }); setFieldErrors(p => ({ ...p, [`ep_${epIdx}_phone`]: null })); }}
+                                      />
+                                      {fieldErrors[`ep_${epIdx}_phone`] && <FError>{fieldErrors[`ep_${epIdx}_phone`]}</FError>}
+                                    </Field>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                            {hasSchema && (
+                              <FieldGrid>
+                                {Object.entries(jsonProps).map(([key, schema]) => (
+                                  <ExtraField
+                                    key={key}
+                                    fieldKey={key}
+                                    schema={schema}
+                                    value={extraFields[i]?.[key]}
+                                    error={fieldErrors[`extra_${i}_${key}`]}
+                                    onChange={val => {
+                                      setExtraFields(prev => {
+                                        const arr = [...prev];
+                                        arr[i] = { ...arr[i], [key]: val };
+                                        return arr;
+                                      });
+                                      setFieldErrors(p => ({ ...p, [`extra_${i}_${key}`]: null }));
+                                    }}
+                                  />
+                                ))}
+                              </FieldGrid>
+                            )}
+                          </div>
+                        );
+                      })}
                     </Section>
                   </>
                 )}
@@ -1037,6 +1188,22 @@ export default function EventDetail() {
                       ? 'Scan the PayNow QR code below to secure your spot.'
                       : 'A confirmation email has been sent to your email address.'}
                   </p>
+                  {event.post_registration_message && (
+                    <div style={{
+                      marginTop: '0.75rem',
+                      padding: '0.75rem 1rem',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      color: 'var(--text-primary)',
+                      textAlign: 'left',
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-wrap',
+                    }}>
+                      {event.post_registration_message}
+                    </div>
+                  )}
                   {payNowRef && <RefBadge>{payNowRef}</RefBadge>}
                   {hasEventFee && result.registered_at && (
                     <PaymentCountdown registeredAt={result.registered_at} />

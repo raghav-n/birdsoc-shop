@@ -4,11 +4,13 @@ import Events from '../Events';
 
 const mocks = vi.hoisted(() => ({
   getEvents: vi.fn(),
+  getPastEvents: vi.fn(),
 }));
 
 vi.mock('../../services/misc', () => ({
   eventService: {
     getEvents: (...args) => mocks.getEvents(...args),
+    getPastEvents: (...args) => mocks.getPastEvents(...args),
   },
 }));
 
@@ -55,6 +57,8 @@ const sampleEvent = {
 describe('Events', () => {
   beforeEach(() => {
     mocks.getEvents.mockReset();
+    mocks.getPastEvents.mockReset();
+    mocks.getPastEvents.mockResolvedValue([]);
   });
 
   it('shows a loading indicator while fetching', () => {
@@ -113,6 +117,6 @@ describe('Events', () => {
     mocks.getEvents.mockResolvedValue([{ ...sampleEvent, max_participants: 20, participant_count: 15 }]);
     renderEvents();
     await screen.findByText('Garden Walk');
-    expect(screen.getByText(/5 spots? remaining/)).toBeInTheDocument();
+    expect(screen.getByText(/5 spots? left/)).toBeInTheDocument();
   });
 });

@@ -32,6 +32,7 @@ def _serialize_event(event, include_participants=False):
         "max_participants": event.max_participants,
         "max_qty": event.max_qty,
         "is_active": event.is_active,
+        "registration_open": event.registration_open,
         "price_incl_tax": str(event.price_incl_tax),
         "currency": event.currency,
         "json_schema": event.json_schema,
@@ -39,6 +40,8 @@ def _serialize_event(event, include_participants=False):
         "validate_participant_data": event.validate_participant_data,
         "registration_required": event.registration_required,
         "confirmed_email_template": event.confirmed_email_template,
+        "post_registration_message": event.post_registration_message or "",
+        "tags": event.tags or [],
         "image_id": event.image_id,
         "image_url": event.image.file.url if event.image else None,
         "created_at": event.created_at,
@@ -50,21 +53,50 @@ def _serialize_event(event, include_participants=False):
         },
     }
     if include_participants:
-        data["participants"] = _serialize_participants(event)
-        data["registrations"] = _serialize_registrations(event)
-        data["groups"] = _serialize_groups(event)
+        data["bookings"] = _serialize_bookings(event)
     return data
 
 
-def _serialize_participants(event):
+def _serialize_bookings(event):
+    """
+    Unified list of all EventParticipant records enriched with payment info.
+    Replaces the old separate participants/registrations/groups lists.
+    """
     eps = (
         EventParticipant.objects.select_related("participant")
         .filter(event=event)
-        .order_by("-registered_at")
+        .order_by("registered_at")
     )
+
+    # Build a map: participant_id → registration info
+    reg_map = {}
+    for reg in EventRegistration.objects.select_related("group").filter(event=event):
+        reg_map[reg.participant_id] = reg
+
     results = []
     for ep in eps:
         p = ep.participant
+        reg = reg_map.get(p.id)
+
+        payment = None
+        if reg:
+            payment = {
+                "id": reg.id,
+                "reference": reg.reference,
+                "amount": str(reg.amount),
+                "donation_amount": str(reg.donation_amount),
+                "amount_total": str(reg.amount + reg.donation_amount),
+                "currency": reg.currency,
+                "status": reg.status,
+                "payment_verified": reg.payment_verified,
+                "payment_verified_on": reg.payment_verified_on,
+                "payment_proof_url": reg.payment_proof.url if reg.payment_proof else None,
+                "is_group": reg.group_id is not None,
+                "group_id": reg.group_id,
+                "group_reference": reg.group.reference if reg.group else None,
+                "group_status": reg.group.status if reg.group else None,
+            }
+
         results.append({
             "ep_id": ep.id,
             "participant_id": p.id,
@@ -82,80 +114,7 @@ def _serialize_participants(event):
             "attended": ep.attended,
             "notes": ep.notes,
             "extra_json": ep.extra_json,
-        })
-    return results
-
-
-def _serialize_registrations(event):
-    regs = (
-        EventRegistration.objects.select_related("participant", "group")
-        .filter(event=event, group__isnull=True)
-        .order_by("-created_at")
-    )
-    results = []
-    for reg in regs:
-        p = reg.participant
-        results.append({
-            "id": reg.id,
-            "reference": reg.reference,
-            "participant": {
-                "id": p.id,
-                "first_name": p.first_name,
-                "last_name": p.last_name,
-                "email": p.email,
-                "phone_number": p.phone_number,
-                "quantity": p.quantity,
-            },
-            "amount": str(reg.amount),
-            "donation_amount": str(reg.donation_amount),
-            "amount_with_donation": str(reg.amount + reg.donation_amount),
-            "currency": reg.currency,
-            "status": reg.status,
-            "payment_verified": reg.payment_verified,
-            "payment_verified_on": reg.payment_verified_on,
-            "payment_proof_url": reg.payment_proof.url if reg.payment_proof else None,
-            "created_at": reg.created_at,
-        })
-    return results
-
-
-def _serialize_groups(event):
-    groups = (
-        EventRegistrationGroup.objects.prefetch_related("registrations__participant")
-        .filter(event=event)
-        .order_by("-created_at")
-    )
-    results = []
-    for grp in groups:
-        participants = []
-        for reg in grp.registrations.select_related("participant").all():
-            p = reg.participant
-            participants.append({
-                "registration_id": reg.id,
-                "reference": reg.reference,
-                "first_name": p.first_name,
-                "last_name": p.last_name,
-                "email": p.email,
-                "quantity": p.quantity,
-                "amount": str(reg.amount),
-                "status": reg.status,
-            })
-        results.append({
-            "id": grp.id,
-            "reference": grp.reference,
-            "payer_name": grp.payer_name,
-            "payer_email": grp.payer_email,
-            "payer_phone": grp.payer_phone,
-            "amount_total": str(grp.amount_total),
-            "donation_amount": str(grp.donation_amount),
-            "amount_total_with_donation": str(grp.amount_total + grp.donation_amount),
-            "currency": grp.currency,
-            "status": grp.status,
-            "payment_verified": grp.payment_verified,
-            "payment_verified_on": grp.payment_verified_on,
-            "payment_proof_url": grp.payment_proof.url if grp.payment_proof else None,
-            "created_at": grp.created_at,
-            "participants": participants,
+            "payment": payment,
         })
     return results
 
@@ -172,7 +131,7 @@ class ConsoleEventsViewSet(ViewSet):
         return Response([_serialize_event(e) for e in qs])
 
     def retrieve(self, request, pk=None):
-        """Get a single event with full participant and registration data."""
+        """Get a single event with full participant data."""
         try:
             event = OrganizedEvent.objects.select_related("image").get(pk=pk)
         except OrganizedEvent.DoesNotExist:
@@ -206,6 +165,7 @@ class ConsoleEventsViewSet(ViewSet):
                 max_participants=data.get("max_participants") or None,
                 max_qty=int(data.get("max_qty") or 5),
                 is_active=bool(data.get("is_active", True)),
+                registration_open=bool(data.get("registration_open", True)),
                 price_incl_tax=data.get("price_incl_tax", "0"),
                 currency=data.get("currency", "SGD"),
                 json_schema=data.get("json_schema") or None,
@@ -213,6 +173,8 @@ class ConsoleEventsViewSet(ViewSet):
                 validate_participant_data=bool(data.get("validate_participant_data", False)),
                 registration_required=bool(data.get("registration_required", True)),
                 confirmed_email_template=data.get("confirmed_email_template") or None,
+                post_registration_message=data.get("post_registration_message") or None,
+                tags=data.get("tags") or [],
                 image=image,
             )
         except Exception as exc:
@@ -229,18 +191,22 @@ class ConsoleEventsViewSet(ViewSet):
         data = request.data
         updatable = [
             "title", "description", "start_date", "end_date", "location",
-            "max_participants", "max_qty", "is_active", "price_incl_tax", "currency",
-            "json_schema", "price_tiers", "validate_participant_data",
-            "registration_required", "confirmed_email_template",
+            "max_participants", "max_qty", "is_active", "registration_open",
+            "price_incl_tax", "currency", "json_schema", "price_tiers",
+            "validate_participant_data", "registration_required",
+            "confirmed_email_template", "post_registration_message", "tags",
         ]
         for field in updatable:
             if field in data:
                 val = data[field]
-                if field in ("end_date", "max_participants", "json_schema", "price_tiers", "confirmed_email_template"):
+                if field in ("end_date", "max_participants", "json_schema", "price_tiers",
+                             "confirmed_email_template", "post_registration_message"):
                     if val == "" or val is None:
                         val = None
                 elif field == "max_qty":
                     val = int(val or 5)
+                elif field == "tags":
+                    val = val if isinstance(val, list) else []
                 setattr(event, field, val)
         if "image_id" in data:
             raw = data["image_id"]
@@ -297,6 +263,28 @@ class ConsoleEventsViewSet(ViewSet):
             ep.save(update_fields=changed)
         return Response({"ep_id": ep.id, "attended": ep.attended, "is_confirmed": ep.is_confirmed, "is_cancelled": ep.is_cancelled, "notes": ep.notes})
 
+    @action(detail=True, methods=["delete"], url_path="participants/(?P<ep_id>[0-9]+)/remove")
+    def remove_participant(self, request, pk=None, ep_id=None):
+        """Cancel and remove a participant from an event."""
+        try:
+            ep = EventParticipant.objects.select_related("participant").get(
+                id=ep_id, event_id=pk
+            )
+        except EventParticipant.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Cancel their registration(s) if pending
+        EventRegistration.objects.filter(
+            event_id=pk, participant=ep.participant, status="pending"
+        ).update(status="cancelled")
+
+        # Mark the EventParticipant as cancelled
+        ep.is_cancelled = True
+        ep.is_confirmed = False
+        ep.save(update_fields=["is_cancelled", "is_confirmed"])
+
+        return Response({"ep_id": ep.id, "is_cancelled": True})
+
 
 class ConsoleVerifyRegistrationView(APIView):
     permission_classes = [IsEventsStaff]
@@ -348,6 +336,18 @@ class ConsoleRegistrationToggleView(APIView):
         closed = bool(request.data.get("registration_closed", False))
         set_global_registration_closed(closed)
         return Response({"registration_closed": get_global_registration_closed()})
+
+
+class ConsoleEventTagsView(APIView):
+    permission_classes = [IsEventsStaff]
+
+    def get(self, request):
+        """Return all unique tags used across all events."""
+        all_tags = set()
+        for tags in OrganizedEvent.objects.values_list("tags", flat=True):
+            if tags:
+                all_tags.update(tags)
+        return Response(sorted(all_tags))
 
 
 class EventImageView(APIView):

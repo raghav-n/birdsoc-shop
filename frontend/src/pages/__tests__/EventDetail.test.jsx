@@ -179,12 +179,14 @@ describe('EventDetail', () => {
     renderDetail();
     await screen.findByText('Free Birdwatching Walk');
 
-    // Form inputs: first_name[0], last_name[1], email[2], phone[3]
+    // Form inputs: first_name[0], last_name[1], email[2], phone[3], ec_name[4], ec_phone[5]
     const textboxes = screen.getAllByRole('textbox');
     fireEvent.change(textboxes[0], { target: { value: 'Alice' } });
     fireEvent.change(textboxes[1], { target: { value: 'Lee' } });
     fireEvent.change(textboxes[2], { target: { value: 'alice@example.com' } });
     fireEvent.change(textboxes[3], { target: { value: '+6591234567' } });
+    fireEvent.change(textboxes[4], { target: { value: 'Emergency Contact' } });
+    fireEvent.change(textboxes[5], { target: { value: '+6591234568' } });
 
     // Agree to PDPA
     fireEvent.click(screen.getByRole('checkbox'));
@@ -219,6 +221,8 @@ describe('EventDetail', () => {
     fireEvent.change(textboxes[1], { target: { value: 'Smith' } });
     fireEvent.change(textboxes[2], { target: { value: 'bob@example.com' } });
     fireEvent.change(textboxes[3], { target: { value: '+6591234567' } });
+    fireEvent.change(textboxes[4], { target: { value: 'Emergency Contact' } });
+    fireEvent.change(textboxes[5], { target: { value: '+6591234568' } });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Review →' }));
     await screen.findByText('Confirm registration');

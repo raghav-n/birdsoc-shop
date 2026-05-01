@@ -24,8 +24,32 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     def list(self, request):
+        past = request.query_params.get("past") in ("1", "true", "True")
+        now = timezone.now()
+        if past:
+            six_months_ago = now - timezone.timedelta(days=183)
+            qs = OrganizedEvent._default_manager.select_related("image").filter(
+                is_active=True, start_date__lt=now, start_date__gte=six_months_ago
+            ).order_by("-start_date")
+            data = [
+                {
+                    "id": e.id,
+                    "title": e.title,
+                    "description": e.description,
+                    "start_date": e.start_date,
+                    "end_date": e.end_date,
+                    "location": e.location,
+                    "price_incl_tax": str(e.price_incl_tax),
+                    "currency": e.currency,
+                    "image_url": e.image.file.url if e.image else None,
+                    "tags": e.tags or [],
+                }
+                for e in qs
+            ]
+            return Response(data)
+
         qs = OrganizedEvent._default_manager.select_related("image").filter(
-            is_active=True, start_date__gte=timezone.now()
+            is_active=True, start_date__gte=now
         ).order_by("start_date")
         closed = get_global_registration_closed()
         data = [
@@ -46,8 +70,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "max_qty": e.max_qty,
                 "validate_participant_data": e.validate_participant_data,
                 "registration_required": e.registration_required,
+                "registration_open": e.registration_open,
                 "image_url": e.image.file.url if e.image else None,
                 "global_registration_closed": closed,
+                "tags": e.tags or [],
             }
             for e in qs
         ]
@@ -76,8 +102,11 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "max_qty": e.max_qty,
             "validate_participant_data": e.validate_participant_data,
             "registration_required": e.registration_required,
+            "registration_open": e.registration_open,
             "image_url": e.image.file.url if e.image else None,
             "global_registration_closed": get_global_registration_closed(),
+            "post_registration_message": e.post_registration_message or "",
+            "tags": e.tags or [],
         }
         return Response(data)
 
@@ -98,6 +127,16 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "detail": "Registration is temporarily closed",
                     "code": "registration_closed",
                     "global_registration_closed": True,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Per-event registration open/closed toggle
+        if not event.registration_open:
+            return Response(
+                {
+                    "detail": "Registration for this event is currently closed",
+                    "code": "event_registration_closed",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -224,8 +263,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # If free, we're done
+        # If free, send confirmation email and return
         if not is_paid:
+            from apps.event.utils import send_free_registration_confirmation_email
+            send_free_registration_confirmation_email(event, participant)
             return Response(
                 {
                     "event": event.id,
@@ -333,6 +374,16 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "detail": "Registration is temporarily closed",
                     "code": "registration_closed",
                     "global_registration_closed": True,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Per-event registration open/closed toggle
+        if not event.registration_open:
+            return Response(
+                {
+                    "detail": "Registration for this event is currently closed",
+                    "code": "event_registration_closed",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )

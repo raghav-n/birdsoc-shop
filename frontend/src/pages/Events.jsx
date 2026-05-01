@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { Card, Badge, Button } from '../styles/GlobalStyles';
@@ -6,7 +7,7 @@ import { eventService } from '../services/misc';
 import BannerGrid from '../components/BannerGrid';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
-import { Calendar, MapPin, Users } from 'lucide-react';
+import { Calendar, MapPin, Users, ChevronDown, ChevronUp } from 'lucide-react';
 
 const EventsContainer = styled.div`
   max-width: 1100px;
@@ -48,14 +49,14 @@ const EventCard = styled(Card)`
 
 const EventCardImage = styled.img`
   width: 100%;
-  height: 180px;
+  aspect-ratio: 3 / 2;
   object-fit: cover;
   display: block;
 `;
 
 const EventCardImagePlaceholder = styled.div`
   width: 100%;
-  height: 120px;
+  aspect-ratio: 3 / 2;
   background: linear-gradient(135deg, #e0e7ef 0%, #f1f5f9 100%);
   display: flex;
   align-items: center;
@@ -119,11 +120,130 @@ const Price = styled.span`
   color: var(--dark);
 `;
 
+const SpotsTag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: ${p => p.$critical ? '#fee2e2' : p.$low ? '#fef9c3' : '#f0fdf4'};
+  color: ${p => p.$critical ? '#b91c1c' : p.$low ? '#854d0e' : '#15803d'};
+  border: 1px solid ${p => p.$critical ? '#fca5a5' : p.$low ? '#fde68a' : '#86efac'};
+`;
+
+const TagFilterRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+`;
+
+const TagFilterBtn = styled.button`
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid ${p => p.$active ? '#6d28d9' : '#d1d5db'};
+  background: ${p => p.$active ? '#ede9fe' : '#fff'};
+  color: ${p => p.$active ? '#6d28d9' : '#374151'};
+  &:hover { border-color: #6d28d9; color: #6d28d9; }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 1rem;
   color: #666;
 `;
+
+const PastSection = styled.div`
+  margin-top: 3rem;
+`;
+
+const PastSectionToggle = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  padding: 0;
+  margin-bottom: 1.25rem;
+  &:hover { color: #111; }
+`;
+
+const PastEventCard = styled(Card)`
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  opacity: 0.82;
+  @media (max-width: 480px) { flex-direction: column; }
+`;
+
+const PastEventImage = styled.img`
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  flex-shrink: 0;
+  @media (max-width: 480px) { width: 100%; height: 120px; }
+`;
+
+const PastEventImagePlaceholder = styled.div`
+  width: 120px;
+  height: 90px;
+  background: linear-gradient(135deg, #e0e7ef 0%, #f1f5f9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  @media (max-width: 480px) { width: 100%; height: 80px; }
+`;
+
+const PastEventBody = styled.div`
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+`;
+
+const PastEventTitle = styled.div`
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const PastEventMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  color: #777;
+`;
+
+const PastGrid = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const stripHtml = (html) => {
+  if (!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = DOMPurify.sanitize(html);
+  return div.textContent || div.innerText || '';
+};
 
 const formatDate = (dateStr) => {
   const d = new Date(dateStr);
@@ -137,27 +257,43 @@ const formatDate = (dateStr) => {
   });
 };
 
+const formatDateShort = (dateStr) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-SG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
 const Events = () => {
   const [events, setEvents] = useState([]);
+  const [pastEvents, setPastEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pastLoading, setPastLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showPast, setShowPast] = useState(false);
+  const [selectedTag, setSelectedTag] = useState(null);
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const data = await eventService.getEvents();
-        setEvents(Array.isArray(data) ? data : data.results || []);
-      } catch {
-        setError('Failed to load events. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
+    eventService.getEvents()
+      .then(data => setEvents(Array.isArray(data) ? data : data.results || []))
+      .catch(() => setError('Failed to load events. Please try again later.'))
+      .finally(() => setLoading(false));
+
+    eventService.getPastEvents()
+      .then(data => setPastEvents(Array.isArray(data) ? data : data.results || []))
+      .catch(() => {})
+      .finally(() => setPastLoading(false));
   }, []);
 
   if (loading) return <Loading text="Loading events..." />;
   if (error) return <EventsContainer><Alert variant="error">{error}</Alert></EventsContainer>;
+
+  const allTags = [...new Set(events.flatMap(e => e.tags || []))].sort();
+  const visibleEvents = selectedTag
+    ? events.filter(e => (e.tags || []).includes(selectedTag))
+    : events;
 
   return (
     <EventsContainer>
@@ -168,14 +304,29 @@ const Events = () => {
         <EventsSubtitle>Upcoming events from Bird Society of Singapore</EventsSubtitle>
       </EventsHeader>
 
-      {events.length === 0 ? (
+      {allTags.length > 0 && (
+        <TagFilterRow>
+          <TagFilterBtn $active={!selectedTag} onClick={() => setSelectedTag(null)}>All</TagFilterBtn>
+          {allTags.map(tag => (
+            <TagFilterBtn
+              key={tag}
+              $active={selectedTag === tag}
+              onClick={() => setSelectedTag(t => t === tag ? null : tag)}
+            >
+              {tag}
+            </TagFilterBtn>
+          ))}
+        </TagFilterRow>
+      )}
+
+      {visibleEvents.length === 0 ? (
         <EmptyState>
-          <h3>No upcoming events</h3>
-          <p>Check back later for new events.</p>
+          <h3>No upcoming events{selectedTag ? ` tagged "${selectedTag}"` : ''}</h3>
+          <p>{selectedTag ? <span>Try a different tag or <button onClick={() => setSelectedTag(null)} style={{ background: 'none', border: 'none', color: '#6d28d9', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>view all events</button>.</span> : 'Check back later for new events.'}</p>
         </EmptyState>
       ) : (
         <EventsGrid>
-          {events.map(event => {
+          {visibleEvents.map(event => {
             const spotsLeft = event.max_participants
               ? event.max_participants - (event.participant_count || 0)
               : null;
@@ -191,7 +342,19 @@ const Events = () => {
                 <EventCardBody>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                     <EventTitle>{event.title}</EventTitle>
-                    {event.is_full && <Badge variant="danger" style={{ flexShrink: 0 }}>Full</Badge>}
+                    {event.is_full
+                      ? <Badge variant="danger" style={{ flexShrink: 0 }}>Full</Badge>
+                      : spotsLeft !== null && (
+                        <SpotsTag
+                          $critical={spotsLeft <= 3}
+                          $low={spotsLeft <= 8 && spotsLeft > 3}
+                          style={{ flexShrink: 0 }}
+                        >
+                          <Users size={11} />
+                          {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
+                        </SpotsTag>
+                      )
+                    }
                   </div>
 
                   <EventMeta>
@@ -207,16 +370,10 @@ const Events = () => {
                         {event.location}
                       </MetaItem>
                     )}
-                    {spotsLeft !== null && !event.is_full && (
-                      <MetaItem>
-                        <Users size={14} />
-                        {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} remaining
-                      </MetaItem>
-                    )}
                   </EventMeta>
 
                   {event.description && (
-                    <EventDescription>{event.description}</EventDescription>
+                    <EventDescription>{stripHtml(event.description)}</EventDescription>
                   )}
 
                   <EventFooter>
@@ -236,6 +393,46 @@ const Events = () => {
             );
           })}
         </EventsGrid>
+      )}
+
+      {/* Past events section */}
+      {!pastLoading && pastEvents.length > 0 && (
+        <PastSection>
+          <PastSectionToggle onClick={() => setShowPast(v => !v)}>
+            {showPast ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            Past events ({pastEvents.length})
+          </PastSectionToggle>
+
+          {showPast && (
+            <PastGrid>
+              {pastEvents.map(event => (
+                <PastEventCard key={event.id}>
+                  {event.image_url
+                    ? <PastEventImage src={event.image_url} alt={event.title} />
+                    : <PastEventImagePlaceholder>🐦</PastEventImagePlaceholder>
+                  }
+                  <PastEventBody>
+                    <PastEventTitle>{event.title}</PastEventTitle>
+                    <PastEventMeta>
+                      {event.start_date && (
+                        <MetaItem>
+                          <Calendar size={12} />
+                          {formatDateShort(event.start_date)}
+                        </MetaItem>
+                      )}
+                      {event.location && (
+                        <MetaItem>
+                          <MapPin size={12} />
+                          {event.location}
+                        </MetaItem>
+                      )}
+                    </PastEventMeta>
+                  </PastEventBody>
+                </PastEventCard>
+              ))}
+            </PastGrid>
+          )}
+        </PastSection>
       )}
     </EventsContainer>
   );

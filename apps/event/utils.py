@@ -218,6 +218,56 @@ Phone number: {participant.phone_number}<br>""")
         # Don't raise the exception to avoid blocking the payment verification process
 
 
+def send_free_registration_confirmation_email(event, participant):
+    """
+    Send a registration confirmation email for a free-event registration.
+    Uses the same confirmed_email_template as paid events.
+    """
+    if not event.confirmed_email_template or not event.confirmed_email_template.strip():
+        logger.info(f"No email template configured for event {event.id}, skipping free registration email")
+        return
+
+    participant_details = mark_safe(
+        f"<strong>Participant details</strong><br>"
+        f"Name: {participant.first_name} {participant.last_name}<br>"
+        f"Phone number: {participant.phone_number}<br>"
+    )
+
+    context_data = {
+        "first_name": participant.first_name,
+        "last_name": participant.last_name,
+        "email": participant.email,
+        "phone_number": participant.phone_number,
+        "quantity": participant.quantity,
+        "event_title": event.title,
+        "event_date": event.start_date.strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
+        "event_location": event.location or "",
+        "amount": "0.00",
+        "currency": event.currency,
+        "registration_reference": "",
+        "participant_details": participant_details,
+        "event": event,
+        "participant": participant,
+    }
+
+    try:
+        html_content = Template(event.confirmed_email_template).render(Context(context_data))
+        from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+        reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+        msg = EmailMultiAlternatives(
+            subject=f"Registration Confirmed – {event.title}",
+            body="",
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(f"Free registration confirmation email sent to {participant.email} for event {event.id}")
+    except Exception as exc:
+        logger.error(f"Failed to send free registration confirmation email: {exc}")
+
+
 def send_group_payment_confirmation_emails(event_registration_group):
     """
     Send a single payment confirmation email to the group payer for all registrations in the group.

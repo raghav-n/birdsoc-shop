@@ -41,6 +41,12 @@ export const eventService = {
     return response.data;
   },
 
+  // Get past events (last 6 months)
+  getPastEvents: async () => {
+    const response = await api.get('/events?past=true');
+    return response.data;
+  },
+
   // Get event details
   getEvent: async (id) => {
     const response = await api.get(`/events/${id}`);
