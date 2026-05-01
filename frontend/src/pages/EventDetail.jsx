@@ -888,8 +888,8 @@ export default function EventDetail() {
                   <FieldGrid $cols="1fr 2fr">
                     <Field>
                       <FLabel>Number of participants</FLabel>
-                      <FInput type="number" min="1" max={event.max_qty ?? 5} value={form.quantity} onChange={set('quantity')} />
-                      <FHint>Max {event.max_qty ?? 5} per registration</FHint>
+                      <FInput type="number" min="1" max={Math.min(event.max_qty ?? 5, 5)} value={form.quantity} onChange={set('quantity')} />
+                      <FHint>Max {Math.min(event.max_qty ?? 5, 5)} per registration</FHint>
                     </Field>
                   </FieldGrid>
                 </Section>

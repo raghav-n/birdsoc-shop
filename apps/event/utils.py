@@ -5,6 +5,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template import Template, Context
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
+from django.utils.timezone import localtime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -166,7 +167,7 @@ Phone number: {participant.phone_number}<br>""")
         "phone_number": participant.phone_number,
         "quantity": participant.quantity,
         "event_title": event.title,
-        "event_date": event.start_date.strftime("%B %d, %Y at %I:%M %p")
+        "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p")
         if event.start_date
         else "",
         "event_location": event.location,
@@ -240,7 +241,7 @@ def send_free_registration_confirmation_email(event, participant):
         "phone_number": participant.phone_number,
         "quantity": participant.quantity,
         "event_title": event.title,
-        "event_date": event.start_date.strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
+        "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
         "event_location": event.location or "",
         "amount": "0.00",
         "currency": event.currency,
@@ -318,7 +319,7 @@ def send_group_payment_confirmation_emails(event_registration_group):
         "phone_number": group.payer_phone,
         "quantity": total_quantity,
         "event_title": event.title,
-        "event_date": event.start_date.strftime("%B %d, %Y at %I:%M %p")
+        "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p")
         if event.start_date
         else "",
         "event_location": event.location,

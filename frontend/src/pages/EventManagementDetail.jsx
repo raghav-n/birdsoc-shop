@@ -98,6 +98,10 @@ const TableCard = styled.div`
   margin-bottom: 1.25rem;
 `;
 
+const TableScroll = styled.div`
+  overflow-x: auto;
+`;
+
 const TableCardHeader = styled.div`
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e7eb;
@@ -129,18 +133,21 @@ const Th = styled.th`
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   white-space: nowrap;
+  ${p => p.$mobileHide && '@media (max-width: 640px) { display: none; }'}
 `;
 
 const Td = styled.td`
   padding: 0.55rem 0.75rem;
   border-bottom: 1px solid #f3f4f6;
   vertical-align: top;
+  ${p => p.$mobileHide && '@media (max-width: 640px) { display: none; }'}
 `;
 
 const Tr = styled.tr`
   background: ${p => p.$sub ? '#fafbfc' : '#fff'};
   &:last-child td { border-bottom: none; }
   &:hover { background: ${p => p.$sub ? '#f3f6f9' : '#fafafa'}; }
+  ${p => p.$clickable && '@media (max-width: 640px) { cursor: pointer; &:active { background: #eef2f7; } }'}
 `;
 
 // ─── Badges & buttons ────────────────────────────────────────────────────────
@@ -226,6 +233,110 @@ const LoadingText = styled.div`
   text-align: center;
   padding: 3rem;
   color: var(--text-secondary);
+`;
+
+// ─── Mobile modal ─────────────────────────────────────────────────────────────
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  @media (min-width: 641px) {
+    align-items: center;
+    justify-content: center;
+  }
+`;
+
+const ModalDialog = styled.div`
+  background: #fff;
+  width: 100%;
+  max-height: 90vh;
+  border-radius: 16px 16px 0 0;
+  overflow-y: auto;
+  @media (min-width: 641px) {
+    width: 480px;
+    max-height: 85vh;
+    border-radius: 12px;
+  }
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+`;
+
+const ModalTitle = styled.div`
+  font-weight: 700;
+  font-size: 1rem;
+`;
+
+const ModalSubtitle = styled.div`
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+`;
+
+const CloseBtn = styled.button`
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+`;
+
+const ModalBody = styled.div`
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+`;
+
+const ModalRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+`;
+
+const ModalLabel = styled.div`
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  min-width: 72px;
+  padding-top: 0.15rem;
+`;
+
+const ModalValue = styled.div`
+  font-size: 0.875rem;
+  flex: 1;
+`;
+
+const ModalDivider = styled.div`
+  height: 1px;
+  background: #f3f4f6;
+  margin: 0.1rem 0;
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
 `;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -339,14 +450,188 @@ function SubParticipantRow({ index, slotData, mainEmail, mainPhone, schemaProps 
           <div style={{ paddingLeft: '2.5rem' }}>{renderExtra(extra, schemaProps)}</div>
         )}
       </Td>
-      <Td style={{ fontSize: '0.82rem', color: '#6b7280' }}>{email}</Td>
+      <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{email}</Td>
       <Td style={{ fontSize: '0.82rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{phone || '—'}</Td>
+      <Td $mobileHide></Td>
+      <Td $mobileHide></Td>
+      <Td $mobileHide></Td>
       <Td></Td>
-      <Td></Td>
-      <Td></Td>
-      <Td></Td>
-      <Td></Td>
+      <Td $mobileHide></Td>
+      <Td $mobileHide></Td>
     </Tr>
+  );
+}
+
+// ─── Mobile booking modal ─────────────────────────────────────────────────────
+
+function BookingModal({ booking, eventId, schemaProps, onClose, onToggleAttendance, onVerify, onRemove, onNotesSaved, verifying, togglingAttendance, removing }) {
+  const reg = booking.payment;
+  const hasPendingPayment = reg?.status === 'pending';
+  const isCancelled = booking.is_cancelled;
+  const slots = Array.isArray(booking.extra_json) ? booking.extra_json : [];
+  const extraJsx = renderExtra(slots[0], schemaProps);
+
+  return (
+    <ModalOverlay onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <ModalDialog>
+        <ModalHeader>
+          <div>
+            <ModalTitle>
+              {booking.first_name} {booking.last_name}
+              {booking.quantity > 1 && <span style={{ fontWeight: 400, color: '#6b7280', fontSize: '0.85rem' }}> +{booking.quantity - 1}</span>}
+            </ModalTitle>
+            <ModalSubtitle>Registered {fmtDate(booking.registered_at)}</ModalSubtitle>
+          </div>
+          <CloseBtn onClick={onClose} aria-label="Close">×</CloseBtn>
+        </ModalHeader>
+
+        <ModalBody>
+          <ModalRow>
+            <ModalLabel>Email</ModalLabel>
+            <ModalValue>
+              <a href={`mailto:${booking.email}`} style={{ color: 'var(--link-text)' }}>{booking.email}</a>
+            </ModalValue>
+          </ModalRow>
+          <ModalRow>
+            <ModalLabel>Phone</ModalLabel>
+            <ModalValue>
+              {booking.phone_number
+                ? <a href={`tel:${booking.phone_number}`} style={{ color: 'var(--link-text)' }}>{booking.phone_number}</a>
+                : '—'}
+            </ModalValue>
+          </ModalRow>
+          {booking.emergency_contact_name && (
+            <ModalRow>
+              <ModalLabel>Emergency</ModalLabel>
+              <ModalValue style={{ fontSize: '0.82rem' }}>
+                {booking.emergency_contact_name} {booking.emergency_contact_phone || ''}
+              </ModalValue>
+            </ModalRow>
+          )}
+          {extraJsx && (
+            <ModalRow>
+              <ModalLabel>Extra</ModalLabel>
+              <ModalValue>{extraJsx}</ModalValue>
+            </ModalRow>
+          )}
+
+          <ModalDivider />
+
+          <ModalRow>
+            <ModalLabel>Status</ModalLabel>
+            <ModalValue>
+              {isCancelled
+                ? <Badge $v="red">Removed</Badge>
+                : booking.is_confirmed
+                  ? <Badge $v="green">Confirmed</Badge>
+                  : reg
+                    ? paymentStatusBadge(booking)
+                    : <Badge $v="blue">Free — confirmed</Badge>
+              }
+              {reg?.is_group && (
+                <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.2rem' }}>Group: {reg.group_reference}</div>
+              )}
+            </ModalValue>
+          </ModalRow>
+          {reg && (
+            <ModalRow>
+              <ModalLabel>Amount</ModalLabel>
+              <ModalValue>
+                {parseFloat(reg.amount) > 0
+                  ? `${reg.currency} ${parseFloat(reg.amount_total).toFixed(2)}`
+                  : 'Free'}
+                {parseFloat(reg.donation_amount) > 0 && (
+                  <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>incl. {parseFloat(reg.donation_amount).toFixed(2)} donation</div>
+                )}
+              </ModalValue>
+            </ModalRow>
+          )}
+          {hasPendingPayment && (
+            <ModalRow>
+              <ModalLabel>Proof</ModalLabel>
+              <ModalValue>
+                {reg.payment_proof_url ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <img
+                      src={reg.payment_proof_url}
+                      alt="proof"
+                      style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer' }}
+                      onClick={() => window.open(reg.payment_proof_url, '_blank')}
+                    />
+                    <a href={reg.payment_proof_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.77rem', color: 'var(--link-text)' }}>View full size</a>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>No proof uploaded</span>
+                )}
+              </ModalValue>
+            </ModalRow>
+          )}
+          {reg?.status === 'paid' && (
+            <ModalRow>
+              <ModalLabel>Verified</ModalLabel>
+              <ModalValue style={{ fontSize: '0.82rem', color: '#15803d' }}>{fmt(reg.payment_verified_on)}</ModalValue>
+            </ModalRow>
+          )}
+
+          <ModalDivider />
+
+          <ModalRow>
+            <ModalLabel>Attended</ModalLabel>
+            <ModalValue>
+              {!isCancelled ? (
+                <GreenBtn
+                  style={!booking.attended ? { background: '#f9fafb', borderColor: '#d1d5db', color: '#374151' } : {}}
+                  onClick={() => onToggleAttendance(booking)}
+                  disabled={togglingAttendance === booking.ep_id}
+                >
+                  {togglingAttendance === booking.ep_id ? '…' : booking.attended ? '✓ Attended' : 'Mark attended'}
+                </GreenBtn>
+              ) : '—'}
+            </ModalValue>
+          </ModalRow>
+          <ModalRow>
+            <ModalLabel>Notes</ModalLabel>
+            <ModalValue>
+              {!isCancelled ? (
+                <NotesCell
+                  epId={booking.ep_id}
+                  eventId={eventId}
+                  initialNotes={booking.notes}
+                  onSaved={v => onNotesSaved(booking.ep_id, v)}
+                />
+              ) : '—'}
+            </ModalValue>
+          </ModalRow>
+        </ModalBody>
+
+        <ModalFooter>
+          {hasPendingPayment && (
+            <GreenBtn
+              onClick={() => onVerify(booking)}
+              disabled={verifying === booking.ep_id}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.84rem' }}
+            >
+              {verifying === booking.ep_id ? 'Verifying…' : 'Verify payment'}
+            </GreenBtn>
+          )}
+          {!isCancelled && (
+            <DangerBtn
+              onClick={() => onRemove(booking)}
+              disabled={removing === booking.ep_id}
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.84rem' }}
+            >
+              {removing === booking.ep_id ? '…' : 'Remove participant'}
+            </DangerBtn>
+          )}
+          <SecondaryBtn
+            onClick={onClose}
+            style={{ padding: '0.45rem 0.9rem', fontSize: '0.84rem', marginLeft: 'auto' }}
+          >
+            Close
+          </SecondaryBtn>
+        </ModalFooter>
+      </ModalDialog>
+    </ModalOverlay>
   );
 }
 
@@ -361,6 +646,7 @@ export default function EventManagementDetail() {
   const [togglingAttendance, setTogglingAttendance] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [togglingReg, setTogglingReg] = useState(false);
+  const [selectedEpId, setSelectedEpId] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -419,6 +705,7 @@ export default function EventManagementDetail() {
     try {
       await consoleEventService.removeParticipant(id, booking.ep_id);
       toast.success('Participant removed');
+      setSelectedEpId(null);
       load();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Failed to remove participant');
@@ -460,6 +747,7 @@ export default function EventManagementDetail() {
   const awaitingVerification = active.filter(b => b.payment?.status === 'pending');
 
   const schemaProps = event.json_schema?.properties || {};
+  const selectedBooking = selectedEpId ? (bookings.find(b => b.ep_id === selectedEpId) ?? null) : null;
 
   const renderBookingRow = (booking) => {
     const isCancelled = booking.is_cancelled;
@@ -469,7 +757,11 @@ export default function EventManagementDetail() {
 
     return (
       <React.Fragment key={booking.ep_id}>
-        <Tr style={{ opacity: isCancelled ? 0.55 : 1 }}>
+        <Tr
+          $clickable
+          style={{ opacity: isCancelled ? 0.55 : 1 }}
+          onClick={() => setSelectedEpId(booking.ep_id)}
+        >
           <Td>
             <div style={{ fontWeight: 500 }}>
               {booking.first_name} {booking.last_name}
@@ -483,9 +775,9 @@ export default function EventManagementDetail() {
             </div>
             {renderExtra(slots[0], schemaProps)}
           </Td>
-          <Td style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
+          <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
           <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
-          <Td>
+          <Td $mobileHide>
             {isCancelled
               ? <Badge $v="red">Removed</Badge>
               : booking.is_confirmed
@@ -500,7 +792,7 @@ export default function EventManagementDetail() {
               </div>
             )}
           </Td>
-          <Td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+          <Td $mobileHide style={{ whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
             {reg && parseFloat(reg.amount) > 0 ? (
               <span>
                 {reg.currency} {parseFloat(reg.amount_total).toFixed(2)}
@@ -512,7 +804,7 @@ export default function EventManagementDetail() {
               </span>
             ) : reg ? 'Free' : '—'}
           </Td>
-          <Td>
+          <Td $mobileHide>
             {hasPendingPayment && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 {reg.payment_proof_url && (
@@ -531,7 +823,7 @@ export default function EventManagementDetail() {
                   <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>No proof</span>
                 )}
                 <GreenBtn
-                  onClick={() => handleVerify(booking)}
+                  onClick={e => { e.stopPropagation(); handleVerify(booking); }}
                   disabled={verifying === booking.ep_id}
                 >
                   {verifying === booking.ep_id ? 'Verifying…' : 'Verify payment'}
@@ -548,14 +840,14 @@ export default function EventManagementDetail() {
             {!isCancelled && (
               <GreenBtn
                 style={!booking.attended ? { background: '#f9fafb', borderColor: '#d1d5db', color: '#374151' } : {}}
-                onClick={() => handleToggleAttendance(booking)}
+                onClick={e => { e.stopPropagation(); handleToggleAttendance(booking); }}
                 disabled={togglingAttendance === booking.ep_id}
               >
                 {togglingAttendance === booking.ep_id ? '…' : booking.attended ? '✓ Attended' : 'Mark'}
               </GreenBtn>
             )}
           </Td>
-          <Td style={{ minWidth: 130 }}>
+          <Td $mobileHide style={{ minWidth: 130 }}>
             {!isCancelled && (
               <NotesCell
                 epId={booking.ep_id}
@@ -565,10 +857,10 @@ export default function EventManagementDetail() {
               />
             )}
           </Td>
-          <Td>
+          <Td $mobileHide>
             {!isCancelled && (
               <DangerBtn
-                onClick={() => handleRemove(booking)}
+                onClick={e => { e.stopPropagation(); handleRemove(booking); }}
                 disabled={removing === booking.ep_id}
               >
                 {removing === booking.ep_id ? '…' : 'Remove'}
@@ -594,14 +886,14 @@ export default function EventManagementDetail() {
   const bookingTableHeaders = (
     <tr>
       <Th>Participant</Th>
-      <Th>Email</Th>
+      <Th $mobileHide>Email</Th>
       <Th>Phone</Th>
-      <Th>Status</Th>
-      <Th>Amount</Th>
-      <Th>Payment</Th>
+      <Th $mobileHide>Status</Th>
+      <Th $mobileHide>Amount</Th>
+      <Th $mobileHide>Payment</Th>
       <Th>Attended</Th>
-      <Th>Notes</Th>
-      <Th></Th>
+      <Th $mobileHide>Notes</Th>
+      <Th $mobileHide></Th>
     </tr>
   );
 
@@ -705,10 +997,12 @@ export default function EventManagementDetail() {
           <TableCardHeader>
             <TableCardTitle>Confirmed ({confirmed.length})</TableCardTitle>
           </TableCardHeader>
-          <Table>
-            <thead>{bookingTableHeaders}</thead>
-            <tbody>{confirmed.map(renderBookingRow)}</tbody>
-          </Table>
+          <TableScroll>
+            <Table>
+              <thead>{bookingTableHeaders}</thead>
+              <tbody>{confirmed.map(renderBookingRow)}</tbody>
+            </Table>
+          </TableScroll>
         </TableCard>
       )}
 
@@ -718,10 +1012,12 @@ export default function EventManagementDetail() {
           <TableCardHeader>
             <TableCardTitle>Pending ({pending.length})</TableCardTitle>
           </TableCardHeader>
-          <Table>
-            <thead>{bookingTableHeaders}</thead>
-            <tbody>{pending.map(renderBookingRow)}</tbody>
-          </Table>
+          <TableScroll>
+            <Table>
+              <thead>{bookingTableHeaders}</thead>
+              <tbody>{pending.map(renderBookingRow)}</tbody>
+            </Table>
+          </TableScroll>
         </TableCard>
       )}
 
@@ -731,10 +1027,12 @@ export default function EventManagementDetail() {
           <TableCardHeader>
             <TableCardTitle style={{ color: '#9ca3af' }}>Removed ({cancelled.length})</TableCardTitle>
           </TableCardHeader>
-          <Table>
-            <thead>{bookingTableHeaders}</thead>
-            <tbody>{cancelled.map(renderBookingRow)}</tbody>
-          </Table>
+          <TableScroll>
+            <Table>
+              <thead>{bookingTableHeaders}</thead>
+              <tbody>{cancelled.map(renderBookingRow)}</tbody>
+            </Table>
+          </TableScroll>
         </TableCard>
       )}
 
@@ -744,6 +1042,22 @@ export default function EventManagementDetail() {
             No participants yet.
           </div>
         </TableCard>
+      )}
+
+      {selectedBooking && (
+        <BookingModal
+          booking={selectedBooking}
+          eventId={id}
+          schemaProps={schemaProps}
+          onClose={() => setSelectedEpId(null)}
+          onToggleAttendance={handleToggleAttendance}
+          onVerify={handleVerify}
+          onRemove={handleRemove}
+          onNotesSaved={handleNotesSaved}
+          verifying={verifying}
+          togglingAttendance={togglingAttendance}
+          removing={removing}
+        />
       )}
     </Page>
   );
