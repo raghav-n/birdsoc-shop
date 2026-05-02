@@ -1071,7 +1071,7 @@ export default function EventManagementDetail() {
 
       {/* ── Guide link ──────────────────────────────────────────────────────── */}
       {event.guide_token && (() => {
-        const guideUrl = `${window.location.origin}/guide/${event.guide_token}`;
+        const guideUrl = `${window.location.origin}/event/${event.guide_token}`;
         return (
           <GuideLinkBox>
             <GuideLinkLabel>Guide link</GuideLinkLabel>

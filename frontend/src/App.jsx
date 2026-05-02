@@ -157,7 +157,7 @@ function App() {
                 <Route path="/console/events/new" element={<EventsGroupOnly><EventManagementEdit /></EventsGroupOnly>} />
                 <Route path="/console/events/:id" element={<EventsGroupOnly><EventManagementDetail /></EventsGroupOnly>} />
                 <Route path="/console/events/:id/edit" element={<EventsGroupOnly><EventManagementEdit /></EventsGroupOnly>} />
-                <Route path="/guide/:token" element={<GuideEventDetail />} />
+                <Route path="/event/:token" element={<GuideEventDetail />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
