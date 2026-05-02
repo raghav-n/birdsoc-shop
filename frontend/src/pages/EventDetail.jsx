@@ -155,6 +155,24 @@ const Divider = styled.hr`
   margin: 1.25rem 0;
 `;
 
+const ParticipantCard = styled.div`
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  & + & { margin-top: 0.75rem; }
+`;
+
+const ParticipantHeader = styled.div`
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+`;
+
 const FieldGrid = styled.div`
   display: grid;
   grid-template-columns: ${p => p.$cols || '1fr'};
@@ -521,15 +539,19 @@ export default function EventDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const fetchPrice = useCallback(async (qty, donation, extras) => {
-    const extraJson = { ...extras };
+  const fetchPrice = useCallback(async (qty, donation, allExtraFields) => {
+    const n = Number(qty) || 1;
+    const participants = Array.from({ length: n }, (_, i) => {
+      const extraJson = allExtraFields[i] || {};
+      return {
+        quantity: 1,
+        extra_json: Object.keys(extraJson).length ? extraJson : undefined,
+      };
+    });
     setPriceLoading(true);
     try {
       const data = await eventService.priceBreakdown(id, {
-        participants: [{
-          quantity: Number(qty) || 1,
-          extra_json: Object.keys(extraJson).length ? extraJson : undefined,
-        }],
+        participants,
         donation: donation ? Math.round(parseFloat(donation) * 100) : 0,
       });
       setPriceData(data);
@@ -541,7 +563,7 @@ export default function EventDetail() {
     if (!event) return;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchPrice(form.quantity, form.donation, extraFields[0] || {});
+      fetchPrice(form.quantity, form.donation, extraFields);
     }, 400);
     return () => clearTimeout(debounceRef.current);
   }, [event, form.quantity, form.donation, extraFields, fetchPrice]);
@@ -926,13 +948,8 @@ export default function EventDetail() {
                           return arr;
                         }) : null;
                         const hasSchema = Object.keys(jsonProps).length > 0;
-                        return (
-                          <div key={i} style={{ marginBottom: i < qty - 1 ? '1.25rem' : 0 }}>
-                            {qty > 1 && (
-                              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                                Participant {i + 1}
-                              </div>
-                            )}
+                        const inner = (
+                          <>
                             {i === 0 && qty > 1 && (
                               <div style={{
                                 background: '#f8fafc',
@@ -1023,8 +1040,17 @@ export default function EventDetail() {
                                 ))}
                               </FieldGrid>
                             )}
-                          </div>
+                          </>
                         );
+                        if (qty > 1) {
+                          return (
+                            <ParticipantCard key={i}>
+                              <ParticipantHeader>Participant {i + 1}</ParticipantHeader>
+                              {inner}
+                            </ParticipantCard>
+                          );
+                        }
+                        return <div key={i}>{inner}</div>;
                       })}
                     </Section>
                   </>
@@ -1055,15 +1081,29 @@ export default function EventDetail() {
                     <PriceLine><span style={{ color: 'var(--text-secondary)' }}>Computing…</span></PriceLine>
                   ) : priceData ? (
                     <>
-                      {priceData.items.map((item, i) => (
-                        <PriceLine key={i}>
-                          <span>
-                            {item.tier?.name || 'Event fee'}
-                            {item.quantity > 1 ? ` × ${item.quantity}` : ''}
-                          </span>
-                          <span>{parseFloat(item.line_total) === 0 ? 'Free' : fmtAmt(item.line_total)}</span>
-                        </PriceLine>
-                      ))}
+                      {(() => {
+                        const items = priceData.items;
+                        const allSame = items.every(
+                          item => (item.tier?.name || '') === (items[0].tier?.name || '') && item.unit_price === items[0].unit_price
+                        );
+                        if (allSame) {
+                          const label = items[0].tier?.name || 'Event fee';
+                          const total = items.reduce((s, item) => s + parseFloat(item.line_total), 0);
+                          const count = items.reduce((s, item) => s + item.quantity, 0);
+                          return (
+                            <PriceLine>
+                              <span>{label}{count > 1 ? ` × ${count}` : ''}</span>
+                              <span>{total === 0 ? 'Free' : fmtAmt(total)}</span>
+                            </PriceLine>
+                          );
+                        }
+                        return items.map((item, i) => (
+                          <PriceLine key={i}>
+                            <span>Participant {i + 1}{item.tier?.name ? ` — ${item.tier.name}` : ''}</span>
+                            <span>{parseFloat(item.line_total) === 0 ? 'Free' : fmtAmt(item.line_total)}</span>
+                          </PriceLine>
+                        ));
+                      })()}
                       {donationAmt > 0 && (
                         <PriceLine>
                           <span>Donation</span>

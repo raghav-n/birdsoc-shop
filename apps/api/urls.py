@@ -55,6 +55,9 @@ from apps.api.views.console_events import (
     ConsoleRegistrationToggleView,
     ConsoleEventTagsView,
     EventImageView,
+    GuideEventView,
+    GuideToggleAttendanceView,
+    GuideUpdateNotesView,
 )
 
 
@@ -203,6 +206,22 @@ urlpatterns = [
         "console/event-tags",
         ConsoleEventTagsView.as_view(),
         name="console-event-tags",
+    ),
+    # Guide access (no auth — token-gated)
+    path(
+        "guide/<uuid:token>/event",
+        GuideEventView.as_view(),
+        name="guide-event",
+    ),
+    path(
+        "guide/<uuid:token>/participants/<int:ep_id>/toggle-attendance",
+        GuideToggleAttendanceView.as_view(),
+        name="guide-toggle-attendance",
+    ),
+    path(
+        "guide/<uuid:token>/participants/<int:ep_id>",
+        GuideUpdateNotesView.as_view(),
+        name="guide-participant",
     ),
     # Routers
     path("", include(router.urls)),

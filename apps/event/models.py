@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 import json
 import jsonschema
+import uuid
 
 
 class EventImage(models.Model):
@@ -131,6 +132,13 @@ class OrganizedEvent(models.Model):
         help_text=_(
             "If set, registration closes at this date/time. After this, registration is closed regardless of the manual toggle."
         ),
+    )
+    guide_token = models.UUIDField(
+        _("Guide token"),
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        help_text=_("Token for no-login magic-link access to the participant list (for guides)."),
     )
 
     class Meta:

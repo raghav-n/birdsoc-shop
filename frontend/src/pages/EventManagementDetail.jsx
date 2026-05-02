@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { consoleEventService } from '../services/consoleEvents';
+import { Copy, RefreshCw } from 'lucide-react';
 import HelpModal from '../components/HelpModal';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -86,6 +87,46 @@ const StatLabel = styled.div`
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   margin-top: 0.2rem;
+`;
+
+// ─── Guide link ──────────────────────────────────────────────────────────────
+
+const GuideLinkBox = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+`;
+
+const GuideLinkLabel = styled.span`
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+`;
+
+const GuideLinkUrl = styled.span`
+  flex: 1;
+  font-size: 0.8rem;
+  font-family: monospace;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+`;
+
+const GuideLinkActions = styled.div`
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
 `;
 
 // ─── Table ───────────────────────────────────────────────────────────────────
@@ -388,7 +429,7 @@ function NotesCell({ epId, eventId, initialNotes, onSaved }) {
   if (!editing) {
     return (
       <span
-        onClick={() => setEditing(true)}
+        onClick={e => { e.stopPropagation(); setEditing(true); }}
         style={{ cursor: 'text', color: value ? 'inherit' : '#9ca3af', fontSize: '0.8rem' }}
         title="Click to edit notes"
       >
@@ -398,7 +439,7 @@ function NotesCell({ epId, eventId, initialNotes, onSaved }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
       <textarea
         autoFocus
         rows={2}
@@ -648,6 +689,7 @@ export default function EventManagementDetail() {
   const [togglingReg, setTogglingReg] = useState(false);
   const [selectedEpId, setSelectedEpId] = useState(null);
   const [promoting, setPromoting] = useState(null);
+  const [regeneratingToken, setRegeneratingToken] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -748,6 +790,20 @@ export default function EventManagementDetail() {
       toast.error('Failed to update registration status');
     } finally {
       setTogglingReg(false);
+    }
+  };
+
+  const handleRegenerateGuideToken = async () => {
+    if (!window.confirm('This will invalidate the current guide link. Continue?')) return;
+    setRegeneratingToken(true);
+    try {
+      const data = await consoleEventService.regenerateGuideToken(id);
+      setEvent(prev => ({ ...prev, guide_token: data.guide_token }));
+      toast.success('Guide link regenerated');
+    } catch {
+      toast.error('Failed to regenerate guide link');
+    } finally {
+      setRegeneratingToken(false);
     }
   };
 
@@ -1012,6 +1068,33 @@ export default function EventManagementDetail() {
           </StatCard>
         )}
       </StatsRow>
+
+      {/* ── Guide link ──────────────────────────────────────────────────────── */}
+      {event.guide_token && (() => {
+        const guideUrl = `${window.location.origin}/guide/${event.guide_token}`;
+        return (
+          <GuideLinkBox>
+            <GuideLinkLabel>Guide link</GuideLinkLabel>
+            <GuideLinkUrl title={guideUrl}>{guideUrl}</GuideLinkUrl>
+            <GuideLinkActions>
+              <SecondaryButton
+                style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                onClick={() => { navigator.clipboard.writeText(guideUrl); toast.success('Copied!'); }}
+              >
+                <Copy size={13} /> Copy
+              </SecondaryButton>
+              <SecondaryButton
+                style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                onClick={handleRegenerateGuideToken}
+                disabled={regeneratingToken}
+                title="Invalidates the current link and issues a new one"
+              >
+                <RefreshCw size={13} /> Regenerate
+              </SecondaryButton>
+            </GuideLinkActions>
+          </GuideLinkBox>
+        );
+      })()}
 
       {/* ── Confirmed participants ───────────────────────────────────────────── */}
       {confirmed.length > 0 && (

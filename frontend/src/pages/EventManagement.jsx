@@ -175,11 +175,13 @@ const Badge = styled.span`
     p.$variant === 'green' ? '#dcfce7' :
     p.$variant === 'red' ? '#fee2e2' :
     p.$variant === 'yellow' ? '#fef9c3' :
+    p.$variant === 'purple' ? '#ede9fe' :
     '#f3f4f6'};
   color: ${p =>
     p.$variant === 'green' ? '#15803d' :
     p.$variant === 'red' ? '#b91c1c' :
     p.$variant === 'yellow' ? '#854d0e' :
+    p.$variant === 'purple' ? '#6d28d9' :
     '#374151'};
 `;
 
@@ -188,6 +190,25 @@ const CardActions = styled.div`
   flex-direction: column;
   gap: 0.4rem;
   flex-shrink: 0;
+`;
+
+const TagFilterRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+const TagFilterBtn = styled.button`
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid ${p => p.$active ? '#6d28d9' : '#d1d5db'};
+  background: ${p => p.$active ? '#ede9fe' : '#fff'};
+  color: ${p => p.$active ? '#6d28d9' : '#374151'};
+  &:hover { border-color: #6d28d9; color: #6d28d9; }
 `;
 
 const EmptyState = styled.div`
@@ -221,6 +242,7 @@ export default function EventManagement() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [showPast, setShowPast] = useState(false);
+  const [selectedTag, setSelectedTag] = useState(null);
   const [registrationClosed, setRegistrationClosed] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -288,7 +310,12 @@ export default function EventManagement() {
   today.setHours(0, 0, 0, 0);
   const isPast = (event) => event.start_date && new Date(event.start_date) < today;
 
-  const visibleEvents = showPast ? events : events.filter(e => !isPast(e));
+  const allTags = [...new Set(events.flatMap(e => e.tags || []))].sort();
+
+  const visibleEvents = events.filter(e =>
+    (showPast || !isPast(e)) &&
+    (!selectedTag || (e.tags || []).includes(selectedTag))
+  );
 
   return (
     <Page>
@@ -348,12 +375,27 @@ export default function EventManagement() {
         </ToggleRow>
       </ControlBar>
 
+      {allTags.length > 0 && (
+        <TagFilterRow>
+          <TagFilterBtn $active={!selectedTag} onClick={() => setSelectedTag(null)}>All</TagFilterBtn>
+          {allTags.map(tag => (
+            <TagFilterBtn
+              key={tag}
+              $active={selectedTag === tag}
+              onClick={() => setSelectedTag(t => t === tag ? null : tag)}
+            >
+              {tag}
+            </TagFilterBtn>
+          ))}
+        </TagFilterRow>
+      )}
+
       {loading ? (
         <LoadingText>Loading…</LoadingText>
       ) : visibleEvents.length === 0 ? (
         <EmptyState>
-          {query
-            ? 'No events match your search.'
+          {query || selectedTag
+            ? `No events match${selectedTag ? ` tag "${selectedTag}"` : ''}${query ? ` and your search` : ''}.`
             : showPast
             ? 'No events yet.'
             : 'No upcoming events. Use "Show past" to see past events.'}
@@ -384,9 +426,25 @@ export default function EventManagement() {
                       </Badge>
                   }
                   {event.price_tiers && <Badge>Price tiers</Badge>}
+                  {(event.tags || []).map(tag => (
+                    <Badge
+                      key={tag}
+                      $variant="purple"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedTag(t => t === tag ? null : tag)}
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
                 </Badges>
               </CardMain>
               <CardActions>
+                <PrimaryButton
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                  onClick={() => navigate(`/console/events/${event.id}`)}
+                >
+                  Participants
+                </PrimaryButton>
                 <SecondaryButton
                   style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
                   onClick={() => navigate(`/console/events/${event.id}/edit`)}

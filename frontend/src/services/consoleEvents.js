@@ -58,4 +58,19 @@ export const consoleEventService = {
   // Tags
   listTags: () =>
     api.get('/console/event-tags').then(r => r.data),
+
+  // Guide token
+  regenerateGuideToken: (id) =>
+    api.post(`${BASE}/${id}/regenerate-guide-token`).then(r => r.data),
+};
+
+export const guideService = {
+  getEvent: (token) =>
+    api.get(`/guide/${token}/event`).then(r => r.data),
+
+  toggleAttendance: (token, epId) =>
+    api.post(`/guide/${token}/participants/${epId}/toggle-attendance`).then(r => r.data),
+
+  updateNotes: (token, epId, notes) =>
+    api.patch(`/guide/${token}/participants/${epId}`, { notes }).then(r => r.data),
 };

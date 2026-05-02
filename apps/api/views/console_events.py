@@ -2,11 +2,12 @@
 Console-side event management API.
 All endpoints require the user to be in the 'Events' group (or be a superuser).
 """
+import uuid as _uuid
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework import status
+from rest_framework import permissions, status
 from rest_framework.parsers import MultiPartParser, FormParser
 from oscar.core.loading import get_model
 
@@ -51,6 +52,7 @@ def _serialize_event(event, include_participants=False):
         "updated_at": event.updated_at,
         "waitlist_enabled": event.waitlist_enabled,
         "waitlist_count": event.waitlist_count,
+        "guide_token": str(event.guide_token),
         "stats": {
             "confirmed": event.participant_count,
             "pending": event.pending_count,
@@ -61,6 +63,22 @@ def _serialize_event(event, include_participants=False):
     if include_participants:
         data["bookings"] = _serialize_bookings(event)
     return data
+
+
+def _serialize_event_for_guide(event):
+    """Participant list serialization for guide access — no payment details."""
+    bookings = []
+    for b in _serialize_bookings(event):
+        bookings.append({k: v for k, v in b.items() if k != "payment"})
+    return {
+        "id": event.id,
+        "title": event.title,
+        "start_date": event.start_date,
+        "end_date": event.end_date,
+        "location": event.location,
+        "json_schema": event.json_schema,
+        "bookings": bookings,
+    }
 
 
 def _serialize_bookings(event):
@@ -359,6 +377,58 @@ class ConsoleEventsViewSet(ViewSet):
             send_waitlist_promoted_paid_email(event, p, reg)
 
         return Response({"ep_id": ep.id, "is_waitlisted": False, "is_confirmed": ep.is_confirmed})
+
+    @action(detail=True, methods=["post"], url_path="regenerate-guide-token")
+    def regenerate_guide_token(self, request, pk=None):
+        """Issue a new guide token, invalidating the previous magic link."""
+        try:
+            event = OrganizedEvent.objects.get(pk=pk)
+        except OrganizedEvent.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        event.guide_token = _uuid.uuid4()
+        event.save(update_fields=["guide_token"])
+        return Response({"guide_token": str(event.guide_token)})
+
+
+class GuideEventView(APIView):
+    """Read-only event + participant list, authenticated by guide token only."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        try:
+            event = OrganizedEvent.objects.select_related("image").get(guide_token=token)
+        except (OrganizedEvent.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(_serialize_event_for_guide(event))
+
+
+class GuideToggleAttendanceView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, token, ep_id):
+        try:
+            event = OrganizedEvent.objects.get(guide_token=token)
+            ep = EventParticipant.objects.get(id=ep_id, event=event)
+        except (OrganizedEvent.DoesNotExist, EventParticipant.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        ep.attended = not ep.attended
+        ep.save(update_fields=["attended"])
+        return Response({"ep_id": ep.id, "attended": ep.attended})
+
+
+class GuideUpdateNotesView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def patch(self, request, token, ep_id):
+        try:
+            event = OrganizedEvent.objects.get(guide_token=token)
+            ep = EventParticipant.objects.get(id=ep_id, event=event)
+        except (OrganizedEvent.DoesNotExist, EventParticipant.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        if "notes" in request.data:
+            ep.notes = request.data["notes"]
+            ep.save(update_fields=["notes"])
+        return Response({"ep_id": ep.id, "notes": ep.notes})
 
 
 class ConsoleVerifyRegistrationView(APIView):
