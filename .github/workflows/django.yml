@@ -77,7 +77,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Push to production
+    - name: Deploy to production
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -88,5 +88,14 @@ jobs:
         echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-        git remote add production "ssh://${SSH_USER}@${SSH_HOST}:${SSH_PORT}/home/raghav/shop.birdsociety.sg.git"
-        GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -p ${SSH_PORT}" git push production master --force
+        ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "
+          set -e
+          cd /srv/shop
+          git pull
+          source venv/bin/activate
+          uv pip install -r requirements.txt
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+          cd frontend && npm ci --silent && npm run build && cd ..
+          sudo systemctl restart birdsoc
+        "

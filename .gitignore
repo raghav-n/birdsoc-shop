@@ -19,3 +19,7 @@ AGENTS.md
 data/
 *.sqlite3
 memory/
+scripts/deploy.sh
+scripts/dump_old_server.sh
+*.sql
+birdsoc_media.tar.gz
