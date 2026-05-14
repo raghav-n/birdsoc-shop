@@ -5,6 +5,7 @@ import Footer from './Footer';
 import SafeHtml from './SafeHtml';
 import { useShopConfig } from '../context/ShopConfigContext';
 import { bannerService } from '../services/misc';
+import { useLocation } from 'react-router-dom';
 
 const LayoutContainer = styled.div`
   min-height: 100vh;
@@ -50,6 +51,9 @@ const TextBannerBar = styled.div`
 const Layout = ({ children }) => {
   const { shopOpen } = useShopConfig();
   const [textBanner, setTextBanner] = useState(null);
+  const location = useLocation();
+
+  const isDonationPage = location.pathname.startsWith('/donate');
 
   useEffect(() => {
     bannerService.getTextBanner().then((data) => {
@@ -60,12 +64,12 @@ const Layout = ({ children }) => {
   return (
     <LayoutContainer>
       <Header />
-      {textBanner && (
+      {textBanner && !isDonationPage && (
         <TextBannerBar>
           <SafeHtml html={textBanner} tag="div" />
         </TextBannerBar>
       )}
-      {!shopOpen && (
+      {!shopOpen && !isDonationPage && (
         <ClosedBanner>
           Our shop is currently closed. You can browse products, but purchases are unavailable right now.
         </ClosedBanner>

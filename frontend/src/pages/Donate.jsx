@@ -383,7 +383,7 @@ const Donate = () => {
             towards keeping our resources freely available to the community.
           </AboutText>
           <AboutText style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.5rem' }}>
-            Note: as BirdSoc SG is not a registered Charity, donations are not tax deductible.
+            Note: as BirdSoc SG is not a registered Charity, donations are not tax deductible. We only accept donations via PayNow.
           </AboutText>
         </AboutSection>
 
