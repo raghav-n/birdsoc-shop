@@ -7,7 +7,7 @@ import { eventService } from '../services/misc';
 import BannerGrid from '../components/BannerGrid';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
-import { Calendar, MapPin, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, MapPin, Users, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 
 const EventsContainer = styled.div`
   max-width: 1100px;
@@ -232,6 +232,18 @@ const PastEventMeta = styled.div`
   color: #777;
 `;
 
+const PastEventBlogLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--primary, #2563eb);
+  text-decoration: none;
+  font-weight: 500;
+  width: fit-content;
+  &:hover { text-decoration: underline; }
+`;
+
 const PastGrid = styled.div`
   display: flex;
   flex-direction: column;
@@ -427,6 +439,16 @@ const Events = () => {
                         </MetaItem>
                       )}
                     </PastEventMeta>
+                    {event.blog_url && (
+                      <PastEventBlogLink
+                        href={event.blog_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <BookOpen size={12} />
+                        Read recap
+                      </PastEventBlogLink>
+                    )}
                   </PastEventBody>
                 </PastEventCard>
               ))}

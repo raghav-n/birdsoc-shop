@@ -870,6 +870,7 @@ const EMPTY_FORM = {
   confirmed_email_template: DEFAULT_EMAIL_TEMPLATE,
   post_registration_message: '',
   tags: [],
+  blog_url: '',
   image_id: null,
   image_url: null,
 };
@@ -924,6 +925,7 @@ export default function EventManagementEdit() {
           confirmed_email_template: event.confirmed_email_template || DEFAULT_EMAIL_TEMPLATE,
           post_registration_message: event.post_registration_message || '',
           tags: event.tags || [],
+          blog_url: event.blog_url || '',
           image_id: event.image_id || null,
           image_url: event.image_url || null,
         });
@@ -1003,6 +1005,7 @@ export default function EventManagementEdit() {
       confirmed_email_template: form.confirmed_email_template.trim() || null,
       post_registration_message: form.post_registration_message.trim() || null,
       tags: form.tags,
+      blog_url: form.blog_url.trim() || null,
       image_id: form.image_id || null,
     };
 
@@ -1224,6 +1227,19 @@ export default function EventManagementEdit() {
                 existingTags={existingTags}
               />
               <Hint>Press Enter or comma to add a tag. Select from existing tags or create new ones.</Hint>
+            </Field>
+          </Row>
+
+          <Row>
+            <Field>
+              <Label>Blog post URL</Label>
+              <Input
+                type="url"
+                value={form.blog_url}
+                onChange={set('blog_url')}
+                placeholder="https://singaporebirds.com/blog/..."
+              />
+              <Hint>Optional. Link to a recap or write-up on singaporebirds.com. Must be https and on singaporebirds.com.</Hint>
             </Field>
           </Row>
 

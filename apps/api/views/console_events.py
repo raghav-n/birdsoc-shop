@@ -3,6 +3,9 @@ Console-side event management API.
 All endpoints require the user to be in the 'Events' group (or be a superuser).
 """
 import uuid as _uuid
+from urllib.parse import urlparse
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
@@ -13,6 +16,26 @@ from oscar.core.loading import get_model
 
 from apps.api.permissions import IsEventsStaff
 from apps.event.utils import get_global_registration_closed, set_global_registration_closed
+
+
+def _clean_blog_url(raw):
+    """Validate and normalize a blog URL. Returns (value, error).
+    ``value`` is the cleaned string or ``None`` (when cleared); ``error`` is a
+    string description if validation failed, else ``None``.
+    """
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None, None
+    if not isinstance(raw, str):
+        return None, "blog_url must be a string or null"
+    cleaned = raw.strip()
+    try:
+        URLValidator(schemes=["https"])(cleaned)
+    except ValidationError:
+        return None, "blog_url must be a valid https:// URL"
+    host = (urlparse(cleaned).hostname or "").lower()
+    if host != "singaporebirds.com" and not host.endswith(".singaporebirds.com"):
+        return None, "blog_url must point to singaporebirds.com"
+    return cleaned, None
 
 OrganizedEvent = get_model("event", "OrganizedEvent")
 EventImage = get_model("event", "EventImage")
@@ -46,6 +69,7 @@ def _serialize_event(event, include_participants=False):
         "confirmed_email_template": event.confirmed_email_template,
         "post_registration_message": event.post_registration_message or "",
         "tags": event.tags or [],
+        "blog_url": event.blog_url,
         "image_id": event.image_id,
         "image_url": event.image.file.url if event.image else None,
         "created_at": event.created_at,
@@ -180,6 +204,9 @@ class ConsoleEventsViewSet(ViewSet):
                 image = EventImage.objects.get(id=int(image_id))
             except EventImage.DoesNotExist:
                 return Response({"detail": "Image not found"}, status=status.HTTP_400_BAD_REQUEST)
+        blog_url, blog_err = _clean_blog_url(data.get("blog_url"))
+        if blog_err:
+            return Response({"detail": blog_err}, status=status.HTTP_400_BAD_REQUEST)
         try:
             event = OrganizedEvent.objects.create(
                 title=data["title"],
@@ -204,6 +231,7 @@ class ConsoleEventsViewSet(ViewSet):
                 post_registration_message=data.get("post_registration_message") or None,
                 tags=data.get("tags") or [],
                 image=image,
+                blog_url=blog_url,
             )
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -247,6 +275,11 @@ class ConsoleEventsViewSet(ViewSet):
                     event.image = EventImage.objects.get(id=int(raw))
                 except EventImage.DoesNotExist:
                     return Response({"detail": "Image not found"}, status=status.HTTP_400_BAD_REQUEST)
+        if "blog_url" in data:
+            blog_url, blog_err = _clean_blog_url(data["blog_url"])
+            if blog_err:
+                return Response({"detail": blog_err}, status=status.HTTP_400_BAD_REQUEST)
+            event.blog_url = blog_url
         try:
             event.save()
         except Exception as exc:
