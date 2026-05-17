@@ -91,6 +91,7 @@ jobs:
         ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "
           set -e
           cd /srv/shop
+          git config --global --add safe.directory /srv/shop
           git pull
           source venv/bin/activate
           uv pip install -r requirements.txt
