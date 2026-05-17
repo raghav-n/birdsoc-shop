@@ -84,6 +84,10 @@ if os.path.exists(os.path.join(PROJECT_DIR, "config/whitelist.txt")):
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
 
+# Shared secret for server-to-server calls from trusted internal services
+# (e.g. the singaporebirds.com blog backend attaching a post URL to an event).
+INTERNAL_API_TOKEN = os.environ.get("INTERNAL_API_TOKEN", "")
+
 # Gmail API credentials for PayNow polling (optional feature)
 GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
@@ -464,7 +468,7 @@ CORS_ALLOW_CREDENTIALS = False
 # Adjust this in production
 CORS_ALLOW_ALL_ORIGINS = not SESSION_ENVIRONMENT_PRODUCTION
 
-CORS_ALLOWED_ORIGIN_REGEXES = [r"https://([a-z0-9-]+\.)*birdsociety\.sg$"]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"https://([a-z0-9-]+\.)*birdsociety\.sg$", r"https://([a-z0-9-]+\.)*singaporebirds\.com$"]
 
 # Allow API URLs to bypass login-required middleware
 OPEN_URLS = [

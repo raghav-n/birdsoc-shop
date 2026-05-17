@@ -3,9 +3,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from oscar.core.loading import get_model
 from rest_framework import status
-from django.core.validators import validate_email
+from django.conf import settings
+from django.core.validators import validate_email, URLValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from urllib.parse import urlparse
+import hmac
 import json as _json
 import re
 
@@ -22,6 +25,9 @@ from apps.event.utils import get_global_registration_closed
 
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return OrganizedEvent._default_manager.all()
 
     def list(self, request):
         past = request.query_params.get("past") in ("1", "true", "True")
@@ -43,6 +49,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "currency": e.currency,
                     "image_url": e.image.file.url if e.image else None,
                     "tags": e.tags or [],
+                    "blog_url": e.blog_url,
                 }
                 for e in qs
             ]
@@ -78,6 +85,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "image_url": e.image.file.url if e.image else None,
                 "global_registration_closed": closed,
                 "tags": e.tags or [],
+                "blog_url": e.blog_url,
             }
             for e in qs
         ]
@@ -115,8 +123,62 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "global_registration_closed": get_global_registration_closed(),
             "post_registration_message": e.post_registration_message or "",
             "tags": e.tags or [],
+            "blog_url": e.blog_url,
         }
         return Response(data)
+
+    @action(detail=True, methods=["put"], url_path="blog-link")
+    def blog_link(self, request, pk=None):
+        """
+        Internal endpoint: set or clear the blog post URL for an event.
+        Authenticated via the ``X-Internal-Token`` header matching
+        ``settings.INTERNAL_API_TOKEN``. Intended to be called server-to-server
+        from the singaporebirds.com blog backend.
+        """
+        expected = settings.INTERNAL_API_TOKEN
+        provided = request.headers.get("X-Internal-Token", "")
+        if not expected or not hmac.compare_digest(provided, expected):
+            return Response(
+                {"detail": "Invalid or missing internal token"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            event = OrganizedEvent._default_manager.get(pk=pk)
+        except OrganizedEvent.DoesNotExist:
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        raw = request.data.get("url", None)
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            new_url = None
+        else:
+            if not isinstance(raw, str):
+                return Response(
+                    {"detail": "url must be a string or null"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            new_url = raw.strip()
+            try:
+                URLValidator(schemes=["https"])(new_url)
+            except ValidationError:
+                return Response(
+                    {"detail": "url must be a valid https:// URL"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            host = (urlparse(new_url).hostname or "").lower()
+            if host != "singaporebirds.com" and not host.endswith(
+                ".singaporebirds.com"
+            ):
+                return Response(
+                    {"detail": "url must point to singaporebirds.com"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        event.blog_url = new_url
+        event.save(update_fields=["blog_url", "updated_at"])
+        return Response({"id": event.id, "blog_url": event.blog_url})
 
     @action(detail=True, methods=["post"], url_path="register")
     def register(self, request, pk=None):

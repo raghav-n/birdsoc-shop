@@ -102,6 +102,15 @@ class OrganizedEvent(models.Model):
         default=list,
         help_text=_("List of tag strings for categorising this event"),
     )
+    blog_url = models.URLField(
+        _("Blog post URL"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "Optional URL of a blog post about this event on singaporebirds.com. "
+            "Set via the internal blog-link API."
+        ),
+    )
     registration_open = models.BooleanField(
         _("Registration open"),
         default=True,
