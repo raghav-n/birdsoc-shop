@@ -738,7 +738,13 @@ export default function EventDetail() {
       const res = await eventService.registerForEvent(id, payload);
       setResult(res);
       setStep('success');
-      showToast.success(res.waitlisted ? "You're on the waitlist!" : 'Registration confirmed!');
+      showToast.success(
+        res.lottery_pending
+          ? 'Lottery entry received!'
+          : res.waitlisted
+            ? "You're on the waitlist!"
+            : 'Registration confirmed!'
+      );
     } catch (err) {
       const msg = err.response?.data?.detail || 'Registration failed. Please try again.';
       showToast.error(msg);
@@ -755,8 +761,10 @@ export default function EventDetail() {
 
   const unitPrice = parseFloat(event.price_incl_tax || '0');
   const qty = Number(form.quantity) || 1;
-  const donationAmt = form.donation ? parseFloat(form.donation) : 0;
-  const spotsLeft = event.max_participants != null
+  const donationAmt = (event.is_lottery || !form.donation) ? 0 : parseFloat(form.donation);
+  const isLottery = !!event.is_lottery;
+  const lotteryDrawn = !!event.lottery_drawn_at;
+  const spotsLeft = (!isLottery && event.max_participants != null)
     ? event.max_participants - (event.participant_count || 0)
     : null;
 
@@ -789,12 +797,17 @@ export default function EventDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <EventTitle>{event.title}</EventTitle>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {event.is_full && (
+            {isLottery && (
+              <SpotsBadge $low style={{ background: '#faf5ff', color: '#6d28d9', borderColor: '#e9d5ff' }}>
+                {lotteryDrawn ? 'Lottery — drawn' : 'Lottery — enter to be considered'}
+              </SpotsBadge>
+            )}
+            {!isLottery && event.is_full && (
               <SpotsBadge $full>
                 {event.waitlist_enabled ? 'Full – join waitlist' : 'Full'}
               </SpotsBadge>
             )}
-            {spotsLeft !== null && !event.is_full && spotsLeft <= 8 && (
+            {!isLottery && spotsLeft !== null && !event.is_full && spotsLeft <= 8 && (
               <SpotsBadge $low><Users size={11} />{spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left</SpotsBadge>
             )}
           </div>
@@ -833,11 +846,14 @@ export default function EventDetail() {
         if (event.registration_open === false) {
           return <Alert variant="warning">Registration for this event is currently closed.</Alert>;
         }
-        if (event.is_full && !event.waitlist_enabled) {
+        if (isLottery && lotteryDrawn) {
+          return <Alert variant="info">The lottery draw for this event has been completed. Winners have been notified by email.</Alert>;
+        }
+        if (!isLottery && event.is_full && !event.waitlist_enabled) {
           return <Alert variant="error">This event is full.</Alert>;
         }
 
-        const isWaitlistMode = event.waitlist_enabled && (
+        const isWaitlistMode = !isLottery && event.waitlist_enabled && (
           event.is_full || (priceData?.capacity != null && !priceData.capacity.available)
         );
 
@@ -868,6 +884,13 @@ export default function EventDetail() {
                   : `Not enough spots for the requested quantity (${priceData?.capacity?.remaining ?? spotsLeft ?? 0} remaining).`
                 }{' '}
                 Fill in your details below to join the waitlist — you'll be notified by email if enough spots become available.
+              </Alert>
+            )}
+            {step === 'form' && isLottery && (
+              <Alert variant="info">
+                <strong>This is a lottery sign-up.</strong>{' '}
+                Fill in your details below to enter — places are allocated by random draw after sign-ups close.
+                You'll be emailed with the result; no payment is needed.
               </Alert>
             )}
             {step === 'form' && (
@@ -1058,22 +1081,24 @@ export default function EventDetail() {
 
                 <Divider />
 
-                <Section>
-                  <SectionLabel>Optional donation</SectionLabel>
-                  <FieldGrid $cols="1fr 2fr">
-                    <Field>
-                      <FLabel>Amount (S$)</FLabel>
-                      <FInput
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        value={form.donation}
-                        onChange={set('donation')}
-                      />
-                    </Field>
-                  </FieldGrid>
-                </Section>
+                {!isLottery && (
+                  <Section>
+                    <SectionLabel>Optional donation</SectionLabel>
+                    <FieldGrid $cols="1fr 2fr">
+                      <Field>
+                        <FLabel>Amount (S$)</FLabel>
+                        <FInput
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={form.donation}
+                          onChange={set('donation')}
+                        />
+                      </Field>
+                    </FieldGrid>
+                  </Section>
+                )}
 
                 {/* Price preview */}
                 <PriceBox>
@@ -1149,8 +1174,8 @@ export default function EventDetail() {
                 </Section>
 
                 <BtnRow>
-                  <PrimaryBtn onClick={handleReview} disabled={!isWaitlistMode && !capacityAvailable}>
-                    {isWaitlistMode ? 'Join waitlist →' : 'Review →'}
+                  <PrimaryBtn onClick={handleReview} disabled={!isLottery && !isWaitlistMode && !capacityAvailable}>
+                    {isLottery ? 'Enter lottery →' : isWaitlistMode ? 'Join waitlist →' : 'Review →'}
                   </PrimaryBtn>
                 </BtnRow>
               </Card>
@@ -1226,8 +1251,8 @@ export default function EventDetail() {
                 <BtnRow>
                   <PrimaryBtn onClick={handleSubmit} disabled={submitting}>
                     {submitting
-                      ? (isWaitlistMode ? 'Joining waitlist…' : 'Confirming…')
-                      : (isWaitlistMode ? 'Join waitlist' : 'Confirm registration')}
+                      ? (isLottery ? 'Entering lottery…' : isWaitlistMode ? 'Joining waitlist…' : 'Confirming…')
+                      : (isLottery ? 'Enter lottery' : isWaitlistMode ? 'Join waitlist' : 'Confirm registration')}
                   </PrimaryBtn>
                   <SecondaryBtn onClick={() => setStep('form')}>← Back</SecondaryBtn>
                 </BtnRow>
@@ -1235,6 +1260,36 @@ export default function EventDetail() {
             )}
 
             {/* ── Success ───────────────────────────────────────────────────── */}
+            {step === 'success' && result && result.lottery_pending && (
+              <Card style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>🎲</div>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  Lottery entry received!
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+                  We'll email {result.participant?.email} with the draw result
+                  {event.registration_end ? ` after sign-ups close on ${fmt(event.registration_end)}` : ''}.
+                  No payment or further action is needed right now.
+                </p>
+                {event.post_registration_message && (
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    color: 'var(--text-primary)',
+                    textAlign: 'left',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {event.post_registration_message}
+                  </div>
+                )}
+              </Card>
+            )}
+
             {step === 'success' && result && result.waitlisted && (
               <Card style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>⏳</div>
@@ -1247,7 +1302,7 @@ export default function EventDetail() {
               </Card>
             )}
 
-            {step === 'success' && result && !result.waitlisted && (
+            {step === 'success' && result && !result.waitlisted && !result.lottery_pending && (
               <>
                 <Card style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>
@@ -1358,6 +1413,13 @@ export default function EventDetail() {
               </>
             )}
             {step === 'success' && result && result.waitlisted && (
+              <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  ← Back to events
+                </Link>
+              </div>
+            )}
+            {step === 'success' && result && result.lottery_pending && (
               <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
                 <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                   ← Back to events

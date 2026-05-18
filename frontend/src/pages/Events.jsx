@@ -354,18 +354,22 @@ const Events = () => {
                 <EventCardBody>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                     <EventTitle>{event.title}</EventTitle>
-                    {event.is_full
-                      ? <Badge variant="danger" style={{ flexShrink: 0 }}>Full</Badge>
-                      : spotsLeft !== null && (
-                        <SpotsTag
-                          $critical={spotsLeft <= 3}
-                          $low={spotsLeft <= 8 && spotsLeft > 3}
-                          style={{ flexShrink: 0 }}
-                        >
-                          <Users size={11} />
-                          {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
-                        </SpotsTag>
-                      )
+                    {event.is_lottery
+                      ? <Badge variant="info" style={{ flexShrink: 0, background: '#faf5ff', color: '#6d28d9', borderColor: '#e9d5ff' }}>
+                          {event.lottery_drawn_at ? 'Lottery drawn' : 'Lottery'}
+                        </Badge>
+                      : event.is_full
+                        ? <Badge variant="danger" style={{ flexShrink: 0 }}>Full</Badge>
+                        : spotsLeft !== null && (
+                          <SpotsTag
+                            $critical={spotsLeft <= 3}
+                            $low={spotsLeft <= 8 && spotsLeft > 3}
+                            style={{ flexShrink: 0 }}
+                          >
+                            <Users size={11} />
+                            {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
+                          </SpotsTag>
+                        )
                     }
                   </div>
 
@@ -396,7 +400,13 @@ const Events = () => {
                     </Price>
                     <Link to={`/events/${event.id}`}>
                       <Button size="small">
-                        {event.is_full || event.registration_required === false ? 'View Details' : 'Register'}
+                        {event.registration_required === false
+                          ? 'View Details'
+                          : event.is_lottery
+                            ? (event.lottery_drawn_at ? 'View Details' : 'Enter Lottery')
+                            : event.is_full
+                              ? 'View Details'
+                              : 'Register'}
                       </Button>
                     </Link>
                   </EventFooter>
