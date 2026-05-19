@@ -142,6 +142,30 @@ class OrganizedEvent(models.Model):
             "If set, registration closes at this date/time. After this, registration is closed regardless of the manual toggle."
         ),
     )
+    SIGNUP_MODE_FIRST_COME = "first_come"
+    SIGNUP_MODE_LOTTERY = "lottery"
+    SIGNUP_MODE_CHOICES = (
+        (SIGNUP_MODE_FIRST_COME, "First-come, first-served"),
+        (SIGNUP_MODE_LOTTERY, "Lottery (random draw after signups close)"),
+    )
+    signup_mode = models.CharField(
+        _("Signup mode"),
+        max_length=16,
+        choices=SIGNUP_MODE_CHOICES,
+        default=SIGNUP_MODE_FIRST_COME,
+        help_text=_(
+            "First-come: registrations confirm immediately. "
+            "Lottery: collect entries during the signup window, then run a random draw to pick winners. "
+            "Lottery is only supported for free events."
+        ),
+    )
+    lottery_drawn_at = models.DateTimeField(
+        _("Lottery drawn at"),
+        blank=True,
+        null=True,
+        editable=False,
+        help_text=_("Set when the lottery draw has been run for this event."),
+    )
     guide_token = models.UUIDField(
         _("Guide token"),
         default=uuid.uuid4,
@@ -209,6 +233,24 @@ class OrganizedEvent(models.Model):
     def waitlist_count(self):
         """Number of non-cancelled waitlisted entries."""
         return self.eventparticipant_set.filter(is_waitlisted=True, is_cancelled=False).count()
+
+    @property
+    def is_lottery(self):
+        return self.signup_mode == self.SIGNUP_MODE_LOTTERY
+
+    @property
+    def lottery_entry_count(self):
+        """Number of EventParticipants currently awaiting the lottery draw (sum of party sizes)."""
+        return sum(
+            ep.participant.quantity
+            for ep in self.eventparticipant_set.select_related("participant")
+            .filter(is_lottery_pending=True, is_cancelled=False)
+            .all()
+        )
+
+    @property
+    def lottery_drawn(self):
+        return self.lottery_drawn_at is not None
 
     def add_participant(self, participant, **kwargs):
         """Add a participant to the event"""
@@ -397,6 +439,16 @@ class EventParticipant(models.Model):
         help_text=_("Only main contacts receive payment confirmation emails"),
     )
     is_waitlisted = models.BooleanField(_("On waitlist"), default=False)
+    is_lottery_pending = models.BooleanField(
+        _("Pending lottery draw"),
+        default=False,
+        help_text=_("Lottery entry awaiting the draw."),
+    )
+    is_lottery_lost = models.BooleanField(
+        _("Not selected in lottery"),
+        default=False,
+        help_text=_("Lottery entry that wasn't selected in the draw."),
+    )
     attended = models.BooleanField(_("Attended"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
     extra_json = models.JSONField(_("Extra data"), blank=True, null=True)

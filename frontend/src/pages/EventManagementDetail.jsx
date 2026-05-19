@@ -690,6 +690,7 @@ export default function EventManagementDetail() {
   const [selectedEpId, setSelectedEpId] = useState(null);
   const [promoting, setPromoting] = useState(null);
   const [regeneratingToken, setRegeneratingToken] = useState(false);
+  const [drawingLottery, setDrawingLottery] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -793,6 +794,23 @@ export default function EventManagementDetail() {
     }
   };
 
+  const handleRunLotteryDraw = async () => {
+    if (!window.confirm(
+      'Run the lottery draw now? This will randomly pick winners up to the participant cap, ' +
+      'send result emails to everyone, and cannot be undone.'
+    )) return;
+    setDrawingLottery(true);
+    try {
+      const data = await consoleEventService.runLotteryDraw(id);
+      toast.success(`Draw complete — ${data.winners} winner(s), ${data.losers} not selected.`);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to run lottery draw');
+    } finally {
+      setDrawingLottery(false);
+    }
+  };
+
   const handleRegenerateGuideToken = async () => {
     if (!window.confirm('This will invalidate the current guide link. Continue?')) return;
     setRegeneratingToken(true);
@@ -811,10 +829,12 @@ export default function EventManagementDetail() {
   if (!event) return <Page><LoadingText>Event not found.</LoadingText></Page>;
 
   const bookings = event.bookings || [];
-  const active = bookings.filter(b => !b.is_cancelled && !b.is_waitlisted);
+  const active = bookings.filter(b => !b.is_cancelled && !b.is_waitlisted && !b.is_lottery_pending && !b.is_lottery_lost);
   const confirmed = active.filter(b => b.is_confirmed);
   const pending = active.filter(b => !b.is_confirmed);
   const waitlisted = bookings.filter(b => b.is_waitlisted && !b.is_cancelled);
+  const lotteryPending = bookings.filter(b => b.is_lottery_pending && !b.is_cancelled);
+  const lotteryLost = bookings.filter(b => b.is_lottery_lost && !b.is_cancelled);
   const cancelled = bookings.filter(b => b.is_cancelled);
   const awaitingVerification = active.filter(b => b.payment?.status === 'pending');
 
@@ -1011,6 +1031,11 @@ export default function EventManagementDetail() {
                 Registration {event.is_registration_open ? 'open' : 'closed'}
               </Badge>
             )}
+            {event.is_lottery && (
+              <Badge $v="purple">
+                Lottery {event.lottery_drawn_at ? '— drawn' : '— awaiting draw'}
+              </Badge>
+            )}
             {event.tags?.map(t => (
               <Badge key={t} $v="purple">{t}</Badge>
             ))}
@@ -1061,6 +1086,18 @@ export default function EventManagementDetail() {
             <StatLabel>On waitlist</StatLabel>
           </StatCard>
         )}
+        {event.is_lottery && !event.lottery_drawn_at && (
+          <StatCard>
+            <StatNum $color="#6d28d9">{lotteryPending.length}</StatNum>
+            <StatLabel>Lottery entries</StatLabel>
+          </StatCard>
+        )}
+        {event.is_lottery && event.lottery_drawn_at && (
+          <StatCard>
+            <StatNum $color="#9ca3af">{lotteryLost.length}</StatNum>
+            <StatLabel>Not selected</StatLabel>
+          </StatCard>
+        )}
         {awaitingVerification.length > 0 && (
           <StatCard>
             <StatNum $color="#dc2626">{awaitingVerification.length}</StatNum>
@@ -1096,6 +1133,41 @@ export default function EventManagementDetail() {
         );
       })()}
 
+      {/* ── Lottery control ─────────────────────────────────────────────────── */}
+      {event.is_lottery && (
+        <TableCard style={{ background: '#faf5ff', borderColor: '#e9d5ff' }}>
+          <div style={{ padding: '1rem 1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#6d28d9', marginBottom: '0.35rem' }}>
+                  Lottery {event.lottery_drawn_at ? '— drawn' : '— awaiting draw'}
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#4b5563', lineHeight: 1.5 }}>
+                  {event.lottery_drawn_at
+                    ? <>Draw was run on <strong>{fmt(event.lottery_drawn_at)}</strong>. {confirmed.length} winner{confirmed.length === 1 ? '' : 's'}, {lotteryLost.length} not selected. Winners and non-winners have been emailed.</>
+                    : event.is_registration_open
+                      ? <>Entries are still open. Close registration (manually or by reaching the registration end date) before running the draw.</>
+                      : lotteryPending.length === 0
+                        ? <>No entries yet — running the draw would have no effect.</>
+                        : <>Entries are closed. Running the draw will randomly pick winners up to the cap of <strong>{event.max_participants ?? '∞'}</strong> and email everyone. This cannot be undone.</>
+                  }
+                </div>
+              </div>
+              {!event.lottery_drawn_at && (
+                <Button
+                  onClick={handleRunLotteryDraw}
+                  disabled={drawingLottery || event.is_registration_open || lotteryPending.length === 0}
+                  style={{ background: '#6d28d9', color: '#fff', borderColor: '#6d28d9' }}
+                  title={event.is_registration_open ? 'Close registration first.' : ''}
+                >
+                  {drawingLottery ? 'Drawing…' : 'Run lottery draw'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </TableCard>
+      )}
+
       {/* ── Confirmed participants ───────────────────────────────────────────── */}
       {confirmed.length > 0 && (
         <TableCard>
@@ -1121,6 +1193,95 @@ export default function EventManagementDetail() {
             <Table>
               <thead>{bookingTableHeaders}</thead>
               <tbody>{pending.map(renderBookingRow)}</tbody>
+            </Table>
+          </TableScroll>
+        </TableCard>
+      )}
+
+      {/* ── Lottery entries (awaiting draw) ────────────────────────────────── */}
+      {event.is_lottery && !event.lottery_drawn_at && lotteryPending.length > 0 && (
+        <TableCard>
+          <TableCardHeader>
+            <TableCardTitle style={{ color: '#6d28d9' }}>Lottery entries ({lotteryPending.length})</TableCardTitle>
+          </TableCardHeader>
+          <TableScroll>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Participant</Th>
+                  <Th $mobileHide>Email</Th>
+                  <Th>Phone</Th>
+                  <Th $mobileHide>Qty</Th>
+                  <Th $mobileHide>Entered</Th>
+                  <Th></Th>
+                </tr>
+              </thead>
+              <tbody>
+                {lotteryPending.map(booking => (
+                  <Tr key={booking.ep_id}>
+                    <Td>
+                      <div style={{ fontWeight: 500 }}>
+                        {booking.first_name} {booking.last_name}
+                        {booking.quantity > 1 && (
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{booking.quantity - 1}</span>
+                        )}
+                      </div>
+                    </Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
+                    <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
+                    <Td>
+                      <DangerBtn
+                        onClick={() => handleRemove(booking)}
+                        disabled={removing === booking.ep_id}
+                      >
+                        {removing === booking.ep_id ? '…' : 'Remove'}
+                      </DangerBtn>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableScroll>
+        </TableCard>
+      )}
+
+      {/* ── Lottery — not selected ─────────────────────────────────────────── */}
+      {event.is_lottery && lotteryLost.length > 0 && (
+        <TableCard>
+          <TableCardHeader>
+            <TableCardTitle style={{ color: '#9ca3af' }}>Not selected ({lotteryLost.length})</TableCardTitle>
+          </TableCardHeader>
+          <TableScroll>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Participant</Th>
+                  <Th $mobileHide>Email</Th>
+                  <Th>Phone</Th>
+                  <Th $mobileHide>Qty</Th>
+                  <Th $mobileHide>Entered</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {lotteryLost.map(booking => (
+                  <Tr key={booking.ep_id} style={{ opacity: 0.7 }}>
+                    <Td>
+                      <div style={{ fontWeight: 500 }}>
+                        {booking.first_name} {booking.last_name}
+                        {booking.quantity > 1 && (
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{booking.quantity - 1}</span>
+                        )}
+                      </div>
+                    </Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
+                    <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
+                    <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
+                  </Tr>
+                ))}
+              </tbody>
             </Table>
           </TableScroll>
         </TableCard>

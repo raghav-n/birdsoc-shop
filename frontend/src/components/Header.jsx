@@ -1,335 +1,301 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { ShoppingCart, Menu, X, Search, LogOut } from 'lucide-react';
+import {
+  ShoppingCart, LogOut,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { Button } from '../styles/GlobalStyles';
+import { BsButton } from '../styles/birdsoc';
 
-const HeaderContainer = styled.header`
-  background-color: var(--page-header-background);
-  padding: 0;
+const Container = styled.header`
+  background: var(--bs-body);
+  border-bottom: 1px solid var(--bs-rule-soft);
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
-const NavContainer = styled.nav`
+const Bar = styled.div`
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
-  display: flex;
+  padding: 12px 2rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "logo nav actions";
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-`;
+  gap: 32px;
 
-const Logo = styled(Link)`
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-
-  img {
-    height: 55px;
-    width: auto;
+  @media (max-width: 900px) {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "logo actions"
+      "nav nav";
+    padding: 10px 1rem;
+    gap: 6px 12px;
   }
 `;
 
-const RightSection = styled.div`
+const LogoLink = styled(Link)`
+  grid-area: logo;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+`;
 
-  @media (max-width: 768px) {
-    gap: 0.5rem;
+const LogoMark = styled.img`
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  display: block;
+
+  @media (max-width: 900px) {
+    width: 38px;
+    height: 38px;
   }
 `;
 
-const DesktopOnly = styled.div`
+const Wordmark = styled.div`
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  font-weight: 700;
+  color: var(--bs-text);
+  letter-spacing: -0.3px;
+  line-height: 1.05;
+  white-space: nowrap;
 
-  @media (max-width: 768px) {
+  span:first-child { font-size: 0.95rem; }
+  span:last-child {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-text-dim);
+    letter-spacing: 0;
+  }
+
+  @media (max-width: 480px) {
     display: none;
   }
 `;
 
-const NavLinks = styled.div`
+const Nav = styled.nav`
+  grid-area: nav;
   display: flex;
+  gap: 1.75rem;
   align-items: center;
-  gap: 2rem;
+  justify-content: center;
 
-  @media (max-width: 768px) {
-    display: none;
+  @media (max-width: 900px) {
+    gap: 1.25rem;
+    padding-top: 4px;
+    padding-bottom: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
   }
 `;
 
 const NavLink = styled(Link)`
-  color: var(--header-text);
-  text-decoration: none;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
   font-weight: 500;
-  transition: color 0.2s ease;
+  color: ${(p) => p.$active ? 'var(--bs-text)' : 'var(--bs-text-dim)'};
+  letter-spacing: -0.1px;
+  text-decoration: none;
+  padding-bottom: 4px;
+  border-bottom: 2px solid ${(p) => p.$active ? 'var(--bs-accent)' : 'transparent'};
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
 
   &:hover {
-    color: var(--link-text);
+    color: var(--bs-text);
   }
 `;
 
 const ExternalNavLink = styled.a`
-  color: var(--header-text);
-  text-decoration: none;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
   font-weight: 500;
-  transition: color 0.2s ease;
+  color: var(--bs-text-dim);
+  text-decoration: none;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease;
+  white-space: nowrap;
 
   &:hover {
-    color: var(--link-text);
+    color: var(--bs-text);
   }
 `;
 
-const SearchForm = styled.form`
+const Right = styled.div`
+  grid-area: actions;
   display: flex;
+  gap: 10px;
   align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  max-width: 400px;
+  justify-content: flex-end;
 
-  @media (max-width: 768px) {
-    display: none;
+  @media (max-width: 900px) {
+    gap: 6px;
   }
 `;
 
-const SearchInput = styled.input`
-  flex: 1;
-  padding: 0.5rem;
-  border: 2px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  
-  &:focus {
-    outline: none;
-    border-color: var(--link-text);
-  }
-`;
-
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  color: var(--header-text);
+const IconBtn = styled.button`
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--bs-rule);
+  background: var(--bs-panel);
+  color: var(--bs-text);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-  position: relative;
-  
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.1);
-    color: var(--link-text);
-  }
-`;
-
-const CartBadge = styled.span`
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  background-color: var(--link-text);
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 0.75rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
-`;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
 
-const UserActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
+  &:hover {
+    background: var(--bs-panel-hi);
+    border-color: var(--bs-accent);
+  }
 
-const MobileMenu = styled.div`
-  display: none;
-  
-  @media (max-width: 768px) {
-    display: block;
+  @media (max-width: 900px) {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
   }
 `;
 
-const MobileMenuOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1001;
-  display: ${props => props.isOpen ? 'block' : 'none'};
-`;
-
-const MobileMenuContent = styled.div`
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 280px;
-  background-color: white;
-  padding: 2rem;
-  transform: translateX(${props => props.isOpen ? '0' : '100%'});
-  transition: transform 0.3s ease;
-  z-index: 1002;
-  overflow-y: auto;
-`;
-
-const MobileMenuHeader = styled.div`
-  display: flex;
-  justify-content: between;
+const CartPill = styled(Link)`
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--bs-rule);
+  background: var(--bs-panel);
+  color: var(--bs-text);
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 2rem;
+  gap: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.81rem;
+  font-weight: 600;
+  text-decoration: none;
+  position: relative;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--bs-panel-hi);
+    border-color: var(--bs-accent);
+  }
+
+  @media (max-width: 900px) {
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    justify-content: center;
+
+    span.label { display: none; }
+  }
 `;
 
-const MobileNavLinks = styled.div`
+const CartCount = styled.span`
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bs-accent);
+  color: var(--bs-on-accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  @media (max-width: 900px) {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 9.5px;
+  }
+`;
+
+const AuthActions = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+
+  @media (max-width: 900px) {
+    gap: 6px;
+  }
 `;
 
 const Header = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { getCartCount, shopOpen } = useCart();
   const navigate = useNavigate();
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
-    }
-  };
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
-    setIsMobileMenuOpen(false);
     navigate('/');
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
   };
 
   const cartCount = getCartCount();
 
+  const isActive = (path) => location.pathname.startsWith(path);
+
   return (
-    <>
-      <HeaderContainer>
-        <NavContainer>
-          <Logo to="/">
-            <img src="/static/img/logo.png" alt="Bird Society of Singapore" />
-          </Logo>
-          
-          <SearchForm onSubmit={handleSearch}>
-            <SearchInput
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <IconButton type="submit">
-              <Search size={18} />
-            </IconButton>
-          </SearchForm>
+    <Container>
+      <Bar>
+        <LogoLink to="/" aria-label="BirdSoc SG Shop home">
+          <LogoMark src="/img/logo-sm.png" alt="" />
+          <Wordmark>
+            <span>BirdSoc SG</span>
+            <span>Shop</span>
+          </Wordmark>
+        </LogoLink>
 
-          <RightSection>
-          <NavLinks>
-            <NavLink to="/products">Products</NavLink>
-            <NavLink to="/events">Events</NavLink>
-            <ExternalNavLink href="https://birdsociety.sg" target="_blank" rel="noopener noreferrer">BirdSoc SG</ExternalNavLink>
-          </NavLinks>
+        <Nav>
+          <NavLink to="/products" $active={isActive('/products')}>Products</NavLink>
+          <NavLink to="/events" $active={isActive('/events')}>Events</NavLink>
+          <ExternalNavLink href="https://birdsociety.sg" target="_blank" rel="noopener noreferrer">
+            BirdSoc SG
+          </ExternalNavLink>
+          <NavLink to="/contact" $active={isActive('/contact')}>Contact</NavLink>
+        </Nav>
 
-          <UserActions>
-            {shopOpen && (
-              <IconButton as={Link} to="/cart">
-                <ShoppingCart size={20} />
-                {cartCount > 0 && <CartBadge>{cartCount}</CartBadge>}
-              </IconButton>
-            )}
-
-            {isAuthenticated ? (
-              <DesktopOnly>
-                <IconButton onClick={handleLogout}>
-                  <LogOut size={18} />
-                </IconButton>
-              </DesktopOnly>
-            ) : shopOpen ? (
-              <DesktopOnly>
-                <Button as={Link} to="/login" size="small" variant="secondary">
-                  Login
-                </Button>
-                <Button as={Link} to="/register" size="small">
-                  Register
-                </Button>
-              </DesktopOnly>
-            ) : null}
-
-            <MobileMenu>
-              <IconButton onClick={() => setIsMobileMenuOpen(true)}>
-                <Menu size={20} />
-              </IconButton>
-            </MobileMenu>
-          </UserActions>
-          </RightSection>
-        </NavContainer>
-      </HeaderContainer>
-
-      <MobileMenuOverlay 
-        isOpen={isMobileMenuOpen} 
-        onClick={closeMobileMenu}
-      />
-      
-      <MobileMenuContent isOpen={isMobileMenuOpen}>
-        <MobileMenuHeader>
-          <h3>Menu</h3>
-          <IconButton onClick={closeMobileMenu}>
-            <X size={20} />
-          </IconButton>
-        </MobileMenuHeader>
-
-        <MobileNavLinks>
-          <NavLink to="/products" onClick={closeMobileMenu}>Products</NavLink>
-          <NavLink to="/events" onClick={closeMobileMenu}>Events</NavLink>
+        <Right>
           {shopOpen && (
-            <NavLink to="/cart" onClick={closeMobileMenu}>
-              Cart {cartCount > 0 && `(${cartCount})`}
-            </NavLink>
+            <CartPill to="/cart" aria-label="Cart">
+              <ShoppingCart size={16} strokeWidth={1.7} />
+              <span className="label">Cart</span>
+              {cartCount > 0 && <CartCount>{cartCount}</CartCount>}
+            </CartPill>
           )}
-          
+
           {isAuthenticated ? (
-            <>
-              <Button onClick={handleLogout} variant="secondary" fullWidth>
-                Logout
-              </Button>
-            </>
+            <AuthActions>
+              <IconBtn onClick={handleLogout} aria-label="Logout">
+                <LogOut size={16} strokeWidth={1.7} />
+              </IconBtn>
+            </AuthActions>
           ) : shopOpen ? (
-            <>
-              <Button as={Link} to="/login" onClick={closeMobileMenu} variant="secondary" fullWidth>
-                Login
-              </Button>
-              <Button as={Link} to="/register" onClick={closeMobileMenu} fullWidth>
-                Register
-              </Button>
-            </>
+            <AuthActions>
+              <BsButton as={Link} to="/login" $size="sm">Login</BsButton>
+              <BsButton as={Link} to="/register" $size="sm" $primary>Register</BsButton>
+            </AuthActions>
           ) : null}
-        </MobileNavLinks>
-      </MobileMenuContent>
-    </>
+        </Right>
+      </Bar>
+    </Container>
   );
 };
 

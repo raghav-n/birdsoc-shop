@@ -76,12 +76,17 @@ def _serialize_event(event, include_participants=False):
         "updated_at": event.updated_at,
         "waitlist_enabled": event.waitlist_enabled,
         "waitlist_count": event.waitlist_count,
+        "signup_mode": event.signup_mode,
+        "is_lottery": event.is_lottery,
+        "lottery_drawn_at": event.lottery_drawn_at,
+        "lottery_entry_count": event.lottery_entry_count,
         "guide_token": str(event.guide_token),
         "stats": {
             "confirmed": event.participant_count,
             "pending": event.pending_count,
             "total_unique": event.unique_participant_count,
             "waitlisted": event.waitlist_count,
+            "lottery_pending": event.lottery_entry_count,
         },
     }
     if include_participants:
@@ -159,6 +164,8 @@ def _serialize_bookings(event):
             "is_confirmed": ep.is_confirmed,
             "is_cancelled": ep.is_cancelled,
             "is_waitlisted": ep.is_waitlisted,
+            "is_lottery_pending": ep.is_lottery_pending,
+            "is_lottery_lost": ep.is_lottery_lost,
             "is_main_contact": ep.is_main_contact,
             "attended": ep.attended,
             "notes": ep.notes,
@@ -207,6 +214,19 @@ class ConsoleEventsViewSet(ViewSet):
         blog_url, blog_err = _clean_blog_url(data.get("blog_url"))
         if blog_err:
             return Response({"detail": blog_err}, status=status.HTTP_400_BAD_REQUEST)
+        signup_mode = data.get("signup_mode") or OrganizedEvent.SIGNUP_MODE_FIRST_COME
+        if signup_mode not in dict(OrganizedEvent.SIGNUP_MODE_CHOICES):
+            return Response({"detail": "Invalid signup_mode"}, status=status.HTTP_400_BAD_REQUEST)
+        if signup_mode == OrganizedEvent.SIGNUP_MODE_LOTTERY:
+            try:
+                from decimal import Decimal
+                if Decimal(str(data.get("price_incl_tax", "0"))) > 0:
+                    return Response(
+                        {"detail": "Lottery mode is only supported for free events."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except Exception:
+                pass
         try:
             event = OrganizedEvent.objects.create(
                 title=data["title"],
@@ -221,6 +241,7 @@ class ConsoleEventsViewSet(ViewSet):
                 registration_start=data.get("registration_start") or None,
                 registration_end=data.get("registration_end") or None,
                 waitlist_enabled=bool(data.get("waitlist_enabled", False)),
+                signup_mode=signup_mode,
                 price_incl_tax=data.get("price_incl_tax", "0"),
                 currency=data.get("currency", "SGD"),
                 json_schema=data.get("json_schema") or None,
@@ -249,10 +270,33 @@ class ConsoleEventsViewSet(ViewSet):
             "title", "description", "start_date", "end_date", "location",
             "max_participants", "max_qty", "is_active", "registration_open",
             "registration_start", "registration_end",
-            "waitlist_enabled", "price_incl_tax", "currency", "json_schema", "price_tiers",
+            "waitlist_enabled", "signup_mode",
+            "price_incl_tax", "currency", "json_schema", "price_tiers",
             "validate_participant_data", "registration_required",
             "confirmed_email_template", "post_registration_message", "tags",
         ]
+        if "signup_mode" in data:
+            if data["signup_mode"] not in dict(OrganizedEvent.SIGNUP_MODE_CHOICES):
+                return Response({"detail": "Invalid signup_mode"}, status=status.HTTP_400_BAD_REQUEST)
+            # Don't allow flipping signup_mode after lottery has been drawn
+            if event.lottery_drawn_at is not None and data["signup_mode"] != event.signup_mode:
+                return Response(
+                    {"detail": "Cannot change signup mode after the lottery has been drawn."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        # Enforce free-only for lottery mode
+        new_mode = data.get("signup_mode", event.signup_mode)
+        if new_mode == OrganizedEvent.SIGNUP_MODE_LOTTERY:
+            try:
+                from decimal import Decimal
+                price_str = data.get("price_incl_tax", event.price_incl_tax)
+                if Decimal(str(price_str)) > 0:
+                    return Response(
+                        {"detail": "Lottery mode is only supported for free events."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except Exception:
+                pass
         for field in updatable:
             if field in data:
                 val = data[field]
@@ -410,6 +454,35 @@ class ConsoleEventsViewSet(ViewSet):
             send_waitlist_promoted_paid_email(event, p, reg)
 
         return Response({"ep_id": ep.id, "is_waitlisted": False, "is_confirmed": ep.is_confirmed})
+
+    @action(detail=True, methods=["post"], url_path="run-lottery-draw")
+    def run_lottery_draw(self, request, pk=None):
+        """Run the random draw for a lottery-mode event."""
+        try:
+            event = OrganizedEvent.objects.get(pk=pk)
+        except OrganizedEvent.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not event.is_lottery:
+            return Response(
+                {"detail": "This event is not in lottery mode."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if event.lottery_drawn_at is not None:
+            return Response(
+                {"detail": "The lottery for this event has already been drawn."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.event.utils import run_lottery_draw as _run_draw
+        result = _run_draw(event)
+        event.refresh_from_db()
+        return Response({
+            "winners": result["winners"],
+            "losers": result["losers"],
+            "entries": result["entries"],
+            "lottery_drawn_at": event.lottery_drawn_at,
+        })
 
     @action(detail=True, methods=["post"], url_path="regenerate-guide-token")
     def regenerate_guide_token(self, request, pk=None):

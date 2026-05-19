@@ -8,72 +8,84 @@ const QRContainer = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
+  padding: 1.1rem;
+  background: var(--bs-panel);
+  border-radius: 12px;
+  border: 1px solid var(--bs-rule-soft);
 `;
 
 const QRTitle = styled.h3`
   margin: 0;
-  color: var(--dark);
-  font-size: 1.1rem;
+  color: var(--bs-text-mute);
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
   text-align: center;
 `;
 
 const QRCanvasWrapper = styled.div`
   canvas {
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: #fff;
   }
 `;
 
 const SaveButton = styled.button`
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: none;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-  color: #555;
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font-family: var(--bs-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--bs-text);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
   &:hover {
-    border-color: var(--link-text);
-    color: var(--link-text);
-    background: rgba(0, 0, 0, 0.02);
+    border-color: var(--bs-accent);
+    color: var(--bs-accent-dim);
+    background: var(--bs-panel-hi);
   }
 `;
 
 const PaymentInfo = styled.div`
   text-align: center;
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.84rem;
+  color: var(--bs-text);
   max-width: 270px;
 `;
 
 const UENInfo = styled.div`
-  background: #f8f9fa;
+  background: var(--bs-body);
   padding: 0.75rem;
-  border-radius: 6px;
+  border-radius: 8px;
   margin-top: 0.5rem;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--bs-rule-soft);
 `;
 
 const UENLabel = styled.div`
-  font-size: 0.8rem;
-  color: #666;
+  font-family: var(--bs-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--bs-text-mute);
   margin-bottom: 0.25rem;
 `;
 
 const UENNumber = styled.div`
+  font-family: var(--bs-mono);
   font-weight: 600;
-  color: var(--dark);
-  font-family: monospace;
-  font-size: 1rem;
+  color: var(--bs-text);
+  font-size: 0.95rem;
+  letter-spacing: 0.4px;
 `;
 
 const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
@@ -119,7 +131,7 @@ const PayNowQR = ({ amount, referenceId, donation = 0 }) => {
           <strong>Amount: ${totalAmount.toFixed(2)}</strong>
         </div>
         {donation > 0 && (
-          <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--bs-text-mute)', marginTop: '0.25rem' }}>
             (includes ${donation.toFixed(2)} donation)
           </div>
         )}

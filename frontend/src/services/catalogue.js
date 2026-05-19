@@ -13,6 +13,12 @@ export const catalogueService = {
     return response.data;
   },
 
+  // Top products by units sold in the last 12 months
+  getPopularProducts: async (limit = 4) => {
+    const response = await api.get('/products/popular', { params: { limit } });
+    return response.data;
+  },
+
   // Get categories
   getCategories: async (flat = false) => {
     const response = await api.get('/categories', { 

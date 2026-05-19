@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useForm } from 'react-hook-form';
-import { Upload, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Upload, CheckCircle, ArrowLeft, Truck, MapPin } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { checkoutService } from '../services/checkout';
-import { Button, Card, FormGroup, Label, Input, Select } from '../styles/GlobalStyles';
+import { Button as RawButton, FormGroup as RawFormGroup, Label as RawLabel, Input as RawInput, Select as RawSelect } from '../styles/GlobalStyles';
+import { BsPage, BsOverline, BsPill, BsButton } from '../styles/birdsoc';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import PayNowQR from '../components/PayNowQR';
@@ -16,108 +17,144 @@ import { formatCurrency } from '../utils/helpers';
 import { trackBeginCheckout, trackPurchase } from '../utils/analytics';
 import toast from 'react-hot-toast';
 
-const CheckoutContainer = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+const CheckoutContainer = styled(BsPage)`
+  > div {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 4rem;
+
+    @media (max-width: 768px) {
+      padding: 1.25rem 1rem 1.5rem;
+    }
+  }
 `;
 
 const CheckoutHeader = styled.div`
   margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+
+  @media (max-width: 600px) {
+    margin-bottom: 1.25rem;
+  }
 `;
 
 const BackButton = styled.button`
   background: none;
   border: none;
-  color: var(--link-text);
+  padding: 0;
+  margin-bottom: 1rem;
+  color: var(--bs-text-mute);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  transition: background-color 0.2s ease;
+  gap: 0.35rem;
+  font-family: var(--bs-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  transition: color 0.15s ease;
 
   &:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--bs-accent-dim);
   }
 `;
 
 const CheckoutTitle = styled.h1`
+  font-family: var(--bs-sans);
   font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  line-height: 1.1;
+  color: var(--bs-text);
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
+  }
 `;
 
 const CheckoutGrid = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 2rem;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
 
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 `;
 
 const CheckoutSteps = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.1rem;
 `;
 
-const Step = styled(Card)`
+const Step = styled.div`
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 14px;
   padding: 1.5rem;
-  
+  transition: border-color 0.15s ease;
+
   ${props => props.completed && `
-    border-color: var(--success);
-    background-color: rgba(34, 197, 94, 0.05);
+    border-color: var(--bs-accent);
   `}
-  
+
   ${props => props.disabled && `
     opacity: 0.6;
     pointer-events: none;
   `}
+
+  @media (max-width: 600px) {
+    border-radius: 12px;
+    padding: 1.1rem;
+  }
 `;
 
 const StepHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
 `;
 
 const StepNumber = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: ${props => props.completed ? 'var(--success)' : 'var(--link-text)'};
-  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: ${props => props.completed ? 'var(--bs-accent-soft)' : 'var(--bs-accent)'};
+  color: ${props => props.completed ? 'var(--bs-accent-dim)' : 'var(--bs-on-accent)'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-family: var(--bs-mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
 `;
 
 const StepTitle = styled.h3`
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--bs-text-mute);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
   margin: 0;
-  color: var(--dark);
 `;
 
 const StepContent = styled.div`
-  margin-left: 3rem;
-
-  @media (max-width: 600px) {
-    margin-left: 0;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 `;
 
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.9rem;
 
   @media (max-width: 600px) {
     grid-template-columns: 1fr;
@@ -125,45 +162,48 @@ const FormRow = styled.div`
 `;
 
 const FileUploadArea = styled.div`
-  border: 2px dashed #ddd;
-  border-radius: 8px;
-  padding: 2rem;
+  border: 2px dashed var(--bs-rule);
+  border-radius: 12px;
+  padding: 1.75rem 1rem;
   text-align: center;
-  background-color: #fafafa;
-  transition: all 0.2s ease;
+  background-color: var(--bs-body);
+  transition: all 0.15s ease;
   cursor: pointer;
 
   &:hover {
-    border-color: var(--link-text);
-    background-color: #f0f0f0;
+    border-color: var(--bs-accent);
+    background: var(--bs-accent-tint);
   }
 
   ${props => props.dragOver && `
-    border-color: var(--link-text);
-    background-color: rgba(0, 123, 255, 0.05);
+    border-color: var(--bs-accent);
+    background: var(--bs-accent-tint);
   `}
 
   ${props => props.hasFile && `
-    border-color: var(--success);
-    background-color: rgba(34, 197, 94, 0.05);
+    border-color: var(--bs-accent);
+    background: var(--bs-accent-soft);
   `}
 `;
 
 const FileUploadIcon = styled.div`
-  font-size: 2rem;
-  color: #666;
-  margin-bottom: 0.5rem;
+  color: var(--bs-text-mute);
+  margin-bottom: 0.4rem;
+  display: flex;
+  justify-content: center;
 `;
 
 const FileUploadText = styled.p`
   margin: 0;
-  color: #666;
+  color: var(--bs-text);
+  font-size: 0.84rem;
+  font-weight: 600;
 `;
 
 const FileUploadSubtext = styled.p`
-  margin: 0.5rem 0 0 0;
-  font-size: 0.85rem;
-  color: #999;
+  margin: 0.4rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--bs-text-mute);
 `;
 
 const HiddenFileInput = styled.input`
@@ -174,129 +214,156 @@ const SelectedFile = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 8px;
+  font-size: 0.81rem;
+  color: var(--bs-text);
 `;
 
 const DonationSection = styled.div`
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
+  background: var(--bs-body);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 12px;
   padding: 1rem;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 `;
 
 const DonationTitle = styled.h4`
   margin: 0 0 0.75rem 0;
-  color: var(--dark);
-  font-size: 1rem;
+  color: var(--bs-text);
+  font-size: 0.84rem;
+  font-weight: 600;
 `;
 
 const DonationOptions = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
 `;
 
 const DonationOption = styled.button`
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
+  padding: 0.55rem 0.5rem;
+  border: 1.5px solid ${props => props.selected ? 'var(--bs-accent)' : 'var(--bs-rule)'};
+  border-radius: 8px;
+  background: ${props => props.selected ? 'var(--bs-accent-tint)' : 'var(--bs-panel)'};
+  color: ${props => props.selected ? 'var(--bs-accent-dim)' : 'var(--bs-text)'};
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  font-family: var(--bs-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
 
   &:hover {
-    border-color: var(--link-text);
+    border-color: var(--bs-accent);
   }
-
-  ${props => props.selected && `
-    border-color: var(--link-text);
-    background-color: var(--link-text);
-    color: white;
-  `}
 `;
 
 const ShippingMethodCard = styled.div`
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  border: 1.5px solid ${props => props.selected ? 'var(--bs-accent)' : 'var(--bs-rule)'};
+  background: ${props => props.selected ? 'var(--bs-accent-tint)' : 'var(--bs-body)'};
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
+  transition: all 0.15s ease;
 
   &:hover {
-    border-color: var(--link-text);
+    border-color: var(--bs-accent);
   }
-
-  ${props => props.selected && `
-    border-color: var(--link-text);
-    background-color: rgba(0, 123, 255, 0.05);
-  `}
 `;
 
 const ShippingMethodHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 `;
 
 const ShippingMethodRadio = styled.input`
   width: 18px;
   height: 18px;
-  accent-color: var(--link-text);
+  accent-color: var(--bs-accent);
+  flex-shrink: 0;
 `;
 
 const ShippingMethodName = styled.h4`
   margin: 0;
-  font-size: 1rem;
-  color: var(--dark);
+  font-family: var(--bs-sans);
+  font-size: 0.91rem;
+  font-weight: 600;
+  color: var(--bs-text);
 `;
 
 const ShippingMethodDescription = styled.p`
   margin: 0;
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.78rem;
+  color: var(--bs-text-mute);
   line-height: 1.4;
 `;
 
 const ShippingMethodPrice = styled.div`
-  font-weight: 600;
-  color: var(--link-text);
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
+  font-family: var(--bs-mono);
+  font-weight: 700;
+  color: var(--bs-text);
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+  letter-spacing: 0.4px;
 `;
 
-const OrderSummary = styled(Card)`
+const OrderSummary = styled.div`
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 14px;
+  padding: 1.4rem;
   height: fit-content;
   position: sticky;
-  top: 2rem;
+  top: 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+
+  @media (max-width: 900px) {
+    position: static;
+  }
+
+  @media (max-width: 600px) {
+    border-radius: 12px;
+    padding: 1rem;
+  }
 `;
 
 const SummaryTitle = styled.h3`
-  margin-bottom: 1rem;
-  color: var(--dark);
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--bs-text-mute);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin: 0;
 `;
 
 const SummaryRow = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  
+  align-items: baseline;
+  font-size: 0.84rem;
+  color: var(--bs-text-dim);
+
   ${props => props.total && `
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 700;
+    font-size: 1rem;
     padding-top: 0.75rem;
-    border-top: 1px solid #eee;
-    color: var(--link-text);
+    border-top: 1px solid var(--bs-rule-soft);
+    color: var(--bs-text);
+
+    span:last-child {
+      font-size: 1.4rem;
+      letter-spacing: -0.5px;
+    }
   `}
 `;
 
@@ -304,9 +371,10 @@ const CartItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f0f0f0;
-  
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--bs-rule-soft);
+
   &:last-child {
     border-bottom: none;
   }
@@ -314,38 +382,125 @@ const CartItem = styled.div`
 
 const ItemDetails = styled.div`
   flex: 1;
+  min-width: 0;
 `;
 
 const ItemName = styled.h4`
-  margin: 0 0 0.25rem 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--dark);
+  margin: 0 0 0.2rem 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--bs-text);
+  letter-spacing: -0.1px;
   line-height: 1.3;
 `;
 
 const ItemVariant = styled.p`
-  margin: 0 0 0.25rem 0;
-  font-size: 0.8rem;
-  color: #666;
+  margin: 0 0 0.2rem 0;
+  font-size: 0.72rem;
+  color: var(--bs-text-mute);
+  font-family: var(--bs-mono);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 `;
 
 const ItemQuantity = styled.span`
-  font-size: 0.8rem;
-  color: #666;
+  font-size: 0.72rem;
+  color: var(--bs-text-mute);
+  font-family: var(--bs-mono);
+  letter-spacing: 0.3px;
 `;
 
 const ItemPrice = styled.div`
-  font-weight: 500;
-  color: var(--dark);
-  font-size: 0.9rem;
-  margin-left: 1rem;
+  font-weight: 600;
+  color: var(--bs-text);
+  font-size: 0.84rem;
 `;
 
 const SummarySection = styled.div`
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f0f0;
+  margin-top: 0.4rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--bs-rule-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const Input = styled(RawInput)`
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid var(--bs-rule);
+  background: var(--bs-body);
+  color: var(--bs-text);
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  letter-spacing: -0.1px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder { color: var(--bs-text-mute); }
+
+  &:focus {
+    border-color: var(--bs-accent);
+    background: var(--bs-body);
+    box-shadow: 0 0 0 3px var(--bs-accent-tint);
+  }
+`;
+
+const Select = styled(RawSelect)`
+  height: 42px;
+  padding: 0 32px 0 12px;
+  border: 1.5px solid var(--bs-rule);
+  background: var(--bs-body);
+  color: var(--bs-text);
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A5C52' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  &:focus {
+    border-color: var(--bs-accent);
+    background: var(--bs-body);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232E6B5A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    box-shadow: 0 0 0 3px var(--bs-accent-tint);
+  }
+`;
+
+const Label = styled(RawLabel)`
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bs-text-dim);
+  letter-spacing: 0.1px;
+  margin-bottom: 6px;
+`;
+
+const FormGroup = styled(RawFormGroup)`
+  margin-bottom: 0;
+`;
+
+const Button = styled(RawButton)`
+  background: ${(p) => p.variant === 'secondary' ? 'var(--bs-panel)' : 'var(--bs-accent)'};
+  color: ${(p) => p.variant === 'secondary' ? 'var(--bs-text)' : 'var(--bs-on-accent)'};
+  border: 1.5px solid ${(p) => p.variant === 'secondary' ? 'var(--bs-rule)' : 'var(--bs-accent)'};
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-weight: 600;
+  padding: 0.7rem 1.4rem;
+  letter-spacing: -0.1px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: ${(p) => p.variant === 'secondary' ? 'var(--bs-panel-hi)' : 'var(--bs-accent-dim)'};
+    color: ${(p) => p.variant === 'secondary' ? 'var(--bs-text)' : 'var(--bs-on-accent)'};
+    border-color: ${(p) => p.variant === 'secondary' ? 'var(--bs-accent)' : 'var(--bs-accent-dim)'};
+  }
+
+  ${(p) => p.size === 'small' && `padding: 0.5rem 0.9rem; font-size: 0.82rem;`}
+  ${(p) => p.size === 'large' && `padding: 0.85rem 1.5rem; font-size: 0.95rem;`}
 `;
 
 const PaymentLayout = styled.div`
@@ -353,7 +508,7 @@ const PaymentLayout = styled.div`
   grid-template-columns: 1fr auto;
   gap: 2rem;
   align-items: start;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -725,7 +880,7 @@ const Checkout = () => {
   if (cartLoading) {
     return (
       <CheckoutContainer>
-        <Loading text="Loading checkout..." />
+        <div><Loading text="Loading checkout..." /></div>
       </CheckoutContainer>
     );
   }
@@ -749,12 +904,14 @@ const Checkout = () => {
 
   return (
     <CheckoutContainer>
+      <div>
       <CheckoutHeader>
         <BackButton onClick={() => navigate('/cart')}>
-          <ArrowLeft size={20} />
-          Back to Cart
+          <ArrowLeft size={13} strokeWidth={2.2} />
+          Back to cart
         </BackButton>
-        <CheckoutTitle>Checkout</CheckoutTitle>
+        <BsOverline>Step 2 of 3 · Checkout</BsOverline>
+        <CheckoutTitle>Your details &amp; payment</CheckoutTitle>
       </CheckoutHeader>
 
       <CheckoutGrid>
@@ -771,7 +928,7 @@ const Checkout = () => {
             {currentStep >= 2 && (
               <StepContent>
                 <div style={{ marginBottom: '1rem' }}>
-                  <p style={{ margin: '0 0 1rem 0', color: '#666' }}>
+                  <p style={{ margin: '0 0 1rem 0', color: 'var(--bs-text-mute)' }}>
                     Choose how you would like to receive your order:
                   </p>
                   
@@ -846,7 +1003,7 @@ const Checkout = () => {
                       {...register('firstName', { required: 'First name is required' })}
                       error={errors.firstName}
                     />
-                    {errors.firstName && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{errors.firstName.message}</span>}
+                    {errors.firstName && <span style={{ color: 'var(--bs-danger)', fontSize: '0.78rem', fontWeight: 600 }}>{errors.firstName.message}</span>}
                   </FormGroup>
                   
                   <FormGroup>
@@ -856,7 +1013,7 @@ const Checkout = () => {
                       {...register('lastName', { required: 'Last name is required' })}
                       error={errors.lastName}
                     />
-                    {errors.lastName && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{errors.lastName.message}</span>}
+                    {errors.lastName && <span style={{ color: 'var(--bs-danger)', fontSize: '0.78rem', fontWeight: 600 }}>{errors.lastName.message}</span>}
                   </FormGroup>
                 </FormRow>
 
@@ -867,7 +1024,7 @@ const Checkout = () => {
                     {...register('address1', { required: 'Address is required' })}
                     error={errors.address1}
                   />
-                  {errors.address1 && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{errors.address1.message}</span>}
+                  {errors.address1 && <span style={{ color: 'var(--bs-danger)', fontSize: '0.78rem', fontWeight: 600 }}>{errors.address1.message}</span>}
                 </FormGroup>
 
                 <FormGroup>
@@ -886,7 +1043,7 @@ const Checkout = () => {
                       {...register('city', { required: 'City is required' })}
                       error={errors.city}
                     />
-                    {errors.city && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{errors.city.message}</span>}
+                    {errors.city && <span style={{ color: 'var(--bs-danger)', fontSize: '0.78rem', fontWeight: 600 }}>{errors.city.message}</span>}
                   </FormGroup>
                   
                   <FormGroup>
@@ -896,7 +1053,7 @@ const Checkout = () => {
                       {...register('postcode', { required: 'Postal code is required' })}
                       error={errors.postcode}
                     />
-                    {errors.postcode && <span style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{errors.postcode.message}</span>}
+                    {errors.postcode && <span style={{ color: 'var(--bs-danger)', fontSize: '0.78rem', fontWeight: 600 }}>{errors.postcode.message}</span>}
                   </FormGroup>
                 </FormRow>
 
@@ -974,17 +1131,21 @@ const Checkout = () => {
                             html="<strong><u><a href='https://birdsociety.sg/support-us/' target='_blank'>Add a donation</a></u> (optional)</strong>"
                             tag="h4"
                             style={{
-                              margin: '0 0 1rem 0',
-                              fontSize: '1.125rem',
-                              color: 'var(--dark)'
+                              margin: '0 0 0.75rem 0',
+                              fontSize: '0.95rem',
+                              color: 'var(--bs-text)',
+                              fontWeight: 700,
+                              letterSpacing: '-0.2px',
                             }}
                           />
                           <SafeHtml
-                            html="<span style='color: #17a2b8; font-weight: 600;'>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
+                            html="<span>Learn more about donating to the Bird Society of Singapore <u><a href='https://birdsociety.sg/support-us/' target='_blank'>here</a></u>.</span>"
                             tag="p"
                             style={{
                               margin: '0 0 1rem 0',
-                              fontSize: '0.9rem'
+                              fontSize: '0.82rem',
+                              color: 'var(--bs-text-mute)',
+                              lineHeight: 1.5,
                             }}
                           />
                           <DonationOptions>
@@ -1047,7 +1208,7 @@ const Checkout = () => {
                             onClick={() => document.getElementById('payment-file-input').click()}
                           >
                             <FileUploadIcon>
-                              {paymentFile ? <CheckCircle color="var(--success)" /> : <Upload />}
+                              {paymentFile ? <CheckCircle color="var(--bs-accent)" /> : <Upload />}
                             </FileUploadIcon>
                             <FileUploadText>
                               {paymentFile ? 'Payment proof uploaded' : 'Click to upload or drag and drop payment proof'}
@@ -1066,7 +1227,7 @@ const Checkout = () => {
 
                           {paymentFile && (
                             <SelectedFile>
-                              <CheckCircle size={16} color="var(--success)" />
+                              <CheckCircle size={16} color="var(--bs-accent)" />
                               <span>{sanitizeText(paymentFile.name)}</span>
                             </SelectedFile>
                           )}
@@ -1145,8 +1306,8 @@ const Checkout = () => {
 
             {discounts.map((discount, idx) => (
               <SummaryRow key={idx}>
-                <span style={{ color: 'var(--success, #2e7d32)', fontSize: '0.9rem' }}>{discount.name}</span>
-                <span style={{ color: 'var(--success, #2e7d32)', fontWeight: 600, fontSize: '0.9rem' }}>-{formatCurrency(discount.amount)}</span>
+                <span style={{ color: 'var(--bs-accent-dim)', fontSize: '0.84rem' }}>{discount.name}</span>
+                <span style={{ color: 'var(--bs-accent-dim)', fontWeight: 600, fontSize: '0.84rem' }}>-{formatCurrency(discount.amount)}</span>
               </SummaryRow>
             ))}
 
@@ -1169,14 +1330,34 @@ const Checkout = () => {
           </SummarySection>
 
           {orderReference && (
-            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-              <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Order Reference:</div>
-              <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{orderReference}</div>
+            <div style={{
+              marginTop: '0.5rem',
+              padding: '0.75rem 0.9rem',
+              background: 'var(--bs-body)',
+              border: '1px solid var(--bs-rule-soft)',
+              borderRadius: '8px',
+            }}>
+              <div style={{
+                fontFamily: 'var(--bs-mono)',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                letterSpacing: '1.2px',
+                textTransform: 'uppercase',
+                color: 'var(--bs-text-mute)',
+                marginBottom: '0.25rem',
+              }}>Order Reference</div>
+              <div style={{
+                fontFamily: 'var(--bs-mono)',
+                fontWeight: 600,
+                fontSize: '0.88rem',
+                color: 'var(--bs-text)',
+                letterSpacing: '0.4px',
+              }}>{orderReference}</div>
             </div>
           )}
         </OrderSummary>
       </CheckoutGrid>
-      
+      </div>
     </CheckoutContainer>
   );
 };

@@ -226,6 +226,13 @@ if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_NAME = "prod"
 
+# Local dev override: when running prod env on localhost via runserver,
+# we need plain HTTP to work with the Vite proxy.
+if os.environ.get("LOCAL_HTTP_DEV") == "True":
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
+
 SECURE_HSTS_SECONDS = 30
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
@@ -356,7 +363,7 @@ if TESTING:
 
 db_defaults = {
     "ENGINE": "django.db.backends.postgresql",
-    "NAME": "shop",
+    "NAME": "shop_backup" if os.environ.get("LOCAL_HTTP_DEV") == "True" else "shop",
     "USER": DB_USER,
     "PASSWORD": DB_PASS,
     "HOST": "127.0.0.1",

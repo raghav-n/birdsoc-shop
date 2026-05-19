@@ -866,6 +866,7 @@ const EMPTY_FORM = {
   registration_end: '',
   registration_required: true,
   waitlist_enabled: false,
+  signup_mode: 'first_come',
   price_incl_tax: '0.00',
   confirmed_email_template: DEFAULT_EMAIL_TEMPLATE,
   post_registration_message: '',
@@ -921,6 +922,7 @@ export default function EventManagementEdit() {
           registration_end: toLocalDatetimeInput(event.registration_end),
           registration_required: event.registration_required ?? true,
           waitlist_enabled: event.waitlist_enabled ?? false,
+          signup_mode: event.signup_mode || 'first_come',
           price_incl_tax: event.price_incl_tax || '0.00',
           confirmed_email_template: event.confirmed_email_template || DEFAULT_EMAIL_TEMPLATE,
           post_registration_message: event.post_registration_message || '',
@@ -997,6 +999,7 @@ export default function EventManagementEdit() {
       registration_end: form.registration_end || null,
       registration_required: form.registration_required,
       waitlist_enabled: parseFloat(form.price_incl_tax) > 0 ? false : form.waitlist_enabled,
+      signup_mode: parseFloat(form.price_incl_tax) > 0 ? 'first_come' : form.signup_mode,
       price_incl_tax: form.price_incl_tax,
       currency: 'SGD',
       json_schema: fieldsToSchema(schemaFields),
@@ -1289,25 +1292,50 @@ export default function EventManagementEdit() {
           )}
           {form.registration_required && (() => {
             const isPaidEvent = parseFloat(form.price_incl_tax || '0') > 0;
+            const isLottery = !isPaidEvent && form.signup_mode === 'lottery';
             return (
-              <Row>
-                <Field>
-                  <CheckboxRow style={isPaidEvent ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
-                    <input
-                      type="checkbox"
-                      checked={!isPaidEvent && form.waitlist_enabled}
-                      onChange={isPaidEvent ? undefined : set('waitlist_enabled')}
+              <>
+                <Row>
+                  <Field>
+                    <Label>Signup mode</Label>
+                    <Select
+                      value={isPaidEvent ? 'first_come' : form.signup_mode}
+                      onChange={set('signup_mode')}
                       disabled={isPaidEvent}
-                    />
-                    Enable waitlist
-                  </CheckboxRow>
-                  <Hint>
-                    {isPaidEvent
-                      ? 'Waitlist is only available for free events. Set the base price to 0 to enable this option.'
-                      : 'When enabled and the event is full, or when a registration requests more spots than are available, participants are added to a waitlist and notified by email when spots open up.'}
-                  </Hint>
-                </Field>
-              </Row>
+                    >
+                      <option value="first_come">First-come, first-served</option>
+                      <option value="lottery">Lottery — random draw after signups close</option>
+                    </Select>
+                    <Hint>
+                      {isPaidEvent
+                        ? 'Lottery mode is only available for free events. Set the base price to 0 to enable.'
+                        : isLottery
+                          ? 'Entries are collected during the signup window. After signups close, run the draw from the event page to randomly pick winners up to the participant cap. Winners and losers are both notified by email.'
+                          : 'Registrations confirm immediately as long as spots are available.'}
+                    </Hint>
+                  </Field>
+                </Row>
+                {!isLottery && (
+                  <Row>
+                    <Field>
+                      <CheckboxRow style={isPaidEvent ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+                        <input
+                          type="checkbox"
+                          checked={!isPaidEvent && form.waitlist_enabled}
+                          onChange={isPaidEvent ? undefined : set('waitlist_enabled')}
+                          disabled={isPaidEvent}
+                        />
+                        Enable waitlist
+                      </CheckboxRow>
+                      <Hint>
+                        {isPaidEvent
+                          ? 'Waitlist is only available for free events. Set the base price to 0 to enable this option.'
+                          : 'When enabled and the event is full, or when a registration requests more spots than are available, participants are added to a waitlist and notified by email when spots open up.'}
+                      </Hint>
+                    </Field>
+                  </Row>
+                )}
+              </>
             );
           })()}
         </Section>

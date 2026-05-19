@@ -46,6 +46,197 @@ def set_global_registration_closed(closed: bool) -> None:
         f.write("1" if closed else "0")
 
 
+def run_lottery_draw(event):
+    """
+    Randomly select winners from the pool of lottery-pending entries for ``event``.
+
+    Walks the shuffled pool and picks entries whose full quantity fits in the
+    remaining capacity (greedy — small parties may slip in even after a larger one
+    is skipped). Winners become confirmed; everyone else is marked is_lottery_lost.
+    Sets event.lottery_drawn_at and sends a result email per entry.
+
+    Returns a dict with counts: {"winners": N, "losers": M, "entries": total}.
+
+    Safe to call repeatedly only for already-drawn events: it will no-op and return
+    zeros if there are no pending entries.
+    """
+    import random
+    from oscar.core.loading import get_model
+    EventParticipant = get_model("event", "EventParticipant")
+
+    pending = list(
+        EventParticipant.objects.select_related("participant")
+        .filter(event=event, is_lottery_pending=True, is_cancelled=False)
+    )
+    if not pending:
+        # Still mark drawn so admins see "already drawn" state if they re-run.
+        if not event.lottery_drawn_at:
+            from django.utils import timezone
+            event.lottery_drawn_at = timezone.now()
+            event.save(update_fields=["lottery_drawn_at"])
+        return {"winners": 0, "losers": 0, "entries": 0}
+
+    random.shuffle(pending)
+
+    capacity = event.max_participants
+    # Confirmed slots already taken outside the lottery pool (shouldn't happen for
+    # a lottery event, but guard anyway).
+    taken = event.participant_count
+    remaining = (capacity - taken) if capacity is not None else None
+
+    winners = []
+    losers = []
+    for ep in pending:
+        qty = ep.participant.quantity
+        if remaining is None or qty <= remaining:
+            ep.is_lottery_pending = False
+            ep.is_confirmed = True
+            ep.save(update_fields=["is_lottery_pending", "is_confirmed"])
+            winners.append(ep)
+            if remaining is not None:
+                remaining -= qty
+        else:
+            ep.is_lottery_pending = False
+            ep.is_lottery_lost = True
+            ep.save(update_fields=["is_lottery_pending", "is_lottery_lost"])
+            losers.append(ep)
+
+    from django.utils import timezone
+    event.lottery_drawn_at = timezone.now()
+    event.save(update_fields=["lottery_drawn_at"])
+
+    for ep in winners:
+        send_lottery_won_email(event, ep.participant)
+    for ep in losers:
+        send_lottery_lost_email(event, ep.participant)
+
+    return {"winners": len(winners), "losers": len(losers), "entries": len(pending)}
+
+
+def send_lottery_entered_email(event, participant):
+    """Confirm a lottery entry was received (no slot yet)."""
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    draw_when = ""
+    if event.registration_end:
+        try:
+            draw_when = f" after sign-ups close on {localtime(event.registration_end).strftime('%B %d, %Y at %I:%M %p')}"
+        except Exception:
+            draw_when = ""
+
+    subject = f"Lottery entry received – {event.title}"
+    html_content = f"""
+<p>Hi {participant.first_name},</p>
+
+<p>Thanks for entering the lottery for <strong>{event.title}</strong>! Your entry has been received.</p>
+
+<p>This event uses a random draw to allocate places. We'll run the draw{draw_when} and email you with the result. No payment or further action is needed from you right now.</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {participant.first_name},\n\n"
+        f"Thanks for entering the lottery for {event.title}! Your entry has been received.\n\n"
+        f"This event uses a random draw to allocate places. We'll run the draw{draw_when} "
+        f"and email you with the result.\n\n"
+        f"— Bird Society of Singapore"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(f"Lottery entered email sent to {participant.email} for event {event.id}")
+    except Exception as exc:
+        logger.error(f"Failed to send lottery entered email: {exc}")
+
+
+def send_lottery_won_email(event, participant):
+    """Tell a participant they won a spot in the lottery draw."""
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    subject = f"Great news — you got a spot at {event.title}!"
+    slot_word = "spot" if participant.quantity == 1 else "spots"
+    html_content = f"""
+<p>Hi {participant.first_name},</p>
+
+<p>Good news! You've been selected in the lottery for <strong>{event.title}</strong>.
+Your {slot_word} {'is' if participant.quantity == 1 else 'are'} now <strong>confirmed</strong>.</p>
+
+<p>We look forward to seeing you there!</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {participant.first_name},\n\n"
+        f"Good news! You've been selected in the lottery for {event.title}. "
+        f"Your {slot_word} {'is' if participant.quantity == 1 else 'are'} now confirmed.\n\n"
+        f"We look forward to seeing you there!\n\n"
+        f"— Bird Society of Singapore"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        # Fire the regular confirmed email too if a template is configured
+        if event.confirmed_email_template and event.confirmed_email_template.strip():
+            send_free_registration_confirmation_email(event, participant)
+        logger.info(f"Lottery won email sent to {participant.email} for event {event.id}")
+    except Exception as exc:
+        logger.error(f"Failed to send lottery won email: {exc}")
+
+
+def send_lottery_lost_email(event, participant):
+    """Tell a participant they weren't selected in the lottery draw."""
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+
+    subject = f"Lottery result – {event.title}"
+    html_content = f"""
+<p>Hi {participant.first_name},</p>
+
+<p>Thanks for entering the lottery for <strong>{event.title}</strong>. Unfortunately,
+you weren't selected in this draw — demand was higher than the number of available spots.</p>
+
+<p>We hope to see you at a future event! Keep an eye on our events page for upcoming opportunities.</p>
+
+<p>— Bird Society of Singapore</p>
+"""
+    text_content = (
+        f"Hi {participant.first_name},\n\n"
+        f"Thanks for entering the lottery for {event.title}. Unfortunately, you weren't "
+        f"selected in this draw — demand was higher than the number of available spots.\n\n"
+        f"We hope to see you at a future event!\n\n"
+        f"— Bird Society of Singapore"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[participant.email],
+            reply_to=[reply_to_email] if reply_to_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        logger.info(f"Lottery lost email sent to {participant.email} for event {event.id}")
+    except Exception as exc:
+        logger.error(f"Failed to send lottery lost email: {exc}")
+
+
 def promote_from_waitlist(event):
     """
     Greedy waitlist promotion: walk the waitlist in join order and promote anyone

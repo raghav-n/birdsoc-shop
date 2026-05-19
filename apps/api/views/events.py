@@ -86,6 +86,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "global_registration_closed": closed,
                 "tags": e.tags or [],
                 "blog_url": e.blog_url,
+                "signup_mode": e.signup_mode,
+                "is_lottery": e.is_lottery,
+                "lottery_drawn_at": e.lottery_drawn_at,
+                "lottery_entry_count": e.lottery_entry_count if e.is_lottery else 0,
             }
             for e in qs
         ]
@@ -124,6 +128,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "post_registration_message": e.post_registration_message or "",
             "tags": e.tags or [],
             "blog_url": e.blog_url,
+            "signup_mode": e.signup_mode,
+            "is_lottery": e.is_lottery,
+            "lottery_drawn_at": e.lottery_drawn_at,
+            "lottery_entry_count": e.lottery_entry_count if e.is_lottery else 0,
         }
         return Response(data)
 
@@ -309,6 +317,57 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         # Paid or free? Consider donation too
         is_paid = (amount > 0) or (donation_int > 0)
 
+        # Lottery mode: free-only, collects entries during the window,
+        # capacity is not enforced at signup time.
+        if event.is_lottery:
+            if amount > 0:
+                return Response(
+                    {"detail": "Lottery mode is only supported for free events."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if donation_int > 0:
+                return Response(
+                    {"detail": "Donations are not accepted at signup for lottery events."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if event.lottery_drawn_at is not None:
+                return Response(
+                    {
+                        "detail": "The lottery for this event has already been drawn.",
+                        "code": "lottery_already_drawn",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            event_participant = EventParticipant.objects.create(
+                event=event,
+                participant=participant,
+                is_confirmed=False,
+                is_lottery_pending=True,
+                extra_json=extra_json,
+            )
+            from apps.event.utils import send_lottery_entered_email
+            send_lottery_entered_email(event, participant)
+            return Response(
+                {
+                    "event": event.id,
+                    "participant": {
+                        "id": participant.id,
+                        "first_name": participant.first_name,
+                        "last_name": participant.last_name,
+                        "email": participant.email,
+                        "phone_number": participant.phone_number,
+                        "emergency_contact_name": participant.emergency_contact_name,
+                        "emergency_contact_phone": participant.emergency_contact_phone,
+                        "quantity": participant.quantity,
+                    },
+                    "registered_at": event_participant.registered_at,
+                    "confirmed": False,
+                    "lottery_pending": True,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
         # Capacity check: include pending registrations if paid
         if event.max_participants is not None:
             confirmed = event.participant_count
@@ -493,6 +552,16 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "code": "event_registration_closed",
                 },
                 status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Lottery events use the single-entry endpoint only
+        if event.is_lottery:
+            return Response(
+                {
+                    "detail": "Bulk registration is not available for lottery events. Use the single entry form.",
+                    "code": "lottery_no_bulk",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Participants payload

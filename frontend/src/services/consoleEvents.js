@@ -62,6 +62,10 @@ export const consoleEventService = {
   // Guide token
   regenerateGuideToken: (id) =>
     api.post(`${BASE}/${id}/regenerate-guide-token`).then(r => r.data),
+
+  // Lottery
+  runLotteryDraw: (id) =>
+    api.post(`${BASE}/${id}/run-lottery-draw`).then(r => r.data),
 };
 
 export const guideService = {
