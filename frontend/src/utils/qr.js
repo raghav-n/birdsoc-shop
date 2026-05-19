@@ -74,7 +74,7 @@ export const renderPayNowQrToContainer = async (container, { amount, donation = 
     },
     nodeQrCodeOptions: {
       color: {
-        dark: '#731B6C',
+        dark: '#1F2D26',
         light: '#ffffff',
       },
       errorCorrectionLevel: 'H',

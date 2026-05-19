@@ -2,80 +2,105 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import styled from 'styled-components';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, MapPin, Users } from 'lucide-react';
+import { Calendar, MapPin, Users, ArrowLeft, Check } from 'lucide-react';
 import Alert from '../components/Alert';
 import Loading from '../components/Loading';
 import PayNowQR from '../components/PayNowQR';
 import { eventService } from '../services/misc';
 import { showToast } from '../utils/toast.jsx';
 import { useAuth } from '../context/AuthContext';
+import { BsPage } from '../styles/birdsoc';
 
 // ─── Layout ────────────────────────────────────────────────────────────────────
 
-const Page = styled.div`
-  max-width: 640px;
-  margin: 2rem auto;
-  padding: 0 1rem 4rem;
+const Page = styled(BsPage)`
+  > div {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 5rem;
+  }
 `;
 
 const Card = styled.div`
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 1.5rem 1.75rem;
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 14px;
+  padding: 1.75rem;
   margin-bottom: 1rem;
   overflow: hidden;
+
+  @media (max-width: 600px) {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
 `;
 
 const EventHeroImage = styled.img`
   display: block;
   width: calc(100% + 3.5rem);
-  margin: -1.5rem -1.75rem 1.25rem;
-  aspect-ratio: 3 / 2;
+  margin: -1.75rem -1.75rem 1.25rem;
+  aspect-ratio: 21 / 9;
   object-fit: cover;
+
+  @media (max-width: 600px) {
+    width: calc(100% + 2.5rem);
+    margin: -1.25rem -1.25rem 1rem;
+    aspect-ratio: 3 / 2;
+  }
 `;
 
 // ─── Event info ────────────────────────────────────────────────────────────────
 
 const EventTitle = styled.h1`
-  font-size: 1.6rem;
+  font-family: var(--bs-sans);
+  font-size: 2.25rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 0.75rem;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  color: var(--bs-text);
+  margin: 0 0 0.85rem;
+
+  @media (max-width: 768px) {
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
+  }
 `;
 
 const MetaRow = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem 1.25rem;
+  gap: 0.4rem 1.5rem;
   margin-bottom: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 0.84rem;
+  color: var(--bs-text);
 `;
 
 const MetaItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
+
+  svg { color: var(--bs-accent); flex-shrink: 0; }
 `;
 
 const SpotsBadge = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.15rem 0.55rem;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 4px 10px;
   border-radius: 999px;
-  background: ${p => p.$full ? '#fee2e2' : p.$low ? '#fef9c3' : '#f0fdf4'};
-  color: ${p => p.$full ? '#b91c1c' : p.$low ? '#854d0e' : '#15803d'};
-  border: 1px solid ${p => p.$full ? '#fca5a5' : p.$low ? '#fde68a' : '#86efac'};
+  background: ${p => p.$full ? 'var(--bs-coral-soft)' : p.$low ? 'var(--bs-amber-soft)' : 'var(--bs-accent-soft)'};
+  color: ${p => p.$full ? 'var(--bs-coral-fg)' : p.$low ? 'var(--bs-amber-fg)' : 'var(--bs-accent-dim)'};
 `;
 
 const Description = styled.div`
   line-height: 1.7;
-  color: var(--text-primary);
-  font-size: 0.95rem;
+  color: var(--bs-text);
+  font-size: 0.91rem;
 
   & > * + * { margin-top: 0.6em; }
   p { margin: 0; }
@@ -85,14 +110,15 @@ const Description = styled.div`
   li + li { margin-top: 0.15em; }
   strong { font-weight: 700; }
   em { font-style: italic; }
-  hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75em 0; }
+  hr { border: none; border-top: 1px solid var(--bs-rule-soft); margin: 0.75em 0; }
+  a { color: var(--bs-accent); }
 `;
 
 const PriceTag = styled.div`
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 0.75rem;
+  color: var(--bs-text);
+  margin-top: 0.9rem;
 `;
 
 // ─── Step indicator ────────────────────────────────────────────────────────────
@@ -100,37 +126,40 @@ const PriceTag = styled.div`
 const Steps = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  gap: 0.5rem;
 `;
 
 const StepItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.82rem;
-  font-weight: ${p => p.$active ? 600 : 400};
-  color: ${p => p.$active ? 'var(--text-primary)' : p.$done ? '#16a34a' : 'var(--text-secondary)'};
+  gap: 0.5rem;
+  font-family: var(--bs-sans);
+  font-size: 0.78rem;
+  font-weight: ${p => p.$active ? 700 : 500};
+  color: ${p => p.$active ? 'var(--bs-text)' : p.$done ? 'var(--bs-accent-dim)' : 'var(--bs-text-mute)'};
 `;
 
 const StepNum = styled.div`
   width: 22px;
   height: 22px;
-  border-radius: 50%;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-family: var(--bs-mono);
+  font-size: 0.7rem;
   font-weight: 700;
   flex-shrink: 0;
-  background: ${p => p.$active ? 'var(--link-text)' : p.$done ? '#16a34a' : '#e5e7eb'};
-  color: ${p => p.$active || p.$done ? '#fff' : '#9ca3af'};
+  background: ${p => p.$active ? 'var(--bs-accent)' : p.$done ? 'var(--bs-accent-soft)' : 'var(--bs-panel-hi)'};
+  color: ${p => p.$active ? 'var(--bs-on-accent)' : p.$done ? 'var(--bs-accent-dim)' : 'var(--bs-text-mute)'};
 `;
 
 const StepLine = styled.div`
   flex: 1;
   height: 1px;
-  background: #e5e7eb;
-  margin: 0 0.6rem;
+  background: var(--bs-rule);
+  margin: 0 0.5rem;
 `;
 
 // ─── Form fields ───────────────────────────────────────────────────────────────
@@ -141,132 +170,203 @@ const Section = styled.div`
 `;
 
 const SectionLabel = styled.div`
-  font-size: 0.7rem;
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-secondary);
-  margin-bottom: 0.75rem;
+  letter-spacing: 1.4px;
+  color: var(--bs-text-mute);
+  margin-bottom: 0.85rem;
 `;
 
 const Divider = styled.hr`
   border: none;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--bs-rule-soft);
   margin: 1.25rem 0;
 `;
 
 const ParticipantCard = styled.div`
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--bs-body);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 12px;
   padding: 1rem 1.1rem;
   & + & { margin-top: 0.75rem; }
 `;
 
 const ParticipantHeader = styled.div`
-  font-size: 0.72rem;
+  font-family: var(--bs-sans);
+  font-size: 0.66rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-secondary);
+  letter-spacing: 1.2px;
+  color: var(--bs-text-mute);
   margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--bs-rule-soft);
 `;
 
 const FieldGrid = styled.div`
   display: grid;
   grid-template-columns: ${p => p.$cols || '1fr'};
-  gap: 0.75rem 1rem;
-  @media (max-width: 480px) { grid-template-columns: 1fr; }
+  gap: 0.85rem 1rem;
+  @media (max-width: 600px) { grid-template-columns: 1fr; }
 `;
 
 const Field = styled.div``;
 
 const FLabel = styled.label`
   display: block;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 0.3rem;
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bs-text-dim);
+  letter-spacing: 0.1px;
+  margin-bottom: 6px;
 `;
 
 const FInput = styled.input`
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid ${p => p.$err ? '#f87171' : '#d1d5db'};
-  border-radius: 6px;
-  font-size: 0.9rem;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid ${p => p.$err ? 'var(--bs-danger)' : 'var(--bs-rule)'};
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  color: var(--bs-text);
+  background: var(--bs-body);
   outline: none;
-  background: #fff;
-  &:focus { border-color: var(--link-text); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder { color: var(--bs-text-mute); }
+
+  &:focus {
+    border-color: var(--bs-accent);
+    box-shadow: 0 0 0 3px var(--bs-accent-tint);
+  }
 `;
 
 const FSelect = styled.select`
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid ${p => p.$err ? '#f87171' : '#d1d5db'};
-  border-radius: 6px;
-  font-size: 0.9rem;
+  height: 42px;
+  padding: 0 32px 0 12px;
+  border: 1.5px solid ${p => p.$err ? 'var(--bs-danger)' : 'var(--bs-rule)'};
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  color: var(--bs-text);
+  background: var(--bs-body);
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A5C52' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
   outline: none;
-  background: #fff;
-  &:focus { border-color: var(--link-text); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    border-color: var(--bs-accent);
+    box-shadow: 0 0 0 3px var(--bs-accent-tint);
+  }
 `;
 
 const FHint = styled.div`
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--bs-text-mute);
+  margin-top: 4px;
 `;
 
 const FError = styled.div.attrs(() => ({ 'data-field-error': '' }))`
-  font-size: 0.75rem;
-  color: #dc2626;
-  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bs-danger);
+  margin-top: 4px;
 `;
 
 const CheckRow = styled.label`
   display: flex;
   align-items: flex-start;
-  gap: 0.6rem;
-  font-size: 0.875rem;
+  gap: 0.55rem;
+  font-size: 0.84rem;
   cursor: pointer;
-  line-height: 1.5;
-  color: var(--text-primary);
-  input { margin-top: 3px; flex-shrink: 0; }
+  line-height: 1.55;
+  color: var(--bs-text);
+
+  input[type="checkbox"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin: 1px 0 0;
+    border-radius: 4px;
+    border: 1.5px solid var(--bs-rule);
+    background: var(--bs-panel);
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  input[type="checkbox"]:checked {
+    background: var(--bs-accent);
+    border-color: var(--bs-accent);
+  }
+
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23F0FAF5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12l5 5L20 6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+  }
 `;
 
 // ─── Price preview ─────────────────────────────────────────────────────────────
 
 const PriceBox = styled.div`
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.875rem 1.1rem;
+  background: var(--bs-body);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
 `;
 
 const PriceLine = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 0.875rem;
-  color: ${p => p.$total ? 'var(--text-primary)' : 'var(--text-secondary)'};
-  font-weight: ${p => p.$total ? 600 : 400};
-  padding-top: ${p => p.$total ? '0.5rem' : '0.1rem'};
-  border-top: ${p => p.$total ? '1px solid #e2e8f0' : 'none'};
-  margin-top: ${p => p.$total ? '0.4rem' : '0'};
+  font-size: 0.84rem;
+  color: ${p => p.$total ? 'var(--bs-text)' : 'var(--bs-text-dim)'};
+  font-weight: ${p => p.$total ? 700 : 400};
+  padding-top: ${p => p.$total ? '0.65rem' : '0.1rem'};
+  border-top: ${p => p.$total ? '1px solid var(--bs-rule-soft)' : 'none'};
+  margin-top: ${p => p.$total ? '0.5rem' : '0'};
+
+  ${p => p.$total && `
+    font-size: 0.81rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  `}
+
+  ${p => p.$total && `
+    span:last-child {
+      font-size: 1.4rem;
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.5px;
+    }
+  `}
 `;
 
 const CapWarning = styled.div`
   font-size: 0.78rem;
-  margin-top: 0.5rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 5px;
-  background: ${p => p.$danger ? '#fee2e2' : '#fef9c3'};
-  color: ${p => p.$danger ? '#b91c1c' : '#854d0e'};
+  margin-top: 0.65rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  line-height: 1.55;
+  background: ${p => p.$danger ? 'var(--bs-coral-soft)' : 'var(--bs-amber-soft)'};
+  color: ${p => p.$danger ? 'var(--bs-coral-fg)' : 'var(--bs-amber-fg)'};
 `;
 
 // ─── Buttons ───────────────────────────────────────────────────────────────────
@@ -279,27 +379,41 @@ const BtnRow = styled.div`
 `;
 
 const PrimaryBtn = styled.button`
-  padding: 0.6rem 1.4rem;
-  background: var(--link-text);
-  color: #fff;
+  height: 48px;
+  padding: 0 22px;
+  background: var(--bs-accent);
+  color: var(--bs-on-accent);
   border: none;
-  border-radius: 7px;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.91rem;
   font-weight: 600;
+  letter-spacing: -0.1px;
   cursor: pointer;
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &:hover:not(:disabled) { opacity: 0.88; }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+  &:hover:not(:disabled) { background: var(--bs-accent-dim); }
 `;
 
 const SecondaryBtn = styled.button`
-  padding: 0.6rem 1.1rem;
-  background: #fff;
-  color: var(--text-primary);
-  border: 1px solid #d1d5db;
-  border-radius: 7px;
-  font-size: 0.9rem;
+  height: 40px;
+  padding: 0 18px;
+  background: var(--bs-panel);
+  color: var(--bs-text);
+  border: 1px solid var(--bs-rule);
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  font-weight: 600;
   cursor: pointer;
-  &:hover { background: #f9fafb; }
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover { background: var(--bs-panel-hi); border-color: var(--bs-accent); }
 `;
 
 // ─── Review ────────────────────────────────────────────────────────────────────
@@ -308,16 +422,19 @@ const ReviewRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 0.4rem 0;
-  font-size: 0.875rem;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 0.55rem 0;
+  font-size: 0.84rem;
+  border-bottom: 1px solid var(--bs-rule-soft);
   &:last-child { border-bottom: none; }
 `;
 
-const RKey = styled.span`color: var(--text-secondary);`;
+const RKey = styled.span`
+  color: var(--bs-text-dim);
+`;
+
 const RVal = styled.span`
-  font-weight: 500;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: var(--bs-text);
   max-width: 60%;
   text-align: right;
   word-break: break-word;
@@ -329,19 +446,21 @@ const SlotWarning = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  background: #fef9c3;
-  border: 1px solid #fde68a;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  background: var(--bs-amber-soft);
+  border: 1px solid rgba(122, 63, 26, 0.18);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
   margin-top: 1rem;
-  font-size: 0.875rem;
-  color: #713f12;
-  line-height: 1.5;
+  font-size: 0.84rem;
+  color: var(--bs-amber-fg);
+  line-height: 1.55;
 `;
 
 const CountdownBadge = styled.span`
+  font-family: var(--bs-mono);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.4px;
 `;
 
 function PaymentCountdown({ registeredAt }) {
@@ -385,16 +504,17 @@ function PaymentCountdown({ registeredAt }) {
 
 const RefBadge = styled.div`
   display: inline-block;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  padding: 0.4rem 1rem;
-  font-family: monospace;
+  background: var(--bs-body);
+  border: 1px solid var(--bs-rule);
+  border-radius: 8px;
+  padding: 0.5rem 1.1rem;
+  font-family: var(--bs-mono);
   font-weight: 600;
-  font-size: 1rem;
-  letter-spacing: 0.04em;
-  color: var(--text-primary);
-  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--bs-text);
+  margin-top: 0.6rem;
 `;
 
 const DropZone = styled.label`
@@ -403,14 +523,14 @@ const DropZone = styled.label`
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 2px dashed ${p => p.$drag ? '#6366f1' : p.$uploaded ? '#16a34a' : '#d1d5db'};
-  background: ${p => p.$drag ? '#eef2ff' : p.$uploaded ? '#f0fdf4' : '#fafafa'};
-  border-radius: 10px;
+  border: 2px dashed ${p => p.$drag ? 'var(--bs-accent)' : p.$uploaded ? 'var(--bs-accent)' : 'var(--bs-rule)'};
+  background: ${p => p.$drag ? 'var(--bs-accent-tint)' : p.$uploaded ? 'var(--bs-accent-soft)' : 'var(--bs-body)'};
+  border-radius: 12px;
   padding: 1.5rem 1rem;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
-  font-size: 0.875rem;
-  color: ${p => p.$uploaded ? '#16a34a' : 'var(--text-secondary)'};
+  font-size: 0.84rem;
+  color: ${p => p.$uploaded ? 'var(--bs-accent-dim)' : 'var(--bs-text-dim)'};
   text-align: center;
 `;
 
@@ -418,12 +538,12 @@ const ConfirmedBanner = styled.div`
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  color: #15803d;
+  background: var(--bs-accent-soft);
+  border: 1px solid rgba(46, 107, 90, 0.25);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  color: var(--bs-accent-dim);
   font-weight: 600;
   margin-top: 1rem;
 `;
@@ -785,39 +905,55 @@ export default function EventDetail() {
 
   return (
     <Page>
-      <div style={{ marginBottom: '0.75rem' }}>
-        <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
-          ← Back to events
+      <div>
+      <div style={{ marginBottom: '1rem', fontFamily: 'var(--bs-mono)', fontSize: '0.72rem', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+        <Link to="/events" style={{ color: 'var(--bs-text-mute)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowLeft size={12} strokeWidth={1.7} />
+          Back to events
         </Link>
       </div>
 
       {/* ── Event info ─────────────────────────────────────────────────────── */}
       <Card>
         {event.image_url && <EventHeroImage src={event.image_url} alt={event.title} />}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        {event.tags && event.tags.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: '0.85rem' }}>
+            {event.tags.slice(0, 3).map((tag, i) => (
+              <span key={tag} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '3px 8px', borderRadius: 999,
+                background: i === 0 ? 'var(--bs-accent-soft)' : 'var(--bs-panel-hi)',
+                color: i === 0 ? 'var(--bs-accent-dim)' : 'var(--bs-text-dim)',
+                fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.3px', textTransform: 'uppercase',
+              }}>{tag}</span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
           <EventTitle>{event.title}</EventTitle>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {isLottery && (
-              <SpotsBadge $low style={{ background: '#faf5ff', color: '#6d28d9', borderColor: '#e9d5ff' }}>
+              <SpotsBadge $low>
                 {lotteryDrawn ? 'Lottery — drawn' : 'Lottery — enter to be considered'}
               </SpotsBadge>
             )}
             {!isLottery && event.is_full && (
               <SpotsBadge $full>
-                {event.waitlist_enabled ? 'Full – join waitlist' : 'Full'}
+                <Users size={11} strokeWidth={1.7} />
+                {event.waitlist_enabled ? 'Full · waitlist' : 'Full'}
               </SpotsBadge>
             )}
             {!isLottery && spotsLeft !== null && !event.is_full && spotsLeft <= 8 && (
-              <SpotsBadge $low><Users size={11} />{spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left</SpotsBadge>
+              <SpotsBadge $low><Users size={11} strokeWidth={1.7} />{spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left</SpotsBadge>
             )}
           </div>
         </div>
         <MetaRow>
-          {event.start_date && <MetaItem><Calendar size={14} />{fmt(event.start_date)}</MetaItem>}
+          {event.start_date && <MetaItem><Calendar size={15} strokeWidth={1.7} /><strong>{fmt(event.start_date)}</strong></MetaItem>}
           {event.end_date && <MetaItem>to {fmt(event.end_date)}</MetaItem>}
-          {event.location && <MetaItem><MapPin size={14} />{event.location}</MetaItem>}
+          {event.location && <MetaItem><MapPin size={15} strokeWidth={1.7} />{event.location}</MetaItem>}
           {spotsLeft !== null && !event.is_full && spotsLeft > 8 && (
-            <MetaItem><Users size={14} />{spotsLeft} spots remaining</MetaItem>
+            <MetaItem><Users size={15} strokeWidth={1.7} />{spotsLeft} spots remaining</MetaItem>
           )}
         </MetaRow>
         {event.description && (
@@ -830,7 +966,7 @@ export default function EventDetail() {
 
       {/* ── Info-only ──────────────────────────────────────────────────────── */}
       {event.registration_required === false && (
-        <Card style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <Card style={{ textAlign: 'center', color: 'var(--bs-text-mute)' }}>
           No registration needed — just show up!
         </Card>
       )}
@@ -975,8 +1111,8 @@ export default function EventDetail() {
                           <>
                             {i === 0 && qty > 1 && (
                               <div style={{
-                                background: '#f8fafc',
-                                border: '1px solid #e2e8f0',
+                                background: 'var(--bs-body)',
+                                border: '1px solid var(--bs-rule-soft)',
                                 borderRadius: '6px',
                                 padding: '0.5rem 0.75rem',
                                 fontSize: '0.82rem',
@@ -1103,7 +1239,7 @@ export default function EventDetail() {
                 {/* Price preview */}
                 <PriceBox>
                   {priceLoading ? (
-                    <PriceLine><span style={{ color: 'var(--text-secondary)' }}>Computing…</span></PriceLine>
+                    <PriceLine><span style={{ color: 'var(--bs-text-mute)' }}>Computing…</span></PriceLine>
                   ) : priceData ? (
                     <>
                       {(() => {
@@ -1238,11 +1374,11 @@ export default function EventDetail() {
                     </ReviewRow>
                   )}
                   <ReviewRow>
-                    <RKey style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Total</RKey>
+                    <RKey style={{ fontWeight: 600, color: 'var(--bs-text)' }}>Total</RKey>
                     <RVal style={{ fontSize: '1.05rem' }}>{grandTotal === 0 ? 'Free' : fmtAmt(grandTotal)}</RVal>
                   </ReviewRow>
                   {grandTotal > 0 && !isWaitlistMode && (
-                    <div style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: 'var(--bs-text-mute)', lineHeight: 1.6 }}>
                       After confirming, you'll be shown a PayNow QR code to complete payment.
                     </div>
                   )}
@@ -1263,10 +1399,10 @@ export default function EventDetail() {
             {step === 'success' && result && result.lottery_pending && (
               <Card style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>🎲</div>
-                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--bs-text)' }}>
                   Lottery entry received!
                 </h2>
-                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+                <p style={{ color: 'var(--bs-text-mute)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
                   We'll email {result.participant?.email} with the draw result
                   {event.registration_end ? ` after sign-ups close on ${fmt(event.registration_end)}` : ''}.
                   No payment or further action is needed right now.
@@ -1275,11 +1411,11 @@ export default function EventDetail() {
                   <div style={{
                     marginTop: '0.75rem',
                     padding: '0.75rem 1rem',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
+                    background: 'var(--bs-body)',
+                    border: '1px solid var(--bs-rule-soft)',
                     borderRadius: '8px',
                     fontSize: '0.9rem',
-                    color: 'var(--text-primary)',
+                    color: 'var(--bs-text)',
                     textAlign: 'left',
                     lineHeight: 1.6,
                     whiteSpace: 'pre-wrap',
@@ -1293,10 +1429,10 @@ export default function EventDetail() {
             {step === 'success' && result && result.waitlisted && (
               <Card style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>⏳</div>
-                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--bs-text)' }}>
                   You're on the waitlist!
                 </h2>
-                <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+                <p style={{ color: 'var(--bs-text-mute)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
                   We'll email {result.participant?.email} if a spot becomes available — no action needed from you right now.
                 </p>
               </Card>
@@ -1308,10 +1444,10 @@ export default function EventDetail() {
                   <div style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>
                     {isPaidResult ? '🎉' : '✅'}
                   </div>
-                  <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  <h2 style={{ margin: '0 0 0.4rem', fontSize: '1.2rem', color: 'var(--bs-text)' }}>
                     {isPaidResult ? 'Registration received!' : "You're registered!"}
                   </h2>
-                  <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
+                  <p style={{ color: 'var(--bs-text-mute)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
                     {isPaidResult
                       ? 'Scan the PayNow QR code below to secure your spot.'
                       : 'A confirmation email has been sent to your email address.'}
@@ -1320,11 +1456,11 @@ export default function EventDetail() {
                     <div style={{
                       marginTop: '0.75rem',
                       padding: '0.75rem 1rem',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
+                      background: 'var(--bs-body)',
+                      border: '1px solid var(--bs-rule-soft)',
                       borderRadius: '8px',
                       fontSize: '0.9rem',
-                      color: 'var(--text-primary)',
+                      color: 'var(--bs-text)',
                       textAlign: 'left',
                       lineHeight: 1.6,
                       whiteSpace: 'pre-wrap',
@@ -1348,7 +1484,7 @@ export default function EventDetail() {
                         donation={donationAmt}
                       />
                     </div>
-                    <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--bs-text-mute)', lineHeight: 1.6 }}>
                       <p style={{ margin: '0 0 0.4rem' }}>
                         Use <strong>exactly the reference number above</strong> in the PayNow remarks field.
                       </p>
@@ -1390,7 +1526,7 @@ export default function EventDetail() {
                               disabled={!proofFile || proofUploading}
                               style={{
                                 marginTop: '0.6rem', width: '100%', padding: '0.6rem',
-                                background: '#4f46e5', color: '#fff', border: 'none',
+                                background: 'var(--bs-accent)', color: '#fff', border: 'none',
                                 borderRadius: '7px', fontWeight: 600,
                                 cursor: (!proofFile || proofUploading) ? 'not-allowed' : 'pointer',
                                 opacity: (!proofFile || proofUploading) ? 0.5 : 1,
@@ -1406,7 +1542,7 @@ export default function EventDetail() {
                 )}
 
                 <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-                  <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--bs-text-mute)' }}>
                     ← Back to events
                   </Link>
                 </div>
@@ -1414,14 +1550,14 @@ export default function EventDetail() {
             )}
             {step === 'success' && result && result.waitlisted && (
               <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-                <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--bs-text-mute)' }}>
                   ← Back to events
                 </Link>
               </div>
             )}
             {step === 'success' && result && result.lottery_pending && (
               <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-                <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                <Link to="/events" style={{ fontSize: '0.875rem', color: 'var(--bs-text-mute)' }}>
                   ← Back to events
                 </Link>
               </div>
@@ -1429,6 +1565,7 @@ export default function EventDetail() {
           </>
         );
       })()}
+      </div>
     </Page>
   );
 }

@@ -1,6 +1,9 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Grid } from '../styles/GlobalStyles';
+import {
+  BsSectionLabel,
+  BsSectionLabelOverline,
+} from '../styles/birdsoc';
 import { getImageUrl } from '../utils/helpers';
 import { sanitizeText } from '../utils/safeContent';
 import ProductCard from './ProductCard';
@@ -9,56 +12,47 @@ const Section = styled.section`
   margin-bottom: 3rem;
 `;
 
-const SectionHeader = styled.div`
-  margin-bottom: 1.5rem;
-`;
-
-const BannerImage = styled.div`
+const Banner = styled.div`
   width: 100%;
-  height: 200px;
-  border-radius: 8px;
+  aspect-ratio: 16 / 5;
+  border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--bs-photo-bg);
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
   }
 `;
 
-const SectionTitle = styled.h2`
-  font-size: 1.5rem;
-  color: var(--dark);
-  margin: 0 0 0.5rem 0;
-`;
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
 
-const SectionDescription = styled.p`
-  font-size: 0.95rem;
-  color: #666;
-  margin: 0;
-  max-width: 700px;
-  line-height: 1.6;
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
 `;
 
 const CollectionSection = ({ collection }) => {
   return (
     <Section>
-      <SectionHeader>
-        {collection.image && (
-          <BannerImage>
-            <img
-              src={getImageUrl(collection.image)}
-              alt={sanitizeText(collection.name)}
-            />
-          </BannerImage>
-        )}
-        <SectionTitle>{sanitizeText(collection.name)}</SectionTitle>
-        {collection.description && (
-          <SectionDescription>{sanitizeText(collection.description)}</SectionDescription>
-        )}
-      </SectionHeader>
-      <Grid minWidth="160px" gap="1rem">
+      {collection.image && (
+        <Banner>
+          <img src={getImageUrl(collection.image)} alt={sanitizeText(collection.name)} />
+        </Banner>
+      )}
+      <BsSectionLabel>
+        <div>
+          <BsSectionLabelOverline>{sanitizeText(collection.name)}</BsSectionLabelOverline>
+        </div>
+      </BsSectionLabel>
+      <Grid>
         {collection.products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}

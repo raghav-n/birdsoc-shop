@@ -1,141 +1,218 @@
+import React from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import { Facebook, Instagram } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useShopConfig } from '../context/ShopConfigContext';
 
-const FooterContainer = styled.footer`
-  background-color: var(--page-footer-background);
-  border-top: 1px solid #e1e1e1;
+const Container = styled.footer`
+  background: var(--bs-body);
+  border-top: 1px solid var(--bs-rule-soft);
   margin-top: auto;
-  padding: 2rem 0 1rem 0;
 `;
 
-const FooterContent = styled.div`
-  max-width: 1200px;
+const Grid = styled.div`
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 0 1rem;
-`;
+  padding: 64px 32px 32px;
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 1fr);
+  gap: 56px;
 
-const FooterGrid = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
-`;
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px 32px;
+    padding: 48px 24px 24px;
+  }
 
-const FooterSection = styled.div`
-  flex: 0 1 300px;
-  text-align: center;
-
-  h4 {
-    color: var(--header-text);
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 36px 20px 20px;
   }
 `;
 
-const FooterSectionCompact = styled(FooterSection)`
-  flex-basis: auto;
+const BrandCol = styled.div``;
+
+const BrandRow = styled.div`
+  margin-bottom: 18px;
 `;
 
-const FooterLinks = styled.div`
+const LogoMark = styled.img`
+  display: block;
+  height: 56px;
+  width: auto;
+  max-width: 100%;
+`;
+
+const BrandText = styled.p`
+  font-size: 13px;
+  color: var(--bs-text-dim);
+  line-height: 1.65;
+  max-width: 320px;
+  margin: 0;
+`;
+
+const Socials = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+`;
+
+const SocialBtn = styled.a`
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-text-dim);
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    color: var(--bs-accent);
+    border-color: var(--bs-accent);
+  }
+`;
+
+const ColTitle = styled.div`
+  font-family: var(--bs-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--bs-text-mute);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+`;
+
+const LinkList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 10px;
 `;
 
-const FooterLink = styled(Link)`
-  color: var(--dark);
+const linkStyles = `
+  font-size: 13.5px;
+  color: var(--bs-text);
   text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.2s ease;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  transition: color 0.15s ease;
 
-  &:hover {
-    color: var(--link-text);
+  &:hover { color: var(--bs-accent); }
+`;
+
+const FLink = styled(Link)`${linkStyles}`;
+const FExternal = styled.a`${linkStyles}`;
+
+const BottomBar = styled.div`
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 32px 36px;
+  border-top: 1px solid var(--bs-rule-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  @media (max-width: 900px) {
+    padding: 20px 24px 28px;
+  }
+
+  @media (max-width: 520px) {
+    padding: 18px 20px 22px;
   }
 `;
 
-const FooterText = styled.p`
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
-  color: var(--dark);
-  line-height: 1.5;
-`;
-
-const ExternalLink = styled.a`
-  color: var(--dark);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.2s ease;
-
-  &:hover {
-    color: var(--link-text);
-  }
-`;
-
-const FooterBottom = styled.div`
-  border-top: 1px solid #e1e1e1;
-  padding-top: 1rem;
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--dark);
+const BottomText = styled.div`
+  font-size: 12px;
+  color: var(--bs-text-mute);
+  letter-spacing: 0.2px;
 `;
 
 const Footer = () => {
   const { isAuthenticated } = useAuth();
   const { shopOpen } = useShopConfig();
+
   return (
-    <FooterContainer>
-      <FooterContent>
-        <FooterGrid>
-          <FooterSection>
-            <h4>Bird Society of Singapore</h4>
-            <FooterText>
-              The Bird Society of Singapore is the leading organisation promoting the conservation and research of our island's birds. 
-              Read more about us <b><ExternalLink href="https://birdsociety.sg/about-us/" target="_blank">here</ExternalLink></b>.
-            </FooterText>
-          </FooterSection>
+    <Container>
+      <Grid>
+        <BrandCol>
+          <BrandRow>
+            <LogoMark src="/img/logo-soc.png" alt="Bird Society of Singapore" />
+          </BrandRow>
+          <BrandText>
+            A registered society advancing the conservation, research and public appreciation of Singapore's avifauna.
+          </BrandText>
+          <Socials>
+            <SocialBtn
+              href="https://www.facebook.com/birdsocsg"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+            >
+              <Facebook size={16} strokeWidth={1.7} />
+            </SocialBtn>
+            <SocialBtn
+              href="https://www.instagram.com/birdsocsg"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+            >
+              <Instagram size={16} strokeWidth={1.7} />
+            </SocialBtn>
+          </Socials>
+        </BrandCol>
 
-          <FooterSectionCompact>
-            <h4>Useful Links</h4>
-            <FooterLinks>
-              <FooterLink to="/contact">Contact Us</FooterLink>
-              <FooterLink to="/faq">FAQ</FooterLink>
-              <FooterLink to="/donate">Donate</FooterLink>
-            </FooterLinks>
-          </FooterSectionCompact>
+        <div>
+          <ColTitle>Shop</ColTitle>
+          <LinkList>
+            <li><FLink to="/products">Products</FLink></li>
+          </LinkList>
+        </div>
 
-          {shopOpen && (
-            <FooterSectionCompact>
-              <h4>Account</h4>
-              <FooterLinks>
-                {isAuthenticated && (
-                  <>
-                    <FooterLink to="/orders">My Orders</FooterLink>
-                  </>
-                )}
-                {!isAuthenticated && (
-                  <>
-                    <FooterLink to="/login">Sign In</FooterLink>
-                    <FooterLink to="/register">Create Account</FooterLink>
-                  </>
-                )}
-              </FooterLinks>
-            </FooterSectionCompact>
-          )}
-        </FooterGrid>
+        <div>
+          <ColTitle>Engage</ColTitle>
+          <LinkList>
+            <li><FLink to="/events">Events</FLink></li>
+            <li>
+              <FExternal href="https://birdsociety.sg/about-us/" target="_blank" rel="noopener noreferrer">
+                About the Society
+              </FExternal>
+            </li>
+            <li><FLink to="/contact">Contact</FLink></li>
+            <li><FLink to="/donate">Donate</FLink></li>
+          </LinkList>
+        </div>
 
-        <FooterBottom>
-          <p>&copy; {new Date().getFullYear()} Bird Society of Singapore / <ExternalLink href="https://birdsociety.sg/data-protection-notice/" target="_blank" rel="noopener noreferrer">
+        <div>
+          <ColTitle>Help</ColTitle>
+          <LinkList>
+            <li><FLink to="/faq">FAQ</FLink></li>
+            <li>
+              <FExternal href="https://birdsociety.sg/data-protection-notice/" target="_blank" rel="noopener noreferrer">
                 Data Protection Notice
-              </ExternalLink> / <ExternalLink href="https://github.com/raghav-n/birdsoc-shop" target="_blank" rel="noopener noreferrer">
-                <svg role="img" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ verticalAlign: 'middle' }}><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg>
-              </ExternalLink></p>
-        </FooterBottom>
-      </FooterContent>
-    </FooterContainer>
+              </FExternal>
+            </li>
+            {!isAuthenticated && shopOpen && <li><FLink to="/login">Sign in</FLink></li>}
+            {isAuthenticated && shopOpen && <li><FLink to="/orders">My orders</FLink></li>}
+          </LinkList>
+        </div>
+      </Grid>
+
+      <BottomBar>
+        <BottomText>
+          © {new Date().getFullYear()} Bird Society of Singapore · UEN T23SS0038A · shop.birdsociety.sg
+        </BottomText>
+      </BottomBar>
+    </Container>
   );
 };
 

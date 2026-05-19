@@ -52,17 +52,19 @@ class GmailApiEmailBackend(BaseEmailBackend):
 
 
 def _build_raw_message(email_message) -> str:
-    if email_message.alternatives:
+    body_subtype = getattr(email_message, "content_subtype", "plain") or "plain"
+    alternatives = getattr(email_message, "alternatives", None)
+    if alternatives:
         mime = MIMEMultipart("alternative")
-        mime.attach(MIMEText(email_message.body, "plain", "utf-8"))
-        for content, mimetype in email_message.alternatives:
+        mime.attach(MIMEText(email_message.body, body_subtype, "utf-8"))
+        for content, mimetype in alternatives:
             maintype, subtype = mimetype.split("/", 1)
             mime.attach(MIMEText(content, subtype, "utf-8"))
     elif email_message.attachments:
         mime = MIMEMultipart("mixed")
-        mime.attach(MIMEText(email_message.body, "plain", "utf-8"))
+        mime.attach(MIMEText(email_message.body, body_subtype, "utf-8"))
     else:
-        mime = MIMEText(email_message.body, "plain", "utf-8")
+        mime = MIMEText(email_message.body, body_subtype, "utf-8")
 
     mime["Subject"] = email_message.subject
     mime["From"] = email_message.from_email

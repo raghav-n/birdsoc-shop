@@ -103,7 +103,7 @@ class ProductChildSerializer(serializers.ModelSerializer):
     def get_attributes(self, obj: Product) -> list[dict[str, str]]:
         return [
             {"name": av.attribute.name, "code": av.attribute.code, "value": av.value_as_text}
-            for av in obj.attribute_values.select_related("attribute").all()
+            for av in obj.attribute_values.all()
         ]
 
 
@@ -133,11 +133,12 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
     def get_category_slugs(self, obj: Product) -> list[str]:
-        return list(obj.categories.values_list("slug", flat=True))
+        return [c.slug for c in obj.categories.all()]
 
     def get_images(self, obj: Product) -> list[dict[str, Any]]:
         results = []
-        for img in obj.images.all().order_by("display_order", "id"):
+        images = sorted(obj.images.all(), key=lambda i: (i.display_order or 0, i.id))
+        for img in images:
             try:
                 url = img.original.url
             except Exception:
@@ -196,11 +197,8 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_children(self, obj: Product) -> list[dict]:
         if obj.structure != "parent":
             return []
-        children = obj.children.prefetch_related(
-            "attribute_values__attribute", "stockrecords"
-        ).all()
         return ProductChildSerializer(
-            children, many=True, context=self.context
+            obj.children.all(), many=True, context=self.context
         ).data
 
 

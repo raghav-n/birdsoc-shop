@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const backendTarget = process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -14,12 +16,13 @@ export default defineConfig({
     host: '127.0.0.1',
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: backendTarget,
         changeOrigin: false,
       },
       '/media': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: false,
+        target: 'https://shop.birdsociety.sg',
+        changeOrigin: true,
+        secure: true,
       },
     },
     allowedHosts: ['.ngrok-free.app'],

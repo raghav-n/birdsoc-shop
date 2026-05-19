@@ -44,6 +44,7 @@ from apps.api.views.checkout import (
 from apps.api.views.payments import PayNowGmailCheckView, PayNowGmailTestEmailView
 from apps.api.views.forms import FormSubmissionView, FormSchemaView
 from apps.api.views.banners import BannerListView, TextBannerView
+from apps.api.views.bundles import BundleListView
 from apps.api.views.analytics import AnalyticsDashboardView
 from apps.api.views.donations import DonationCreateView
 from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView
@@ -89,6 +90,7 @@ urlpatterns = [
     path("faq", FAQListView.as_view(), name="faq-list"),
     path("banners", BannerListView.as_view(), name="banner-list"),
     path("banners/text", TextBannerView.as_view(), name="banner-text"),
+    path("bundles", BundleListView.as_view(), name="bundle-list"),
     path("analytics/dashboard", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
     path("onsite/calculate", OnsiteCalculateView.as_view(), name="onsite-calculate"),
     path("orders/search", OrderSearchView.as_view(), name="orders-search"),

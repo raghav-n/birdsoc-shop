@@ -74,7 +74,7 @@ const SearchInput = styled.input`
   border: 2px solid #e1e1e1;
   border-radius: 6px;
   font-size: 0.95rem;
-  background: #f8f4f9;
+  background: var(--bs-body);
   transition: border-color 0.15s;
   box-sizing: border-box;
 
@@ -408,7 +408,7 @@ const VoucherInput = styled.input`
   border: 2px solid ${props => props.$applied ? 'var(--success)' : props.$error ? 'var(--danger)' : '#e1e1e1'};
   border-radius: 6px;
   font-size: 0.85rem;
-  background: #f8f4f9;
+  background: var(--bs-body);
   font-family: monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -555,7 +555,7 @@ const Spinner = styled.div`
 `;
 
 const OrderRef = styled.div`
-  background: #f8f4f9;
+  background: var(--bs-body);
   border: 1px solid #e1e1e1;
   border-radius: 8px;
   padding: 0.6rem 1rem;

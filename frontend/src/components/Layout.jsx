@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import Header from './Header';
+import ConsoleHeader from './ConsoleHeader';
 import Footer from './Footer';
 import SafeHtml from './SafeHtml';
 import { useShopConfig } from '../context/ShopConfigContext';
@@ -19,21 +20,25 @@ const MainContent = styled.main`
 `;
 
 const ClosedBanner = styled.div`
-  background-color: #fff3cd;
-  border-bottom: 1px solid #ffc107;
-  color: #664d03;
+  background-color: var(--bs-amber-soft);
+  border-bottom: 1px solid var(--bs-rule-soft);
+  color: var(--bs-amber-fg);
   text-align: center;
   padding: 0.75rem 1rem;
-  font-weight: 500;
-  font-size: 0.95rem;
+  font-family: var(--bs-sans);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: -0.1px;
 `;
 
 const TextBannerBar = styled.div`
-  background-color: var(--dark);
-  color: #fff;
+  background-color: var(--bs-accent-dim);
+  color: var(--bs-on-accent);
   text-align: center;
   padding: 0.6rem 1rem;
-  font-size: 0.9rem;
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  letter-spacing: -0.1px;
   overflow: hidden;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -54,6 +59,8 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   const isDonationPage = location.pathname.startsWith('/donate');
+  const isConsolePage = location.pathname === '/console' || location.pathname.startsWith('/console/');
+  const hideBanners = isDonationPage || isConsolePage;
 
   useEffect(() => {
     bannerService.getTextBanner().then((data) => {
@@ -63,13 +70,13 @@ const Layout = ({ children }) => {
 
   return (
     <LayoutContainer>
-      <Header />
-      {textBanner && !isDonationPage && (
+      {isConsolePage ? <ConsoleHeader /> : <Header />}
+      {textBanner && !hideBanners && (
         <TextBannerBar>
           <SafeHtml html={textBanner} tag="div" />
         </TextBannerBar>
       )}
-      {!shopOpen && !isDonationPage && (
+      {!shopOpen && !hideBanners && (
         <ClosedBanner>
           Our shop is currently closed. You can browse products, but purchases are unavailable right now.
         </ClosedBanner>
@@ -77,7 +84,7 @@ const Layout = ({ children }) => {
       <MainContent>
         {children}
       </MainContent>
-      <Footer />
+      {!isConsolePage && <Footer />}
     </LayoutContainer>
   );
 };

@@ -353,7 +353,7 @@ const Donate = () => {
 
   return (
     <PageContainer>
-      {/* ── Hero ── */}
+      {/* ── Hero ── hidden — may be reinstated later
       <Hero>
         <HeroIcon>
           <Heart size={48} fill="currentColor" />
@@ -365,6 +365,7 @@ const Donate = () => {
           and donations. Your support keeps our resources free and accessible to everyone.
         </HeroSubtitle>
       </Hero>
+      */}
 
       {/* ── About / impact ── */}
       <IntroGrid>

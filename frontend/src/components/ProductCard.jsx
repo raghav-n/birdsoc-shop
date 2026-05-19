@@ -1,33 +1,40 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
-import { Card, Button } from '../styles/GlobalStyles';
+import { Plus } from 'lucide-react';
+import { BsPill } from '../styles/birdsoc';
 import { formatCurrency, getImageUrl, isProductInStock } from '../utils/helpers';
 import { trackAddToCart } from '../utils/analytics';
 import { sanitizeText } from '../utils/safeContent';
 import { useCart } from '../context/CartContext';
 
-const ProductCardContainer = styled(Card)`
+const Card = styled.div`
   position: relative;
-  overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  height: 100%;
+  background: var(--bs-panel);
+  border: 1px solid var(--bs-rule-soft);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  padding: 0;
-  border-radius: 6px;
+  overflow: hidden;
+  height: 100%;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  opacity: ${(p) => p.$dim ? 0.7 : 1};
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    border-color: var(--bs-accent);
+  }
+
+  @media (max-width: 768px) {
+    border-radius: 10px;
   }
 `;
 
-const ProductImage = styled.div`
+const ImageWrap = styled.div`
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  background-color: #f0f0f0;
+  background: var(--bs-photo-bg);
   overflow: hidden;
 
   img {
@@ -39,92 +46,186 @@ const ProductImage = styled.div`
   }
 `;
 
-const ProductInfo = styled.div`
-  flex: 1;
+const ImagePlaceholder = styled.div`
+  position: absolute;
+  inset: 0;
+  background:
+    var(--bs-photo-bg)
+    repeating-linear-gradient(135deg, transparent 0 9px, var(--bs-photo-stripe) 9px 10px);
   display: flex;
-  flex-direction: column;
-  padding: 0.65rem 0.75rem 0.5rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-accent);
+  opacity: 0.55;
+  font-family: var(--bs-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 `;
 
-const ProductTitle = styled.h3`
-  font-size: 0.875rem;
+const BadgeStack = styled.div`
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+`;
+
+const OutOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 45, 38, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const OutBadge = styled.div`
+  background: var(--bs-body);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bs-text);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+`;
+
+const Info = styled.div`
+  padding: 0.9rem 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+
+  @media (max-width: 768px) {
+    padding: 0.75rem 0.75rem 0.85rem;
+  }
+`;
+
+const Collection = styled.div`
+  font-family: var(--bs-mono);
+  font-size: 10.5px;
+  color: var(--bs-text-mute);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  min-height: 12px;
+`;
+
+const Title = styled.h3`
+  font-size: 0.9rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: var(--dark);
-  line-height: 1.35;
+  color: var(--bs-text);
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-`;
 
-const PriceSection = styled.div`
-  margin-bottom: 0.5rem;
-`;
-
-const Price = styled.div`
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--link-text);
-`;
-
-const CrossedOutPrice = styled.span`
-  font-size: 0.95rem;
-  font-weight: 400;
-  color: #999;
-  text-decoration: line-through;
-  margin-left: 0.5rem;
-`;
-
-const OutOfStockBadge = styled.div`
-  font-size: 0.75rem;
-  color: #999;
-  margin-bottom: 0.25rem;
-`;
-
-const ProductActions = styled.div`
-  padding: 0 0.75rem 0.75rem;
-`;
-
-const ImagePlaceholder = styled.div`
-  width: 100%;
-  height: 100%;
-  background-color: var(--page-header-background);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--dark);
-  font-size: 0.875rem;
-`;
-
-const VariantSelect = styled.select`
-  width: calc(100% - 1.5rem);
-  margin: 0 0.75rem 0.75rem;
-  padding: 0.5rem;
-  border: 2px solid #e1e1e1;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  background-color: #f1f1f1;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: var(--link-text);
-    background-color: white;
+  @media (max-width: 768px) {
+    font-size: 0.84rem;
   }
 `;
 
-// Compute the CSS object-position values that center a focal point (fx%, fy%)
-// in a square crop, accounting for the image's actual aspect ratio.
+const PriceRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
+`;
+
+const Price = styled.span`
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--bs-accent);
+  letter-spacing: -0.3px;
+
+  @media (max-width: 768px) {
+    font-size: 0.93rem;
+  }
+`;
+
+const CrossedPrice = styled.span`
+  font-size: 0.78rem;
+  color: var(--bs-text-mute);
+  text-decoration: line-through;
+`;
+
+const Footer = styled.div`
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+const AddButton = styled.button`
+  background: ${(p) => p.disabled ? 'var(--bs-panel-hi)' : 'var(--bs-accent)'};
+  color: ${(p) => p.disabled ? 'var(--bs-text-mute)' : 'var(--bs-on-accent)'};
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-family: var(--bs-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: ${(p) => p.disabled ? 'not-allowed' : 'pointer'};
+  transition: background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--bs-accent-dim);
+  }
+`;
+
+const VariantSelect = styled.select`
+  margin: 0 0.9rem 0.9rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--bs-rule);
+  background: var(--bs-body);
+  color: var(--bs-text);
+  border-radius: 8px;
+  font-family: var(--bs-sans);
+  font-size: 0.8rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A5C52' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--bs-accent);
+    box-shadow: 0 0 0 3px var(--bs-accent-tint);
+  }
+
+  @media (max-width: 768px) {
+    margin: 0 0.75rem 0.75rem;
+  }
+`;
+
+const CardLink = styled(Link)`
+  text-decoration: none;
+  color: inherit;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
 function focalPointToObjectPosition(fx, fy, naturalW, naturalH) {
   const ratio = naturalW / naturalH;
   let cssX, cssY;
   if (ratio > 1) {
-    // Landscape: width overflows. Solve for cssX to center focal point.
     cssX = Math.max(0, Math.min(100, (fx * ratio - 50) / (ratio - 1)));
     cssY = fy;
   } else if (ratio < 1) {
-    // Portrait: height overflows.
     const inv = 1 / ratio;
     cssX = fx;
     cssY = Math.max(0, Math.min(100, (fy * inv - 50) / (inv - 1)));
@@ -160,7 +261,6 @@ const ProductCard = ({ product }) => {
     ? product.children.find((c) => c.id === selectedChildId)
     : null;
 
-  // For display: use child's price/stock when a variant is selected, else the product's own
   const displayPrice = selectedChild?.price || product.price;
   const displayStock = selectedChild?.stock || product.stock;
   const cartProductId = isParent ? selectedChildId : product.id;
@@ -189,43 +289,64 @@ const ProductCard = ({ product }) => {
     }
   };
 
+  const lowStock = inStock && displayStock?.num_in_stock != null && displayStock.num_in_stock <= 5;
+  const stockLabel = !inStock ? 'Out of stock' : lowStock ? 'Low stock' : 'In stock';
+  const stockTone = !inStock ? 'coral' : lowStock ? 'amber' : 'sage';
+
+  const collectionName = product.category_names?.[0] || (isParent ? 'Collection' : '');
+
   return (
-    <ProductCardContainer>
-      <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <ProductImage>
+    <Card $dim={!inStock}>
+      <CardLink to={`/products/${product.id}`}>
+        <ImageWrap>
           {primaryImage ? (
             <img
               src={getImageUrl(primaryImage.thumbnail || primaryImage.original)}
               srcSet={primaryImage.thumbnail && primaryImage.original
                 ? `${getImageUrl(primaryImage.thumbnail)} 648w, ${getImageUrl(primaryImage.original)} 1200w`
                 : undefined}
-              sizes="162px"
+              sizes="(max-width: 768px) 50vw, 280px"
               alt={sanitizeText(primaryImage.caption || product.title)}
               style={{ objectPosition, transform: `scale(${zoom})` }}
               onLoad={handleImageLoad}
             />
           ) : (
-            <ImagePlaceholder>
-              No Image Available
-            </ImagePlaceholder>
+            <ImagePlaceholder>no image</ImagePlaceholder>
           )}
-        </ProductImage>
+          {!inStock && (
+            <OutOverlay>
+              <OutBadge>Out of stock</OutBadge>
+            </OutOverlay>
+          )}
+        </ImageWrap>
 
-        <ProductInfo>
-          <ProductTitle>{sanitizeText(product.title)}</ProductTitle>
+        <Info>
+          <Collection>{sanitizeText(collectionName)}</Collection>
+          <Title>{sanitizeText(product.title)}</Title>
+          <PriceRow>
+            <Price>{formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}</Price>
+            {displayPrice?.crossed_out_price && (
+              <CrossedPrice>
+                {formatCurrency(displayPrice.crossed_out_price, displayPrice.currency)}
+              </CrossedPrice>
+            )}
+          </PriceRow>
 
-          <PriceSection>
-            <Price>
-              {formatCurrency(displayPrice?.incl_tax, displayPrice?.currency)}
-              {displayPrice?.crossed_out_price && (
-                <CrossedOutPrice>{formatCurrency(displayPrice.crossed_out_price, displayPrice.currency)}</CrossedOutPrice>
-              )}
-            </Price>
-          </PriceSection>
-
-          {!inStock && <OutOfStockBadge>Out of stock</OutOfStockBadge>}
-        </ProductInfo>
-      </Link>
+          <Footer>
+            <BsPill $tone={stockTone}>{stockLabel}</BsPill>
+            {shopOpen && (
+              <AddButton
+                onClick={handleAddToCart}
+                disabled={!inStock}
+                aria-label="Add to cart"
+              >
+                <Plus size={12} strokeWidth={2.4} />
+                Add
+              </AddButton>
+            )}
+          </Footer>
+        </Info>
+      </CardLink>
 
       {isParent && (
         <VariantSelect
@@ -243,21 +364,7 @@ const ProductCard = ({ product }) => {
           ))}
         </VariantSelect>
       )}
-
-      {shopOpen && (
-        <ProductActions>
-          <Button
-            onClick={handleAddToCart}
-            disabled={!inStock}
-            size="small"
-            fullWidth
-          >
-            <ShoppingCart size={16} />
-            Add to Cart
-          </Button>
-        </ProductActions>
-      )}
-    </ProductCardContainer>
+    </Card>
   );
 };
 

@@ -18,7 +18,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 
-SSH_HOST = "birdsociety"
+SSH_HOST = "birdsocsg"
 
 
 class Command(BaseCommand):

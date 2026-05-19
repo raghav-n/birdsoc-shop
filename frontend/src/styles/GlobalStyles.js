@@ -2,8 +2,8 @@ import styled, { createGlobalStyle } from 'styled-components';
 
 export const GlobalStyle = createGlobalStyle`
   :root {
-    --page-background: #f8f4f9;
-    --page-header-background: #ededed;
+    --page-background: #FAF6EC;
+    --page-header-background: #E1ECDD;
     --header-text: #5c4760;
     --link-text: #4c7a2d;
     --link-text-hover: #8bc662;
@@ -16,6 +16,33 @@ export const GlobalStyle = createGlobalStyle`
     --danger: #cc330d;
     --warning: #6e9fa5;
     --info: #5c8f94;
+
+    /* BirdSoc design system tokens (used by the new shop page) */
+    --bs-body: #FAF6EC;
+    --bs-panel: #F8FBF6;
+    --bs-panel-hi: #E1ECDD;
+    --bs-rule: #C7D6C5;
+    --bs-rule-soft: #D8E4D6;
+    --bs-text: #1F2D26;
+    --bs-text-dim: #4A5C52;
+    --bs-text-mute: #4D5750;
+    --bs-accent: #2E6B5A;
+    --bs-accent-dim: #1E4A3D;
+    --bs-accent-soft: #CFE2D9;
+    --bs-accent-tint: rgba(46, 107, 90, 0.10);
+    --bs-on-accent: #F0FAF5;
+    --bs-photo-bg: #D7E2D2;
+    --bs-photo-stripe: rgba(46, 107, 90, 0.12);
+    --bs-danger: #A8442C;
+    --bs-warn: #8A6A1C;
+    --bs-amber-soft: #F2DCC8;
+    --bs-amber-fg: #7A3F1A;
+    --bs-coral-soft: #EDD2C9;
+    --bs-coral-fg: #6B2418;
+    --bs-sky-soft: #CADADF;
+    --bs-sky-fg: #1F4A57;
+    --bs-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --bs-mono: "Source Sans 3", ui-monospace, monospace;
   }
 
   html {
@@ -29,7 +56,7 @@ export const GlobalStyle = createGlobalStyle`
   body {
     margin: 0;
     padding: 0;
-    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--bs-sans);
     background-color: var(--page-background);
     color: var(--dark);
     line-height: 1.5;
@@ -54,8 +81,9 @@ export const GlobalStyle = createGlobalStyle`
 
   h1, h2, h3, h4, h5, h6 {
     color: var(--dark);
-    font-family: "Libre Franklin", sans-serif;
-    font-weight: 600;
+    font-family: var(--bs-sans);
+    font-weight: 700;
+    letter-spacing: -0.4px;
     margin: 0 0 1rem 0;
   }
 

@@ -1,86 +1,259 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { Search, SlidersHorizontal } from 'lucide-react';
-import { Input, Button, FormGroup, Label } from '../styles/GlobalStyles';
+import { Heart, SlidersHorizontal } from 'lucide-react';
+import {
+  BsPage,
+  BsHero,
+  BsHeroInner,
+  BsOverline,
+  BsH1,
+  BsLead,
+  BsButton,
+} from '../styles/birdsoc';
 import CollectionSection from '../components/CollectionSection';
-import BannerGrid from '../components/BannerGrid';
+import BundleGrid from '../components/BundleGrid';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 import { sanitizeText } from '../utils/safeContent';
-import { debounce } from '../utils/helpers';
 import { buildCollections, fetchCatalogueSnapshot } from '../utils/catalogue';
+import { useShopConfig } from '../context/ShopConfigContext';
 
-const ProductsContainer = styled.div`
+const Layout = styled.div`
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1rem;
-`;
-
-const Header = styled.div`
-  margin-bottom: 2rem;
-`;
-
-const Title = styled.h1`
-  font-size: 2rem;
-  margin-bottom: 1rem;
-`;
-
-const FiltersSection = styled.div`
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-`;
-
-const FiltersHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-`;
-
-const FiltersGrid = styled.div`
+  padding: 2rem 2rem 4rem;
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
-  gap: 1rem;
-  align-items: end;
+  grid-template-columns: 220px 1fr;
+  gap: 2.5rem;
+  align-items: start;
 
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
+    padding: 1rem 1rem 2.5rem;
+    gap: 0.5rem;
   }
 `;
 
-const SearchContainer = styled.div`
-  position: relative;
+const Sidebar = styled.aside`
+  position: sticky;
+  top: 5rem;
+  align-self: start;
+
+  @media (max-width: 900px) {
+    display: none;
+  }
 `;
 
-const SearchIcon = styled.div`
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #666;
+const RailLabel = styled.div`
+  font-family: var(--bs-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--bs-text-mute);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 0.9rem;
 `;
 
-const SearchInput = styled(Input)`
-  padding-left: 2.5rem;
-`;
-
-const Select = styled.select`
+const CollectionRow = styled.button`
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e1e1e1;
-  border-radius: 4px;
-  font-size: 1rem;
-  background-color: #f1f1f1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: ${(p) => p.$active ? 'var(--bs-panel-hi)' : 'transparent'};
+  color: ${(p) => p.$active ? 'var(--bs-accent-dim)' : 'var(--bs-text)'};
+  font-family: var(--bs-sans);
+  font-size: 0.84rem;
+  font-weight: ${(p) => p.$active ? 600 : 500};
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--bs-panel-hi);
+  }
+`;
+
+const CollectionCount = styled.span`
+  font-family: var(--bs-mono);
+  font-size: 0.7rem;
+  color: var(--bs-text-mute);
+  letter-spacing: 0.3px;
+`;
+
+const Content = styled.div`
+  min-width: 0;
+`;
+
+const TopBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.4rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 900px) {
+    margin-bottom: 1rem;
+  }
+`;
+
+const TopBarTitle = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const TopBarH = styled.div`
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--bs-text);
+
+  @media (max-width: 768px) {
+    font-size: 1.05rem;
+  }
+`;
+
+const TopBarSub = styled.div`
+  font-size: 0.78rem;
+  color: var(--bs-text-mute);
+`;
+
+const MobileFilterRow = styled.div`
+  display: none;
+
+  @media (max-width: 900px) {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const ChipScroller = styled.div`
+  display: none;
+
+  @media (max-width: 900px) {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.25rem 1rem 0.85rem;
+    margin: 0 -1rem;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+`;
+
+const Chip = styled.button`
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: ${(p) => p.$active ? 'var(--bs-accent)' : 'var(--bs-panel)'};
+  color: ${(p) => p.$active ? 'var(--bs-on-accent)' : 'var(--bs-text)'};
+  border: ${(p) => p.$active ? 'none' : '1px solid var(--bs-rule-soft)'};
+  font-family: var(--bs-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  flex-shrink: 0;
+`;
+
+const Banner = styled.div`
+  background: var(--bs-accent);
+  color: var(--bs-on-accent);
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 1.4rem;
+
+  @media (max-width: 768px) {
+    padding: 14px 16px;
+    gap: 12px;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+  }
+`;
+
+const BannerIcon = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--bs-accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+  }
+`;
+
+const BannerTitle = styled.div`
+  font-size: 0.91rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+
+  @media (max-width: 768px) {
+    font-size: 0.82rem;
+  }
+`;
+
+const BannerSub = styled.div`
+  font-size: 0.78rem;
+  color: rgba(240, 250, 245, 0.78);
+  margin-top: 2px;
+  line-height: 1.4;
+
+  @media (max-width: 768px) {
+    font-size: 0.7rem;
+  }
+`;
+
+const BannerButton = styled.a`
+  display: none;
+  background: var(--bs-body);
+  color: var(--bs-text);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--bs-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  text-decoration: none;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
 
-  &:focus {
-    outline: none;
-    border-color: var(--link-text);
-    background-color: white;
+  @media (min-width: 769px) {
+    display: inline-flex;
+  }
+`;
+
+const MobileFilterButton = styled.button`
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--bs-rule);
+  background: var(--bs-panel);
+  color: var(--bs-text);
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  @media (max-width: 900px) {
+    display: inline-flex;
   }
 `;
 
@@ -90,29 +263,15 @@ const Products = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-
-  const debouncedSearch = debounce((query) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (query) {
-      newParams.set('q', query);
-    } else {
-      newParams.delete('q');
-    }
-    setSearchParams(newParams);
-  }, 500);
+  const { shopOpen } = useShopConfig();
+  const selectedCategory = searchParams.get('category') || '';
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const params = { page_size: 200 };
-      const query = searchParams.get('q');
-      if (query) params.q = query;
-
-      const data = await fetchCatalogueSnapshot(params);
+      const data = await fetchCatalogueSnapshot({ page_size: 200 });
       setProducts(data.products);
       setCategories(data.categories);
     } catch (err) {
@@ -128,106 +287,143 @@ const Products = () => {
   }, [searchParams]);
 
   const collections = useMemo(() => {
-    const categoryFilter = searchParams.get('category');
-    return buildCollections(products, categories, categoryFilter || '');
-  }, [products, categories, searchParams]);
+    return buildCollections(products, categories, selectedCategory);
+  }, [products, categories, selectedCategory]);
 
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    debouncedSearch(value);
-  };
+  const collectionsForRail = useMemo(() => {
+    const counts = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      count: products.filter((p) => p.category_slugs?.includes(c.slug)).length,
+    })).filter((c) => c.count > 0);
+    return counts;
+  }, [products, categories]);
 
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setSelectedCategory(value);
+  const totalCount = products.length;
+  const activeCollection = categories.find((c) => c.slug === selectedCategory);
+
+  const setCategoryParam = (slug) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set('category', value);
+    if (slug) {
+      newParams.set('category', slug);
     } else {
       newParams.delete('category');
     }
     setSearchParams(newParams);
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('');
-    setSearchParams({});
-  };
-
   return (
-    <ProductsContainer>
-      <Header>
-        <Title>Products</Title>
-      </Header>
+    <BsPage>
+      {/* Hero hidden — may be reinstated later
+      <BsHero>
+        <BsHeroInner>
+          <BsOverline>Shop · {totalCount} items</BsOverline>
+          <BsH1>Field-ready gear, made for the Singapore birder.</BsH1>
+          <BsLead>
+            Every purchase supports the Society's research, advocacy and free public outreach. Members enjoy 10% off all year round.
+          </BsLead>
+        </BsHeroInner>
+      </BsHero>
+      */}
 
-      <BannerGrid type="product" />
+      {/* Mobile chip filters */}
+      <ChipScroller>
+        <Chip $active={!selectedCategory} onClick={() => setCategoryParam('')}>All</Chip>
+        {collectionsForRail.map((c) => (
+          <Chip
+            key={c.id}
+            $active={selectedCategory === c.slug}
+            onClick={() => setCategoryParam(c.slug)}
+          >
+            {sanitizeText(c.name)}
+          </Chip>
+        ))}
+      </ChipScroller>
 
-      <FiltersSection>
-        <FiltersHeader>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <SlidersHorizontal size={20} />
-            Filters
-          </h3>
-          <Button variant="secondary" size="small" onClick={clearFilters}>
-            Clear All
-          </Button>
-        </FiltersHeader>
-
-        <FiltersGrid>
-          <FormGroup style={{ margin: 0 }}>
-            <Label htmlFor="search">Search Products</Label>
-            <SearchContainer>
-              <SearchIcon>
-                <Search size={18} />
-              </SearchIcon>
-              <SearchInput
-                id="search"
-                type="text"
-                placeholder="Search for products..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-              />
-            </SearchContainer>
-          </FormGroup>
-
-          <FormGroup style={{ margin: 0 }}>
-            <Label htmlFor="category">Collection</Label>
-            <Select
-              id="category"
-              value={selectedCategory}
-              onChange={handleCategoryChange}
+      <Layout>
+        <Sidebar>
+          <RailLabel>Collections</RailLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <CollectionRow
+              $active={!selectedCategory}
+              onClick={() => setCategoryParam('')}
             >
-              <option value="">All Collections</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.slug}>
-                  {sanitizeText(category.name)}
-                </option>
-              ))}
-            </Select>
-          </FormGroup>
-        </FiltersGrid>
-      </FiltersSection>
+              <span>All collections</span>
+              <CollectionCount>{totalCount}</CollectionCount>
+            </CollectionRow>
+            {collectionsForRail.map((c) => (
+              <CollectionRow
+                key={c.id}
+                $active={selectedCategory === c.slug}
+                onClick={() => setCategoryParam(c.slug)}
+              >
+                <span>{sanitizeText(c.name)}</span>
+                <CollectionCount>{c.count}</CollectionCount>
+              </CollectionRow>
+            ))}
+          </div>
+        </Sidebar>
 
-      {loading && <Loading text="Loading products..." />}
+        <Content>
+          <TopBar>
+            <TopBarTitle>
+              <TopBarH>
+                {activeCollection ? sanitizeText(activeCollection.name) : 'All products'}
+              </TopBarH>
+              <TopBarSub>
+                {`${activeCollection ? products.filter((p) => p.category_slugs?.includes(activeCollection.slug)).length : totalCount} items`}
+              </TopBarSub>
+            </TopBarTitle>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <MobileFilterRow>
+                <MobileFilterButton aria-label="Filters">
+                  <SlidersHorizontal size={16} />
+                </MobileFilterButton>
+              </MobileFilterRow>
+            </div>
+          </TopBar>
 
-      {error && <Alert variant="error">{error}</Alert>}
+          <Banner>
+            <BannerIcon>
+              <Heart size={22} />
+            </BannerIcon>
+            <div style={{ flex: 1 }}>
+              <BannerTitle>Every purchase funds local conservation</BannerTitle>
+              <BannerSub>
+                100% of profit goes to research grants and free public events.
+              </BannerSub>
+            </div>
+            <BannerButton href="https://birdsociety.sg/about-us/" target="_blank" rel="noopener noreferrer">
+              Learn more →
+            </BannerButton>
+          </Banner>
 
-      {!loading && !error && (
-        <>
-          {collections.length > 0 ? (
-            collections.map((collection) => (
-              <CollectionSection key={collection.id} collection={collection} />
-            ))
-          ) : (
-            <Alert variant="info">
-              No products found matching your criteria.
-            </Alert>
+          {shopOpen && <BundleGrid />}
+
+          {loading && <Loading text="Loading products..." />}
+
+          {error && <Alert variant="error">{error}</Alert>}
+
+          {!loading && !error && (
+            <>
+              {collections.length > 0 ? (
+                collections.map((collection) => (
+                  <CollectionSection
+                    key={collection.id}
+                    collection={collection}
+                  />
+                ))
+              ) : (
+                <Alert variant="info">
+                  No products found matching your criteria.
+                </Alert>
+              )}
+            </>
           )}
-        </>
-      )}
-    </ProductsContainer>
+        </Content>
+      </Layout>
+    </BsPage>
   );
 };
 
