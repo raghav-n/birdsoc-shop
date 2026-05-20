@@ -389,9 +389,8 @@ const Products = () => {
               <Heart size={22} />
             </BannerIcon>
             <div style={{ flex: 1 }}>
-              <BannerTitle>Every purchase funds local conservation</BannerTitle>
-              <BannerSub>
-                100% of profit goes to research grants and free public events.
+              <BannerTitle>Every purchase funds our programs</BannerTitle>
+              <BannerSub>BirdSoc SG is a volunteer-run Society. All proceeds from the shop go towards our operating costs, like hosting our websites online and free public outreach efforts.
               </BannerSub>
             </div>
             <BannerButton href="https://birdsociety.sg/about-us/" target="_blank" rel="noopener noreferrer">
