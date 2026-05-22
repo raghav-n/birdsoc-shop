@@ -38,6 +38,10 @@ const BrandRow = styled.div`
   margin-bottom: 18px;
 `;
 
+const LogoLink = styled.a`
+  display: inline-block;
+`;
+
 const LogoMark = styled.img`
   display: block;
   height: 56px;
@@ -146,7 +150,9 @@ const Footer = () => {
       <Grid>
         <BrandCol>
           <BrandRow>
-            <LogoMark src="/img/logo-soc.png" alt="Bird Society of Singapore" />
+            <LogoLink href="https://birdsociety.sg" target="_blank" rel="noopener noreferrer" aria-label="Bird Society of Singapore">
+              <LogoMark src="/img/logo-soc.png" alt="Bird Society of Singapore" />
+            </LogoLink>
           </BrandRow>
           <BrandText>
             A registered society advancing the conservation, research and public appreciation of Singapore's avifauna.

@@ -116,22 +116,6 @@ const NavLink = styled(Link)`
   }
 `;
 
-const ExternalNavLink = styled.a`
-  font-family: var(--bs-sans);
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: var(--bs-text-dim);
-  text-decoration: none;
-  padding-bottom: 4px;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s ease;
-  white-space: nowrap;
-
-  &:hover {
-    color: var(--bs-text);
-  }
-`;
-
 const Right = styled.div`
   grid-area: actions;
   display: flex;
@@ -266,9 +250,6 @@ const Header = () => {
         <Nav>
           <NavLink to="/products" $active={isActive('/products')}>Products</NavLink>
           <NavLink to="/events" $active={isActive('/events')}>Events</NavLink>
-          <ExternalNavLink href="https://birdsociety.sg" target="_blank" rel="noopener noreferrer">
-            BirdSoc SG
-          </ExternalNavLink>
           <NavLink to="/contact" $active={isActive('/contact')}>Contact</NavLink>
         </Nav>
 
