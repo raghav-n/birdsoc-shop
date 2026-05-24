@@ -25,6 +25,7 @@ from apps.event.utils import get_global_registration_closed
 
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
+    lookup_value_regex = r"\d+"
 
     def get_queryset(self):
         return OrganizedEvent._default_manager.all()
