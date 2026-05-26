@@ -71,6 +71,53 @@ class EventsExtraTests(APITestCase):
         self.assertIn(active.id, ids)
         self.assertNotIn(inactive.id, ids)
 
+    def test_retrieve_inactive_returns_404_for_public(self):
+        draft = create_event(is_active=False)
+        r = self.client.get(f"/api/v1/events/{draft.id}")
+        self.assertEqual(r.status_code, 404)
+
+    def test_retrieve_inactive_visible_to_staff(self):
+        from apps.api.tests.utils import create_user
+        from rest_framework.test import APIClient
+
+        admin = create_user(email="events-admin@example.com")
+        admin.is_staff = True
+        admin.save(update_fields=["is_staff"])
+        staff_client = APIClient()
+        staff_client.force_authenticate(user=admin)
+
+        draft = create_event(is_active=False)
+        r = staff_client.get(f"/api/v1/events/{draft.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.data["is_active"])
+
+    def test_register_inactive_returns_404_for_public(self):
+        draft = create_event(is_active=False)
+        r = self.client.post(
+            f"/api/v1/events/{draft.id}/register",
+            {"first_name": "A", "last_name": "B", "email": "a@b.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_register_inactive_allowed_for_staff(self):
+        from apps.api.tests.utils import create_user
+        from rest_framework.test import APIClient
+
+        admin = create_user(email="events-admin2@example.com")
+        admin.is_staff = True
+        admin.save(update_fields=["is_staff"])
+        staff_client = APIClient()
+        staff_client.force_authenticate(user=admin)
+
+        draft = create_event(is_active=False)
+        r = staff_client.post(
+            f"/api/v1/events/{draft.id}/register",
+            {"first_name": "A", "last_name": "B", "email": "a@b.com", "quantity": 1},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+
 
 class EventRegistrationStatusTests(APITestCase):
     def setUp(self):

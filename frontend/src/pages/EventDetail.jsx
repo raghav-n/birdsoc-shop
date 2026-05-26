@@ -932,6 +932,9 @@ export default function EventDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
           <EventTitle>{event.title}</EventTitle>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {event.is_active === false && (
+              <SpotsBadge $full>Draft — staff preview</SpotsBadge>
+            )}
             {isLottery && (
               <SpotsBadge $low>
                 {lotteryDrawn ? 'Lottery — drawn' : 'Lottery — enter to be considered'}

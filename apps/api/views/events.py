@@ -101,6 +101,9 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             e = OrganizedEvent._default_manager.select_related("image").get(pk=pk)
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        # Draft mode: inactive events are visible only to staff
+        if not e.is_active and not (request.user.is_authenticated and request.user.is_staff):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         data = {
             "id": e.id,
             "title": e.title,
@@ -195,6 +198,12 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Draft mode: inactive events are not visible to the public
+        if not event.is_active and not (request.user.is_authenticated and request.user.is_staff):
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -530,6 +539,12 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Draft mode: inactive events are not visible to the public
+        if not event.is_active and not (request.user.is_authenticated and request.user.is_staff):
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -890,6 +905,12 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             event = OrganizedEvent._default_manager.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
+            return Response(
+                {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Draft mode: inactive events are not visible to the public
+        if not event.is_active and not (request.user.is_authenticated and request.user.is_staff):
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
