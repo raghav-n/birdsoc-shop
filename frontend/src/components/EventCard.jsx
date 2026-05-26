@@ -12,11 +12,17 @@ const Card = styled.article`
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 
   &:hover {
     transform: translateY(-2px);
     border-color: var(--bs-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--bs-accent);
+    outline-offset: 2px;
   }
 
   @media (max-width: 768px) {
@@ -236,8 +242,20 @@ const EventCard = ({ event, featured }) => {
     );
   }
 
+  const goToEvent = () => navigate(`/events/${event.id}`);
+
   return (
-    <Card>
+    <Card
+      role="link"
+      tabIndex={0}
+      onClick={goToEvent}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          goToEvent();
+        }
+      }}
+    >
       <CardImage $featured={featured}>
         {event.image_url ? (
           <img src={event.image_url} alt={event.title} />
@@ -291,7 +309,10 @@ const EventCard = ({ event, featured }) => {
             type="button"
             $size="sm"
             $primary={!isFull && ctaLabel !== 'View Details'}
-            onClick={() => navigate(`/events/${event.id}`)}
+            onClick={(e) => {
+              e.stopPropagation();
+              goToEvent();
+            }}
           >
             {ctaLabel}
             <ArrowRight size={12} strokeWidth={1.7} />

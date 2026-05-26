@@ -91,6 +91,25 @@ class EventsExtraTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.data["is_active"])
 
+    def test_list_includes_inactive_for_events_group(self):
+        from django.contrib.auth.models import Group
+        from apps.api.tests.utils import create_user
+        from rest_framework.test import APIClient
+
+        member = create_user(email="events-group@example.com")
+        group, _ = Group.objects.get_or_create(name="Events")
+        member.groups.add(group)
+        client = APIClient()
+        client.force_authenticate(user=member)
+
+        active = create_event(is_active=True)
+        inactive = create_event(is_active=False)
+        r = client.get("/api/v1/events")
+        self.assertEqual(r.status_code, 200)
+        ids = [e["id"] for e in r.data]
+        self.assertIn(active.id, ids)
+        self.assertIn(inactive.id, ids)
+
     def test_register_inactive_returns_404_for_public(self):
         draft = create_event(is_active=False)
         r = self.client.post(

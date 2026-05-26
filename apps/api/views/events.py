@@ -23,6 +23,15 @@ EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 from apps.event.utils import get_global_registration_closed
 
 
+def _can_view_drafts(user):
+    """Whether ``user`` should be able to see inactive (draft) events."""
+    if not (user and user.is_authenticated):
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    return user.groups.filter(name="Events").exists()
+
+
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     lookup_value_regex = r"\d+"
@@ -33,11 +42,14 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request):
         past = request.query_params.get("past") in ("1", "true", "True")
         now = timezone.now()
+        show_drafts = _can_view_drafts(request.user)
         if past:
             six_months_ago = now - timezone.timedelta(days=183)
             qs = OrganizedEvent._default_manager.select_related("image").filter(
-                is_active=True, start_date__lt=now, start_date__gte=six_months_ago
+                start_date__lt=now, start_date__gte=six_months_ago
             ).order_by("-start_date")
+            if not show_drafts:
+                qs = qs.filter(is_active=True)
             data = [
                 {
                     "id": e.id,
@@ -51,14 +63,17 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "image_url": e.image.file.url if e.image else None,
                     "tags": e.tags or [],
                     "blog_url": e.blog_url,
+                    "is_active": e.is_active,
                 }
                 for e in qs
             ]
             return Response(data)
 
         qs = OrganizedEvent._default_manager.select_related("image").filter(
-            is_active=True, start_date__gte=now
+            start_date__gte=now
         ).order_by("start_date")
+        if not show_drafts:
+            qs = qs.filter(is_active=True)
         closed = get_global_registration_closed()
         data = [
             {
@@ -91,6 +106,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "is_lottery": e.is_lottery,
                 "lottery_drawn_at": e.lottery_drawn_at,
                 "lottery_entry_count": e.lottery_entry_count if e.is_lottery else 0,
+                "is_active": e.is_active,
             }
             for e in qs
         ]
@@ -102,7 +118,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         # Draft mode: inactive events are visible only to staff
-        if not e.is_active and not (request.user.is_authenticated and request.user.is_staff):
+        if not e.is_active and not _can_view_drafts(request.user):
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         data = {
             "id": e.id,
@@ -203,7 +219,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         # Draft mode: inactive events are not visible to the public
-        if not event.is_active and not (request.user.is_authenticated and request.user.is_staff):
+        if not event.is_active and not _can_view_drafts(request.user):
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -544,7 +560,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         # Draft mode: inactive events are not visible to the public
-        if not event.is_active and not (request.user.is_authenticated and request.user.is_staff):
+        if not event.is_active and not _can_view_drafts(request.user):
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -910,7 +926,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         # Draft mode: inactive events are not visible to the public
-        if not event.is_active and not (request.user.is_authenticated and request.user.is_staff):
+        if not event.is_active and not _can_view_drafts(request.user):
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
