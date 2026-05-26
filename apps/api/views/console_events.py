@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
@@ -50,13 +51,16 @@ def _coerce_datetime(value):
     if value in (None, ""):
         return None
     if isinstance(value, datetime):
-        return value
-    if isinstance(value, str):
+        parsed = value
+    elif isinstance(value, str):
         parsed = parse_datetime(value)
         if parsed is None:
             raise ValueError(f"Invalid datetime: {value!r}")
-        return parsed
-    raise ValueError(f"Invalid datetime: {value!r}")
+    else:
+        raise ValueError(f"Invalid datetime: {value!r}")
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed)
+    return parsed
 
 
 OrganizedEvent = get_model("event", "OrganizedEvent")

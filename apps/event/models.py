@@ -187,9 +187,15 @@ class OrganizedEvent(models.Model):
         if not self.registration_open:
             return False
         now = timezone.now()
-        if self.registration_start and now < self.registration_start:
+        start = self.registration_start
+        if start and timezone.is_naive(start):
+            start = timezone.make_aware(start)
+        end = self.registration_end
+        if end and timezone.is_naive(end):
+            end = timezone.make_aware(end)
+        if start and now < start:
             return False
-        if self.registration_end and now > self.registration_end:
+        if end and now > end:
             return False
         return True
 
