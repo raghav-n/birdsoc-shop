@@ -4,8 +4,10 @@ All endpoints require the user to be in the 'Events' group (or be a superuser).
 """
 import uuid as _uuid
 from urllib.parse import urlparse
+from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+from django.utils.dateparse import parse_datetime
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
@@ -36,6 +38,26 @@ def _clean_blog_url(raw):
     if host != "singaporebirds.com" and not host.endswith(".singaporebirds.com"):
         return None, "blog_url must point to singaporebirds.com"
     return cleaned, None
+
+def _coerce_datetime(value):
+    """Coerce an incoming JSON value to a datetime (or None).
+
+    Django's DateTimeField only converts on DB load, so assigning a raw ISO
+    string from request.data leaves the string on the in-memory instance and
+    breaks any code that compares the field to ``timezone.now()`` before the
+    object is refetched.
+    """
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        parsed = parse_datetime(value)
+        if parsed is None:
+            raise ValueError(f"Invalid datetime: {value!r}")
+        return parsed
+    raise ValueError(f"Invalid datetime: {value!r}")
+
 
 OrganizedEvent = get_model("event", "OrganizedEvent")
 EventImage = get_model("event", "EventImage")
@@ -228,18 +250,25 @@ class ConsoleEventsViewSet(ViewSet):
             except Exception:
                 pass
         try:
+            start_date = _coerce_datetime(data["start_date"])
+            end_date = _coerce_datetime(data.get("end_date"))
+            registration_start = _coerce_datetime(data.get("registration_start"))
+            registration_end = _coerce_datetime(data.get("registration_end"))
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        try:
             event = OrganizedEvent.objects.create(
                 title=data["title"],
                 description=data.get("description", ""),
-                start_date=data["start_date"],
-                end_date=data.get("end_date") or None,
+                start_date=start_date,
+                end_date=end_date,
                 location=data.get("location", ""),
                 max_participants=data.get("max_participants") or None,
                 max_qty=int(data.get("max_qty") or 5),
                 is_active=bool(data.get("is_active", True)),
                 registration_open=bool(data.get("registration_open", True)),
-                registration_start=data.get("registration_start") or None,
-                registration_end=data.get("registration_end") or None,
+                registration_start=registration_start,
+                registration_end=registration_end,
                 waitlist_enabled=bool(data.get("waitlist_enabled", False)),
                 signup_mode=signup_mode,
                 price_incl_tax=data.get("price_incl_tax", "0"),
@@ -297,12 +326,17 @@ class ConsoleEventsViewSet(ViewSet):
                     )
             except Exception:
                 pass
+        datetime_fields = ("start_date", "end_date", "registration_start", "registration_end")
         for field in updatable:
             if field in data:
                 val = data[field]
-                if field in ("end_date", "max_participants", "json_schema", "price_tiers",
-                             "confirmed_email_template", "post_registration_message",
-                             "registration_start", "registration_end"):
+                if field in datetime_fields:
+                    try:
+                        val = _coerce_datetime(val)
+                    except ValueError as exc:
+                        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+                elif field in ("max_participants", "json_schema", "price_tiers",
+                               "confirmed_email_template", "post_registration_message"):
                     if val == "" or val is None:
                         val = None
                 elif field == "max_qty":
