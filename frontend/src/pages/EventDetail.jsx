@@ -976,9 +976,6 @@ export default function EventDetail() {
         if (event.global_registration_closed) {
           return <Alert variant="warning">Registrations are temporarily closed.</Alert>;
         }
-        if (event.is_active === false) {
-          return <Alert variant="info">This event is not currently open for registration.</Alert>;
-        }
         if (event.registration_open === false) {
           return <Alert variant="warning">Registration for this event is currently closed.</Alert>;
         }
