@@ -1086,7 +1086,24 @@ export default function EventDetail() {
                   <FieldGrid $cols="1fr 2fr">
                     <Field>
                       <FLabel>Number of participants</FLabel>
-                      <FInput type="number" min="1" max={Math.min(event.max_qty ?? 5, 5)} value={form.quantity} onChange={set('quantity')} />
+                      <FInput
+                        type="number"
+                        min="1"
+                        max={Math.min(event.max_qty ?? 5, 5)}
+                        value={form.quantity}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') { setForm(p => ({ ...p, quantity: '' })); return; }
+                          const cap = Math.min(event.max_qty ?? 5, 5);
+                          const n = Math.max(1, Math.min(cap, Math.floor(Number(raw)) || 1));
+                          setForm(p => ({ ...p, quantity: n }));
+                        }}
+                        onBlur={(e) => {
+                          const cap = Math.min(event.max_qty ?? 5, 5);
+                          const n = Math.max(1, Math.min(cap, Math.floor(Number(e.target.value)) || 1));
+                          setForm(p => ({ ...p, quantity: n }));
+                        }}
+                      />
                       <FHint>Max {Math.min(event.max_qty ?? 5, 5)} per registration</FHint>
                     </Field>
                   </FieldGrid>
