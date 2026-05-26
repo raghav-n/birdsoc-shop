@@ -1217,30 +1217,34 @@ export default function EventManagementDetail() {
                 </tr>
               </thead>
               <tbody>
-                {lotteryPending.map(booking => (
-                  <Tr key={booking.ep_id}>
-                    <Td>
-                      <div style={{ fontWeight: 500 }}>
-                        {booking.first_name} {booking.last_name}
-                        {booking.quantity > 1 && (
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{booking.quantity - 1}</span>
-                        )}
-                      </div>
-                    </Td>
-                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
-                    <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
-                    <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
-                    <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
-                    <Td>
-                      <DangerBtn
-                        onClick={() => handleRemove(booking)}
-                        disabled={removing === booking.ep_id}
-                      >
-                        {removing === booking.ep_id ? '…' : 'Remove'}
-                      </DangerBtn>
-                    </Td>
-                  </Tr>
-                ))}
+                {lotteryPending.map(booking => {
+                  const slots = Array.isArray(booking.extra_json) ? booking.extra_json : [];
+                  return (
+                    <Tr key={booking.ep_id}>
+                      <Td>
+                        <div style={{ fontWeight: 500 }}>
+                          {booking.first_name} {booking.last_name}
+                          {booking.quantity > 1 && (
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{booking.quantity - 1}</span>
+                          )}
+                        </div>
+                        {renderExtra(slots[0], schemaProps)}
+                      </Td>
+                      <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
+                      <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
+                      <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
+                      <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
+                      <Td>
+                        <DangerBtn
+                          onClick={() => handleRemove(booking)}
+                          disabled={removing === booking.ep_id}
+                        >
+                          {removing === booking.ep_id ? '…' : 'Remove'}
+                        </DangerBtn>
+                      </Td>
+                    </Tr>
+                  );
+                })}
               </tbody>
             </Table>
           </TableScroll>

@@ -126,12 +126,29 @@ def send_lottery_entered_email(event, participant):
             draw_when = ""
 
     subject = f"Lottery entry received – {event.title}"
+    qty_line_html = f"<br>Number of spots requested: {participant.quantity}" if participant.quantity > 1 else ""
+    qty_line_text = f"\nNumber of spots requested: {participant.quantity}" if participant.quantity > 1 else ""
+    ec_line_html = (
+        f"<br>Emergency contact: {participant.emergency_contact_name} {participant.emergency_contact_phone or ''}"
+        if participant.emergency_contact_name else ""
+    )
+    ec_line_text = (
+        f"\nEmergency contact: {participant.emergency_contact_name} {participant.emergency_contact_phone or ''}"
+        if participant.emergency_contact_name else ""
+    )
     html_content = f"""
 <p>Hi {participant.first_name},</p>
 
 <p>Thanks for entering the lottery for <strong>{event.title}</strong>! Your entry has been received.</p>
 
 <p>This event uses a random draw to allocate places. We'll run the draw{draw_when} and email you with the result. No payment or further action is needed from you right now.</p>
+
+<p><strong>Your entry details</strong><br>
+Name: {participant.first_name} {participant.last_name}<br>
+Email: {participant.email}<br>
+Phone: {participant.phone_number or '—'}{qty_line_html}{ec_line_html}</p>
+
+<p>If anything above looks wrong, just reply to this email and we'll fix it.</p>
 
 <p>— Bird Society of Singapore</p>
 """
@@ -140,6 +157,11 @@ def send_lottery_entered_email(event, participant):
         f"Thanks for entering the lottery for {event.title}! Your entry has been received.\n\n"
         f"This event uses a random draw to allocate places. We'll run the draw{draw_when} "
         f"and email you with the result.\n\n"
+        f"Your entry details\n"
+        f"Name: {participant.first_name} {participant.last_name}\n"
+        f"Email: {participant.email}\n"
+        f"Phone: {participant.phone_number or '—'}{qty_line_text}{ec_line_text}\n\n"
+        f"If anything looks wrong, just reply to this email and we'll fix it.\n\n"
         f"— Bird Society of Singapore"
     )
     try:
