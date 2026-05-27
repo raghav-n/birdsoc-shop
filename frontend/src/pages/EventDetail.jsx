@@ -980,6 +980,10 @@ export default function EventDetail() {
           return <Alert variant="warning">Registrations are temporarily closed.</Alert>;
         }
         if (event.registration_open === false) {
+          const regStart = event.registration_start ? new Date(event.registration_start) : null;
+          if (regStart && regStart > new Date()) {
+            return <Alert variant="warning">Registration opens on {fmt(event.registration_start)}.</Alert>;
+          }
           return <Alert variant="warning">Registration for this event is currently closed.</Alert>;
         }
         if (isLottery && lotteryDrawn) {
