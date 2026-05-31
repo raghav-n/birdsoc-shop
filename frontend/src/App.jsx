@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { GlobalStyle } from './styles/GlobalStyles';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -66,6 +66,25 @@ const RequireAuth = ({ children }) => {
     return <Navigate to={buildLoginRedirectPath(next)} replace />;
   }
   return children;
+};
+
+// Order detail is reachable either as a signed-in user browsing their orders,
+// or anonymously via a collection-access link (?id=<uuid>). When a valid-looking
+// access id is present we bypass the shop-open and auth guards so the link works
+// regardless of login state or whether the shop is currently open — the backend
+// still validates the id before returning the order.
+const OrderDetailRoute = () => {
+  const [searchParams] = useSearchParams();
+  if (searchParams.get('id')) {
+    return <OrderDetail />;
+  }
+  return (
+    <ShopOpenOnly>
+      <RequireAuth>
+        <OrderDetail />
+      </RequireAuth>
+    </ShopOpenOnly>
+  );
 };
 
 const StaffOnly = ({ children }) => {
@@ -135,7 +154,7 @@ function App() {
                 <Route path="/cart" element={<ShopOpenOnly><Cart /></ShopOpenOnly>} />
                 <Route path="/checkout" element={<ShopOpenOnly><Checkout /></ShopOpenOnly>} />
                 <Route path="/orders" element={<ShopOpenOnly><RequireAuth><Orders /></RequireAuth></ShopOpenOnly>} />
-                <Route path="/orders/:orderNumber" element={<ShopOpenOnly><RequireAuth><OrderDetail /></RequireAuth></ShopOpenOnly>} />
+                <Route path="/orders/:orderNumber" element={<OrderDetailRoute />} />
                 <Route path="/order-success" element={<ShopOpenOnly><OrderSuccess /></ShopOpenOnly>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<ShopOpenOnly><Register /></ShopOpenOnly>} />
