@@ -1,4 +1,6 @@
 import json
+import logging
+import threading
 import pandas as pd
 from datetime import date, timedelta
 from io import BytesIO
@@ -31,6 +33,8 @@ from django.urls import reverse
 from decimal import Decimal
 from django.db.models import Count, Sum
 from sentry_sdk import capture_exception
+
+logger = logging.getLogger(__name__)
 
 from apps.order.utils import (
     OrderDeletionNotAllowed,
@@ -747,6 +751,33 @@ def _deduplicated_orders(orders):
     return seen
 
 
+def _send_bulk_emails(subject, message_template, orders, bcc_list, attachments):
+    """Send the bulk email batch. Runs in a background thread so the request
+    isn't held open past the gunicorn worker timeout (which would abort the
+    worker with SystemExit and leave the batch half-sent)."""
+    from django.db import connections
+
+    successful = 0
+    failed = 0
+    try:
+        for order in orders:
+            email = _order_recipient_email(order)
+            try:
+                _render_and_send_bulk_email(subject, message_template, order, email, bcc_list, attachments)
+                successful += 1
+                try:
+                    order.set_status(settings.COLLECTION_INFO_SENT_STATUS)
+                except Exception:
+                    pass
+            except Exception as exc:
+                capture_exception(exc)
+                failed += 1
+    finally:
+        logger.info("Bulk email batch finished: %s sent, %s failed", successful, failed)
+        # Each thread gets its own DB connection; close it so it isn't leaked.
+        connections.close_all()
+
+
 @method_decorator(console_staff_required, name="dispatch")
 class OrderBulkEmailView(View):
     template_name = "oscar/dashboard/orders/order_bulk_email.html"
@@ -769,6 +800,9 @@ class OrderBulkEmailView(View):
 
         orders = _orders_for_bulk_email(sales_periods, statuses)
         recipients = _deduplicated_orders(orders)
+        # Resolve the queryset to concrete Order objects in the request thread so
+        # the background thread doesn't touch the request's DB connection.
+        recipient_orders = list(recipients.values())
 
         bcc_list = []
         reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
@@ -779,29 +813,23 @@ class OrderBulkEmailView(View):
         seen_bcc = set()
         bcc_list = [x for x in bcc_list if not (x.lower() in seen_bcc or seen_bcc.add(x.lower()))]
 
-        successful = 0
-        failed = 0
+        total = len(recipient_orders)
+        if not total:
+            messages.warning(request, "No matching recipients found for the selected filters.")
+            return redirect("dashboard:order-list")
 
-        for email_lower, order in recipients.items():
-            email = _order_recipient_email(order)
-            try:
-                _render_and_send_bulk_email(subject, message_template, order, email, bcc_list, attachments)
-                successful += 1
-                try:
-                    order.set_status(settings.COLLECTION_INFO_SENT_STATUS)
-                except Exception:
-                    pass
-            except Exception as exc:
-                capture_exception(exc)
-                failed += 1
+        thread = threading.Thread(
+            target=_send_bulk_emails,
+            args=(subject, message_template, recipient_orders, bcc_list, attachments),
+            daemon=True,
+        )
+        thread.start()
 
-        if failed:
-            messages.warning(
-                request,
-                f"Sent {successful} emails successfully, but {failed} failed.",
-            )
-        else:
-            messages.success(request, f"Successfully sent {successful} emails.")
+        messages.info(
+            request,
+            f"Sending {total} emails in the background. Orders are marked as notified "
+            f"as each send completes — check back shortly.",
+        )
 
         return redirect("dashboard:order-list")
 
