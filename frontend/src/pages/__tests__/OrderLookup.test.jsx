@@ -88,4 +88,39 @@ describe('OrderLookup', () => {
     expect(await screen.findByDisplayValue('12345')).toBeInTheDocument();
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Opened order 12345');
   });
+
+  it('expands every active order and leaves collected orders collapsed', async () => {
+    mocks.get.mockResolvedValue({
+      data: {
+        orders: [
+          {
+            number: '12345',
+            customer_name: 'Alex Tan',
+            status: 'Ready',
+            items: [{ title: 'Bird Guide', quantity: 1, category: 'Books' }],
+          },
+          {
+            number: '12346',
+            customer_name: 'Alex Tan',
+            status: 'Ready',
+            items: [{ title: 'Field Binoculars', quantity: 1, category: 'Gear' }],
+          },
+          {
+            number: '12300',
+            customer_name: 'Alex Tan',
+            status: 'Collected',
+            items: [{ title: 'Old Sticker', quantity: 1, category: 'Misc' }],
+          },
+        ],
+      },
+    });
+
+    renderOrderLookup('/console/order-lookup/12345?id=deep-link');
+
+    // Both active orders' items are visible (expanded) without any clicks.
+    expect(await screen.findByText('Bird Guide')).toBeInTheDocument();
+    expect(screen.getByText('Field Binoculars')).toBeInTheDocument();
+    // The collected order stays collapsed.
+    expect(screen.queryByText('Old Sticker')).not.toBeInTheDocument();
+  });
 });

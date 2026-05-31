@@ -12,11 +12,11 @@ Order = get_model("order", "Order")
 
 
 class OrderLookupApiTests(TestCase):
-    def _place_order(self):
+    def _place_order(self, email="buyer@example.com", product_title="Scan Test Badge"):
         api_client = APIClient()
-        auth_client(api_client, email="buyer@example.com")
+        auth_client(api_client, email=email)
 
-        product = create_product(title="Scan Test Badge", price=12)
+        product = create_product(title=product_title, price=12)
         shipping_method = create_shipping_method(price=0)
 
         basket_id = api_client.post("/api/v1/baskets").data["cart_id"]
@@ -66,6 +66,51 @@ class OrderLookupApiTests(TestCase):
         self.assertEqual(orders[0]["number"], order["number"])
         self.assertEqual(orders[0]["items"][0]["title"], "Scan Test Badge")
         self.assertEqual(orders[0]["items"][0]["quantity"], 2)
+
+    def test_lookup_returns_all_orders_for_the_same_person(self):
+        first = self._place_order(product_title="First Badge")
+        second = self._place_order(product_title="Second Badge")
+        client = self._staff_client()
+
+        response = client.get(
+            "/api/v1/orders/search",
+            {"number": first["number"], "id": first["access_id"]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        numbers = {o["number"] for o in response.data["orders"]}
+        self.assertEqual(numbers, {first["number"], second["number"]})
+
+    def test_number_search_returns_all_orders_for_the_same_person(self):
+        first = self._place_order(product_title="First Badge")
+        second = self._place_order(product_title="Second Badge")
+        client = self._staff_client()
+
+        response = client.get(
+            "/api/v1/orders/search", {"number": first["number"]}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        numbers = {o["number"] for o in response.data["orders"]}
+        self.assertEqual(numbers, {first["number"], second["number"]})
+
+    def test_collected_orders_sort_after_active_orders(self):
+        active = self._place_order(product_title="Active Badge")
+        collected = self._place_order(product_title="Collected Badge")
+        collected_order = Order.objects.get(number=collected["number"])
+        collected_order.status = settings.COLLECTED_STATUS
+        collected_order.save(update_fields=["status"])
+        client = self._staff_client()
+
+        response = client.get(
+            "/api/v1/orders/search",
+            {"number": active["number"], "id": active["access_id"]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        orders = response.data["orders"]
+        self.assertEqual(orders[0]["number"], active["number"])
+        self.assertEqual(orders[-1]["number"], collected["number"])
 
     def test_lookup_rejects_invalid_access_id(self):
         order = self._place_order()

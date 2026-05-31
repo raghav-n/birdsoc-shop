@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db.models import Q, Value
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.db.models.functions import Concat
 from oscar.core.loading import get_model
 from rest_framework import permissions, status
@@ -7,6 +7,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 Order = get_model("order", "Order")
+
+LINE_PREFETCH = (
+    "lines__product__categories",
+    "lines__product__parent__categories",
+)
 
 
 def _customer_name(order):
@@ -52,8 +57,41 @@ def _order_payload(order):
     }
 
 
+def _person_q(order):
+    """Match all orders belonging to the same person as ``order``."""
+    if order.user_id:
+        return Q(user_id=order.user_id)
+    if order.guest_email:
+        return Q(guest_email__iexact=order.guest_email, user__isnull=True)
+    return Q(pk=order.pk)
+
+
+def _orders_payload(q):
+    """Return payloads for orders matching ``q``, uncollected first."""
+    orders = (
+        Order._default_manager.annotate(
+            full_name_fl=Concat("user__first_name", Value(" "), "user__last_name"),
+            full_name_lf=Concat("user__last_name", Value(" "), "user__first_name"),
+            _collected_sort=Case(
+                When(status=settings.COLLECTED_STATUS, then=1),
+                default=0,
+                output_field=IntegerField(),
+            ),
+        )
+        .filter(q)
+        .select_related("user")
+        .prefetch_related(*LINE_PREFETCH)
+        .order_by("_collected_sort", "-date_placed")[:25]
+    )
+    return [_order_payload(o) for o in orders]
+
+
 class OrderSearchView(APIView):
-    """Search orders by number prefix or customer name. Staff only."""
+    """Search orders by number prefix or customer name. Staff only.
+
+    A number/QR lookup returns every order belonging to the matched
+    customer(s), so staff can hand over all of a person's orders at once.
+    """
 
     permission_classes = [permissions.IsAdminUser]
 
@@ -62,13 +100,13 @@ class OrderSearchView(APIView):
         name = request.query_params.get("name", "").strip()
         access_id = request.query_params.get("id", "").strip()
 
-        # Single-order lookup by number + access_id (QR code scan)
+        # QR code scan: validate the access id against the scanned order,
+        # then return all of that person's orders.
         if number and access_id:
             try:
-                order = Order._default_manager.prefetch_related(
-                    "lines__product__categories",
-                    "lines__product__parent__categories",
-                ).get(number=number)
+                order = Order._default_manager.select_related("user").get(
+                    number=number
+                )
             except Order.DoesNotExist:
                 return Response({"orders": []})
             if not order.has_valid_collection_access_id(access_id):
@@ -76,33 +114,28 @@ class OrderSearchView(APIView):
                     {"detail": "Invalid access ID"},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            return Response({"orders": [_order_payload(order)]})
+            return Response({"orders": _orders_payload(_person_q(order))})
 
         if not number and not name:
             return Response({"orders": []})
 
-        q = Q()
+        # Number entry: find the matching order(s), then expand to every
+        # order belonging to the same person(s).
         if number:
-            q &= Q(number__startswith=number)
-        if name:
-            q &= (
-                Q(full_name_fl__icontains=name)
-                | Q(full_name_lf__icontains=name)
+            seeds = list(
+                Order._default_manager.filter(number__startswith=number)
+                .select_related("user")[:25]
             )
+            if not seeds:
+                return Response({"orders": []})
+            q = Q()
+            for seed in seeds:
+                q |= _person_q(seed)
+            return Response({"orders": _orders_payload(q)})
 
-        orders = (
-            Order._default_manager.annotate(
-                full_name_fl=Concat("user__first_name", Value(" "), "user__last_name"),
-                full_name_lf=Concat("user__last_name", Value(" "), "user__first_name"),
-            )
-            .filter(q)
-            .select_related("user")
-            .prefetch_related(
-                "lines__product__categories",
-                "lines__product__parent__categories",
-            )[:25]
-        )
-        return Response({"orders": [_order_payload(o) for o in orders]})
+        # Name search.
+        q = Q(full_name_fl__icontains=name) | Q(full_name_lf__icontains=name)
+        return Response({"orders": _orders_payload(q)})
 
 
 class OrderCollectView(APIView):

@@ -158,7 +158,7 @@ const OrderLookup = () => {
 
   const [query, setQuery] = useState(numberParam || '');
   const [orders, setOrders] = useState([]);
-  const [openCard, setOpenCard] = useState(null);
+  const [openCards, setOpenCards] = useState(() => new Set());
   const [pendingCollect, setPendingCollect] = useState(null);
   const debounceRef = useRef(null);
   const hydratedLookupRef = useRef('');
@@ -166,10 +166,10 @@ const OrderLookup = () => {
   const runSearch = useCallback(async (params) => {
     try {
       const resp = await api.get('/orders/search', { params });
-      setOrders(resp.data.orders || []);
-      if ((resp.data.orders || []).length > 0) {
-        setOpenCard(resp.data.orders[0].number);
-      }
+      const list = resp.data.orders || [];
+      setOrders(list);
+      // Expand every active (uncollected) order; leave collected ones collapsed.
+      setOpenCards(new Set(list.filter(o => o.status !== COLLECTED).map(o => o.number)));
     } catch (err) {
       if (err.response?.status === 403) {
         toast.error('Invalid access ID');
@@ -236,6 +236,18 @@ const OrderLookup = () => {
     toast.success(`Opened order ${number}`);
   }, [lookupOrder]);
 
+  const toggleCard = (orderNumber) => {
+    setOpenCards(prev => {
+      const next = new Set(prev);
+      if (next.has(orderNumber)) {
+        next.delete(orderNumber);
+      } else {
+        next.add(orderNumber);
+      }
+      return next;
+    });
+  };
+
   const handleCollect = async (orderNumber) => {
     if (pendingCollect !== orderNumber) {
       setPendingCollect(orderNumber);
@@ -246,6 +258,12 @@ const OrderLookup = () => {
       setOrders(prev =>
         prev.map(o => o.number === orderNumber ? { ...o, status: COLLECTED } : o)
       );
+      // Collapse the now-collected order so active orders stay in focus.
+      setOpenCards(prev => {
+        const next = new Set(prev);
+        next.delete(orderNumber);
+        return next;
+      });
       toast.success(`Order ${orderNumber} marked as collected`);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to mark collected');
@@ -271,10 +289,11 @@ const OrderLookup = () => {
         <h3>Searching</h3>
         <ul>
           <li>Type an <strong>order number</strong> (5+ digits) or a <strong>customer name</strong> (4+ characters) — results appear automatically.</li>
-          <li>Click an order card to expand it and see the item list.</li>
+          <li>Looking up an order number shows <strong>all of that customer's orders</strong> at once, so you can hand everything over together.</li>
+          <li>Active (uncollected) orders open automatically; collected orders stay collapsed. Click any card header to expand or collapse it.</li>
         </ul>
         <h3>QR scan</h3>
-        <p>Click <strong>Scan collection QR</strong> to use the camera. Scanning a customer's QR code loads their order instantly without typing.</p>
+        <p>Click <strong>Scan collection QR</strong> to use the camera. Scanning a customer's QR code loads all of their orders instantly without typing.</p>
         <h3>Marking as collected</h3>
         <ul>
           <li>Click <strong>Mark as collected</strong> on an open order card.</li>
@@ -310,12 +329,12 @@ const OrderLookup = () => {
       ) : (
         groupedOrders.map(o => {
           const collected = o.status === COLLECTED;
-          const isOpen = openCard === o.number;
+          const isOpen = openCards.has(o.number);
           return (
             <OrderCard key={o.number} $collected={collected}>
               <OrderHeader
                 $collected={collected}
-                onClick={() => setOpenCard(isOpen ? null : o.number)}
+                onClick={() => toggleCard(o.number)}
               >
                 <OrderTitle>#{o.number}  {o.customer_name}</OrderTitle>
                 <StatusBadge $collected={collected}>{o.status}</StatusBadge>
