@@ -54,17 +54,27 @@ class GmailApiEmailBackend(BaseEmailBackend):
 def _build_raw_message(email_message) -> str:
     body_subtype = getattr(email_message, "content_subtype", "plain") or "plain"
     alternatives = getattr(email_message, "alternatives", None)
+
+    # Build the body part: a multipart/alternative when an HTML (or other)
+    # alternative is present, otherwise a plain text/html part.
     if alternatives:
-        mime = MIMEMultipart("alternative")
-        mime.attach(MIMEText(email_message.body, body_subtype, "utf-8"))
+        body_part = MIMEMultipart("alternative")
+        body_part.attach(MIMEText(email_message.body, body_subtype, "utf-8"))
         for content, mimetype in alternatives:
             maintype, subtype = mimetype.split("/", 1)
-            mime.attach(MIMEText(content, subtype, "utf-8"))
-    elif email_message.attachments:
-        mime = MIMEMultipart("mixed")
-        mime.attach(MIMEText(email_message.body, body_subtype, "utf-8"))
+            body_part.attach(MIMEText(content, subtype, "utf-8"))
     else:
-        mime = MIMEText(email_message.body, body_subtype, "utf-8")
+        body_part = MIMEText(email_message.body, body_subtype, "utf-8")
+
+    # When there are attachments, the body must be nested inside a
+    # multipart/mixed container; attaching files directly to a
+    # multipart/alternative makes clients treat them as alternative
+    # renderings and hide them rather than show them as attachments.
+    if email_message.attachments:
+        mime = MIMEMultipart("mixed")
+        mime.attach(body_part)
+    else:
+        mime = body_part
 
     mime["Subject"] = email_message.subject
     mime["From"] = email_message.from_email
