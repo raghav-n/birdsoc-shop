@@ -82,12 +82,7 @@ class Order(AbstractOrder):
         return HTML(string=template_str).render()
 
     def get_receipt_as_pdf(self) -> bytes:
-        receipt_as_pdf = self.get_receipt().write_pdf()
-        with open(
-            settings.PROJECT_DIR / f"receipts/{self.number}.pdf", "wb"
-        ) as pdf_file:
-            pdf_file.write(receipt_as_pdf)
-        return receipt_as_pdf
+        return self.get_receipt().write_pdf()
 
     @property
     def total_incl_tax_with_donation(self):
