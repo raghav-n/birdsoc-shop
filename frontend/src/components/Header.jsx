@@ -27,12 +27,8 @@ const Bar = styled.div`
   gap: 32px;
 
   @media (max-width: 900px) {
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "logo actions"
-      "nav nav";
     padding: 10px 1rem;
-    gap: 6px 12px;
+    gap: 12px;
   }
 `;
 
@@ -86,6 +82,7 @@ const Nav = styled.nav`
   gap: 1.75rem;
   align-items: center;
   justify-content: center;
+  min-width: 0;
 
   @media (max-width: 900px) {
     gap: 1.25rem;
