@@ -157,7 +157,7 @@ function App() {
                 <Route path="/orders/:orderNumber" element={<OrderDetailRoute />} />
                 <Route path="/order-success" element={<ShopOpenOnly><OrderSuccess /></ShopOpenOnly>} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<ShopOpenOnly><Register /></ShopOpenOnly>} />
+                <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/contact" element={<Contact />} />

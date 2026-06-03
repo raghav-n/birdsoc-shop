@@ -265,12 +265,12 @@ const Header = () => {
                 <LogOut size={16} strokeWidth={1.7} />
               </IconBtn>
             </AuthActions>
-          ) : shopOpen ? (
+          ) : (
             <AuthActions>
               <BsButton as={Link} to="/login" $size="sm">Login</BsButton>
               <BsButton as={Link} to="/register" $size="sm" $primary>Register</BsButton>
             </AuthActions>
-          ) : null}
+          )}
         </Right>
       </Bar>
     </Container>

@@ -207,7 +207,7 @@ const Footer = () => {
                 Data Protection Notice
               </FExternal>
             </li>
-            {!isAuthenticated && shopOpen && <li><FLink to="/login">Sign in</FLink></li>}
+            {!isAuthenticated && <li><FLink to="/login">Sign in</FLink></li>}
             {isAuthenticated && shopOpen && <li><FLink to="/orders">My orders</FLink></li>}
           </LinkList>
         </div>
