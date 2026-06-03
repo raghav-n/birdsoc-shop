@@ -30,6 +30,7 @@ PaymentEvent = get_model("order", "PaymentEvent")
 PaymentEventType = get_model("order", "PaymentEventType")
 PaymentEventQuantity = get_model("order", "PaymentEventQuantity")
 OrderCreator = get_class("order.utils", "OrderCreator")
+OrderDispatcher = get_class("order.utils", "OrderDispatcher")
 Selector = get_class("partner.strategy", "Selector")
 Applicator = get_class("offer.applicator", "Applicator")
 ConditionalOffer = get_model("offer", "ConditionalOffer")
@@ -456,3 +457,103 @@ class OnsiteOrderView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+def _place_cash_order_from_pending(pending, request=None):
+    import logging
+    logger = logging.getLogger(__name__)
+
+    snapshot = pending.basket_snapshot or {}
+
+    try:
+        basket = Basket.objects.get(id=pending.basket_id)
+    except Basket.DoesNotExist:
+        return {"order": None, "error": "Basket no longer exists"}
+
+    basket.strategy = Selector().strategy(request=request)
+
+    if basket.is_empty:
+        return {"order": None, "error": "Basket is empty"}
+
+    Applicator().apply(basket, basket.owner, request)
+
+    shipping_method = _resolve_onsite_shipping_method()
+    if not shipping_method:
+        return {"order": None, "error": "No ONSITE shipping method configured"}
+
+    shipping_charge = shipping_method.calculate(basket)
+    order_total = OrderTotalCalculator().calculate(basket, shipping_charge)
+
+    order_number = snapshot.get("order_number") or pending.reference.replace(settings.ORDER_PREFIX, "")
+    if Order.objects.filter(number=order_number).exists():
+        return {"order": None, "error": "Order already placed"}
+
+    order = OrderCreator().place_order(
+        basket=basket,
+        total=order_total,
+        shipping_method=shipping_method,
+        shipping_charge=shipping_charge,
+        user=basket.owner,
+        order_number=order_number,
+        status=settings.PAYMENT_AUTO_CONFIRMED_STATUS,
+    )
+
+    source_type, _ = SourceType.objects.get_or_create(name="Cash")
+    Source.objects.create(
+        source_type=source_type,
+        amount_allocated=order_total.incl_tax,
+        amount_debited=order_total.incl_tax,
+        reference=pending.reference,
+        order=order,
+    )
+
+    event_type, _ = PaymentEventType.objects.get_or_create(
+        name="cash-paid",
+        defaults={"code": "cash-paid"},
+    )
+    event = PaymentEvent.objects.create(
+        event_type=event_type,
+        amount=order_total.incl_tax,
+        reference=pending.reference,
+        order=order,
+    )
+    for line in order.lines.all():
+        PaymentEventQuantity.objects.create(event=event, line=line, quantity=line.quantity)
+
+    basket.submit()
+    PendingCheckout.objects.filter(basket_id=pending.basket_id).delete()
+
+    try:
+        OrderDispatcher().send_payment_confirmed_email_for_user(order, {"order": order})
+    except Exception as exc:
+        logger.error("Failed to send cash payment confirmation email for order %s: %s", order.number, exc)
+
+    return {"order": order, "error": None}
+
+
+class OnsiteCashConfirmView(APIView):
+    """Mark a pending onsite order as paid by cash."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        order_number = (request.data.get("order_number") or "").strip()
+        if not order_number:
+            return Response({"detail": "order_number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        reference = f"{settings.ORDER_PREFIX}{order_number}"
+        pending = PendingCheckout.objects.filter(reference=reference).first()
+        if not pending:
+            return Response({"detail": "Pending checkout not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            with transaction.atomic():
+                result = _place_cash_order_from_pending(pending, request)
+        except Exception as exc:
+            traceback.print_exc()
+            return Response({"detail": f"Cash confirmation failed: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if result.get("error"):
+            return Response({"detail": result["error"]}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"order_number": order_number, "confirmed": True})

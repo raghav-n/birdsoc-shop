@@ -605,6 +605,28 @@ const BackToCartBtn = styled(NewSaleBtn)`
   }
 `;
 
+const CashBtn = styled.button`
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--success);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const SuccessBanner = styled.div`
   background: var(--success);
   color: white;
@@ -712,6 +734,8 @@ export default function OnsitePurchase() {
   const [placing, setPlacing] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [orderTotal, setOrderTotal] = useState(0);
+  const [cashConfirming, setCashConfirming] = useState(false);
+  const [paidByCash, setPaidByCash] = useState(false);
 
   const handledRef = useRef(false);
   const pollingRef = useRef(false);
@@ -893,6 +917,22 @@ export default function OnsitePurchase() {
     }
   };
 
+  // ── Cash payment ─────────────────────────────────────────────────────────────
+
+  const handlePaidByCash = async () => {
+    setCashConfirming(true);
+    try {
+      await onsiteService.confirmCash(orderNumber);
+      handledRef.current = true;
+      setPaidByCash(true);
+      setPhase(PHASE.CONFIRMED);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to confirm cash payment');
+    } finally {
+      setCashConfirming(false);
+    }
+  };
+
   // ── New sale ─────────────────────────────────────────────────────────────
 
   const handleNewSale = () => {
@@ -904,6 +944,7 @@ export default function OnsitePurchase() {
     setOrderNumber('');
     setOrderTotal(0);
     setPhase(PHASE.BUILDING);
+    setPaidByCash(false);
     handledRef.current = false;
     pollingRef.current = false;
   };
@@ -912,6 +953,7 @@ export default function OnsitePurchase() {
     setOrderNumber('');
     setOrderTotal(0);
     setPhase(PHASE.BUILDING);
+    setPaidByCash(false);
     handledRef.current = false;
     pollingRef.current = false;
   };
@@ -1188,7 +1230,9 @@ export default function OnsitePurchase() {
           <SuccessBanner>
             <CheckCircle size={28} style={{ marginBottom: 4 }} />
             <div style={{ fontWeight: 700, fontSize: '1rem' }}>Payment received!</div>
-            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: 4 }}>Order confirmed automatically</div>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: 4 }}>
+              {paidByCash ? 'Paid by cash' : 'Order confirmed automatically'}
+            </div>
           </SuccessBanner>
         )}
 
@@ -1242,6 +1286,12 @@ export default function OnsitePurchase() {
             <span>{formatCurrency(orderTotal)}</span>
           </div>
         </div>
+
+        {!confirmed && (
+          <CashBtn onClick={handlePaidByCash} disabled={cashConfirming}>
+            {cashConfirming ? <><Spinner style={{ display: 'inline-block', marginRight: 6 }} />Confirming…</> : 'Paid by cash'}
+          </CashBtn>
+        )}
 
         {!confirmed && (
           <BackToCartBtn onClick={handleBackToCart}>

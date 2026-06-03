@@ -15,4 +15,9 @@ export const onsiteService = {
     const response = await api.post('/onsite/order', { products, voucher_code });
     return response.data;
   },
+
+  confirmCash: async (order_number) => {
+    const response = await api.post('/onsite/confirm-cash', { order_number });
+    return response.data;
+  },
 };

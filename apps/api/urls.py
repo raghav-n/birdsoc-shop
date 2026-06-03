@@ -47,7 +47,7 @@ from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.bundles import BundleListView
 from apps.api.views.analytics import AnalyticsDashboardView
 from apps.api.views.donations import DonationCreateView
-from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView
+from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView, OnsiteCashConfirmView
 from apps.api.views.order_lookup import OrderSearchView, OrderCollectView
 from apps.api.views.console_events import (
     ConsoleEventsViewSet,
@@ -97,6 +97,7 @@ urlpatterns = [
     path("orders/<str:number>/collect", OrderCollectView.as_view(), name="orders-collect"),
     path("onsite/pending", OnsitePendingView.as_view(), name="onsite-pending"),
     path("onsite/order", OnsiteOrderView.as_view(), name="onsite-order"),
+    path("onsite/confirm-cash", OnsiteCashConfirmView.as_view(), name="onsite-confirm-cash"),
     path("donations", DonationCreateView.as_view(), name="donation-create"),
     path("shipping/methods", ShippingMethodsView.as_view(), name="shipping-methods"),
     path(
