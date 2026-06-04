@@ -82,7 +82,8 @@ const Console = () => {
     toast.success(`Opened order ${number}`);
   };
 
-  const canMerchandise = user?.is_superuser || user?.groups?.includes('Merchandise');
+  const canMerchandise = user?.is_superuser || user?.groups?.includes('Merch Sales') || user?.groups?.includes('Merch Management');
+  const canAnalytics = user?.is_superuser || user?.groups?.includes('Merch Management');
   const canEvents = user?.is_superuser || user?.groups?.includes('Events');
 
   return (
@@ -94,13 +95,18 @@ const Console = () => {
         <ul>
           <li><strong>Onsite Purchase</strong> — process in-person sales at the booth and generate a PayNow QR code for the customer.</li>
           <li><strong>Order Lookup</strong> — search for an online order by order number or customer name, then mark it as collected when the customer picks up.</li>
-          <li><strong>Analytics</strong> — sales dashboard with revenue, cost, and profit breakdowns (superusers only).</li>
+          <li><strong>Analytics</strong> — sales dashboard with revenue, cost, and profit breakdowns (Merch Management and superusers only).</li>
         </ul>
+        <p><em>Merch Sales</em> members get Onsite Purchase and Order Lookup. <em>Merch Management</em> members get those plus Analytics.</p>
         <h3>QR scanner</h3>
         <p>Use <strong>Scan collection QR</strong> to scan a customer's QR code and jump straight to their order in Order Lookup.</p>
         <h3>Events tools</h3>
         <ul>
           <li><strong>Event Management</strong> — create and manage events, verify payments, and track attendance.</li>
+        </ul>
+        <h3>Admin</h3>
+        <ul>
+          <li><strong>User Management</strong> — assign staff to console groups (superusers only).</li>
         </ul>
       </HelpModal>
 
@@ -119,7 +125,7 @@ const Console = () => {
               <CardTitle>Order lookup</CardTitle>
               <CardDescription>Search and mark orders as collected</CardDescription>
             </Card>
-            {user?.is_superuser && (
+            {canAnalytics && (
               <Card to="/console/analytics">
                 <CardTitle>Analytics</CardTitle>
                 <CardDescription>Sales dashboard and revenue breakdown</CardDescription>
@@ -141,6 +147,18 @@ const Console = () => {
             <Card to="/console/events">
               <CardTitle>Event management</CardTitle>
               <CardDescription>Create events, manage registrations and attendance</CardDescription>
+            </Card>
+          </CardGrid>
+        </Section>
+      )}
+
+      {user?.is_superuser && (
+        <Section>
+          <SectionTitle>Admin</SectionTitle>
+          <CardGrid>
+            <Card to="/console/users">
+              <CardTitle>User management</CardTitle>
+              <CardDescription>Assign staff to console groups</CardDescription>
             </Card>
           </CardGrid>
         </Section>

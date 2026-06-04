@@ -29,6 +29,7 @@ import NotFound from './pages/NotFound';
 import Dashboard from './pages/Dashboard';
 import OnsitePurchase from './pages/OnsitePurchase';
 import Console from './pages/Console';
+import UserManagement from './pages/UserManagement';
 import OrderLookup from './pages/OrderLookup';
 import EventManagement from './pages/EventManagement';
 import EventManagementDetail from './pages/EventManagementDetail';
@@ -124,7 +125,7 @@ const EventsGroupOnly = ({ children }) => {
   return children;
 };
 
-const MerchandiseGroupOnly = ({ children }) => {
+const MerchSalesOnly = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) return null;
@@ -132,7 +133,20 @@ const MerchandiseGroupOnly = ({ children }) => {
     const next = location.pathname + location.search + location.hash;
     return <Navigate to={buildLoginRedirectPath(next)} replace />;
   }
-  const allowed = user.is_superuser || (user.groups && user.groups.includes('Merchandise'));
+  const allowed = user.is_superuser || (user.groups && (user.groups.includes('Merch Sales') || user.groups.includes('Merch Management')));
+  if (!allowed) return <Navigate to="/console" replace />;
+  return children;
+};
+
+const MerchManagementOnly = ({ children }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return null;
+  if (!user) {
+    const next = location.pathname + location.search + location.hash;
+    return <Navigate to={buildLoginRedirectPath(next)} replace />;
+  }
+  const allowed = user.is_superuser || (user.groups && user.groups.includes('Merch Management'));
   if (!allowed) return <Navigate to="/console" replace />;
   return children;
 };
@@ -168,10 +182,11 @@ function App() {
                 <Route path="/donate" element={<Donate />} />
                 <Route path="/donate/success" element={<DonationSuccess />} />
                 <Route path="/console" element={<StaffOnly><Console /></StaffOnly>} />
-                <Route path="/console/analytics" element={<SuperuserOnly><Dashboard /></SuperuserOnly>} />
-                <Route path="/console/onsite-purchase" element={<MerchandiseGroupOnly><OnsitePurchase /></MerchandiseGroupOnly>} />
-                <Route path="/console/order-lookup" element={<MerchandiseGroupOnly><OrderLookup /></MerchandiseGroupOnly>} />
-                <Route path="/console/order-lookup/:number" element={<MerchandiseGroupOnly><OrderLookup /></MerchandiseGroupOnly>} />
+                <Route path="/console/users" element={<SuperuserOnly><UserManagement /></SuperuserOnly>} />
+                <Route path="/console/analytics" element={<MerchManagementOnly><Dashboard /></MerchManagementOnly>} />
+                <Route path="/console/onsite-purchase" element={<MerchSalesOnly><OnsitePurchase /></MerchSalesOnly>} />
+                <Route path="/console/order-lookup" element={<MerchSalesOnly><OrderLookup /></MerchSalesOnly>} />
+                <Route path="/console/order-lookup/:number" element={<MerchSalesOnly><OrderLookup /></MerchSalesOnly>} />
                 <Route path="/console/events" element={<EventsGroupOnly><EventManagement /></EventsGroupOnly>} />
                 <Route path="/console/events/new" element={<EventsGroupOnly><EventManagementEdit /></EventsGroupOnly>} />
                 <Route path="/console/events/:id" element={<EventsGroupOnly><EventManagementDetail /></EventsGroupOnly>} />

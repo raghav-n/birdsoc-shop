@@ -14,9 +14,10 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 from oscar.apps.voucher.models import Voucher
 from oscar.core.loading import get_class, get_model
-from rest_framework import permissions, status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from apps.api.permissions import IsMerchSalesStaff
 from apps.checkout.models import PendingCheckout
 from apps.checkout.onsite_users import get_or_create_onsite_customer_user
 
@@ -163,7 +164,7 @@ class OnsiteCalculateView(APIView):
     Does not persist anything.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchSalesStaff]
 
     def post(self, request):
         products_data = request.data.get("products", [])
@@ -250,7 +251,7 @@ class OnsiteCalculateView(APIView):
 class OnsitePendingView(APIView):
     """Prepare an onsite payment by creating a pending checkout without placing the order."""
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchSalesStaff]
 
     def post(self, request):
         products_data = request.data.get("products", [])
@@ -338,7 +339,7 @@ class OnsiteOrderView(APIView):
       so Gmail polling can auto-confirm via confirm_paynow_payment().
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchSalesStaff]
 
     def post(self, request):
         products_data = request.data.get("products", [])
@@ -534,7 +535,7 @@ def _place_cash_order_from_pending(pending, request=None):
 class OnsiteCashConfirmView(APIView):
     """Mark a pending onsite order as paid by cash."""
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchSalesStaff]
 
     def post(self, request):
         order_number = (request.data.get("order_number") or "").strip()

@@ -2,10 +2,11 @@ from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
 
-from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from oscar.core.loading import get_model
+
+from apps.api.permissions import IsMerchManagementStaff
 
 Order = get_model("order", "Order")
 OrderLine = get_model("order", "Line")
@@ -15,7 +16,7 @@ Category = get_model("catalogue", "Category")
 
 
 class AnalyticsDashboardView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchManagementStaff]
 
     def get(self, request):
         # Parse optional date range filters

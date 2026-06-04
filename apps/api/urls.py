@@ -49,6 +49,7 @@ from apps.api.views.analytics import AnalyticsDashboardView
 from apps.api.views.donations import DonationCreateView
 from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView, OnsiteCashConfirmView
 from apps.api.views.order_lookup import OrderSearchView, OrderCollectView
+from apps.api.views.console_users import ConsoleUsersViewSet
 from apps.api.views.console_events import (
     ConsoleEventsViewSet,
     ConsoleVerifyRegistrationView,
@@ -68,6 +69,7 @@ router.register(r"categories", CategoryViewSet, basename="categories")
 router.register(r"orders", OrdersViewSet, basename="orders")
 router.register(r"events", EventsViewSet, basename="events")
 router.register(r"console/events", ConsoleEventsViewSet, basename="console-events")
+router.register(r"console/users", ConsoleUsersViewSet, basename="console-users")
 
 
 urlpatterns = [

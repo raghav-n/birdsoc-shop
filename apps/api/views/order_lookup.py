@@ -2,9 +2,11 @@ from django.conf import settings
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.db.models.functions import Concat
 from oscar.core.loading import get_model
-from rest_framework import permissions, status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.api.permissions import IsMerchSalesStaff
 
 Order = get_model("order", "Order")
 
@@ -93,7 +95,7 @@ class OrderSearchView(APIView):
     customer(s), so staff can hand over all of a person's orders at once.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchSalesStaff]
 
     def get(self, request):
         number = request.query_params.get("number", "").strip()
@@ -141,7 +143,7 @@ class OrderSearchView(APIView):
 class OrderCollectView(APIView):
     """Mark an order as collected. Staff only."""
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsMerchSalesStaff]
 
     def post(self, request, number):
         try:

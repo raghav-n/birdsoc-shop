@@ -170,7 +170,8 @@ const ConsoleHeader = () => {
     navigate('/');
   };
 
-  const canMerchandise = user?.is_superuser || user?.groups?.includes('Merchandise');
+  const canMerchandise = user?.is_superuser || user?.groups?.includes('Merch Sales') || user?.groups?.includes('Merch Management');
+  const canAnalytics = user?.is_superuser || user?.groups?.includes('Merch Management');
   const canEvents = user?.is_superuser || user?.groups?.includes('Events');
 
   const isActive = (path, exact = false) => (
@@ -195,7 +196,7 @@ const ConsoleHeader = () => {
               <NavLink to="/console/order-lookup" $active={isActive('/console/order-lookup')}>
                 Orders
               </NavLink>
-              {user?.is_superuser && (
+              {canAnalytics && (
                 <NavLink to="/console/analytics" $active={isActive('/console/analytics')}>
                   Analytics
                 </NavLink>
@@ -205,6 +206,11 @@ const ConsoleHeader = () => {
           {canEvents && (
             <NavLink to="/console/events" $active={isActive('/console/events')}>
               Events
+            </NavLink>
+          )}
+          {user?.is_superuser && (
+            <NavLink to="/console/users" $active={isActive('/console/users')}>
+              Users
             </NavLink>
           )}
         </Nav>
