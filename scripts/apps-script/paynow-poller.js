@@ -87,6 +87,7 @@ function processPayNowEmails() {
       const resp = postSigned(url, payload, cfg.secret);
       Logger.log(label + ' -> ' + resp.getResponseCode() + ' : ' + resp.getContentText());
       if (resp.getResponseCode() === 200) seen.add(key);
+      Utilities.sleep(1000);
     }
   }
   Logger.log('Done.');
