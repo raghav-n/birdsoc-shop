@@ -265,10 +265,11 @@ const VariantPill = styled.button`
   font-weight: 600;
   letter-spacing: -0.2px;
   cursor: pointer;
+  opacity: ${(p) => (p.$oos && !p.$active) ? 0.45 : 1};
+  text-decoration: ${(p) => p.$oos ? 'line-through' : 'none'};
   transition: border-color 0.15s ease, background 0.15s ease;
 
-  &:hover:not(:disabled) { border-color: var(--bs-accent); }
-  &:disabled { opacity: 0.35; cursor: not-allowed; background: var(--bs-panel); color: var(--bs-muted); border-color: var(--bs-rule); }
+  &:hover { border-color: var(--bs-accent); }
 `;
 
 const StockCard = styled(BsCard)`
@@ -866,7 +867,7 @@ const ProductDetail = () => {
                         key={child.id}
                         $active={child.id === selectedChildId}
                         aria-pressed={child.id === selectedChildId}
-                        disabled={childOos}
+                        $oos={childOos}
                         onClick={() => {
                           setSelectedChildId(child.id);
                           setQuantity(1);
