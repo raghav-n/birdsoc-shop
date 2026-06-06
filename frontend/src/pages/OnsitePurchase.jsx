@@ -836,7 +836,7 @@ export default function OnsitePurchase() {
     };
 
     check();
-    const id = window.setInterval(check, 10000);
+    const id = window.setInterval(check, 2000);
     return () => window.clearInterval(id);
   }, [phase, orderNumber]);
 

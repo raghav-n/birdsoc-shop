@@ -96,7 +96,7 @@ class ProductChildSerializer(serializers.ModelSerializer):
     def get_stock(self, obj: Product) -> dict[str, Any]:
         info = self._get_purchase_info(obj)
         sr: StockRecord | None = info.stockrecord
-        num = sr.num_in_stock if sr and sr.num_in_stock is not None else None
+        num = sr.net_stock_level if sr and sr.num_in_stock is not None else None
         is_available = bool(info.availability.is_available_to_buy)
         return {"num_in_stock": num, "is_available": is_available}
 
@@ -190,7 +190,7 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_stock(self, obj: Product) -> dict[str, Any]:
         info = self._get_purchase_info(obj)
         sr: StockRecord | None = info.stockrecord
-        num = sr.num_in_stock if sr and sr.num_in_stock is not None else None
+        num = sr.net_stock_level if sr and sr.num_in_stock is not None else None
         is_available = bool(info.availability.is_available_to_buy)
         return {"num_in_stock": num, "is_available": is_available}
 

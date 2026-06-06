@@ -109,10 +109,10 @@ def _build_persisted_onsite_basket(products_data, request):
         if (
             stockrecord
             and stockrecord.num_in_stock is not None
-            and stockrecord.num_in_stock < quantity
+            and stockrecord.net_stock_level < quantity
         ):
             raise ValueError(
-                f"Not enough stock for {product.title}. Available: {stockrecord.num_in_stock}"
+                f"Not enough stock for {product.title}. Available: {stockrecord.net_stock_level}"
             )
         if stockrecord:
             stock_updates.append((stockrecord, quantity))

@@ -267,7 +267,8 @@ const VariantPill = styled.button`
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 
-  &:hover { border-color: var(--bs-accent); }
+  &:hover:not(:disabled) { border-color: var(--bs-accent); }
+  &:disabled { opacity: 0.35; cursor: not-allowed; background: var(--bs-panel); color: var(--bs-muted); border-color: var(--bs-rule); }
 `;
 
 const StockCard = styled(BsCard)`
@@ -512,10 +513,14 @@ const getVariantLabel = (child, parentTitle) => {
   return child.title.replace(parentTitle, '').replace(/^\s*[-–—]\s*/, '').trim() || child.title;
 };
 
+const isChildInStock = (c) => c.stock?.is_available && (c.stock?.num_in_stock == null || c.stock.num_in_stock > 0);
+
 const pickDefaultChild = (children) => {
   if (!children || children.length === 0) return null;
-  const mChild = children.find((c) => getVariantLabel(c, '').toUpperCase() === 'M');
-  return mChild || children[0];
+  const available = children.filter(isChildInStock);
+  const pool = available.length > 0 ? available : children;
+  const mChild = pool.find((c) => getVariantLabel(c, '').toUpperCase() === 'M');
+  return mChild || pool[0];
 };
 
 const ProductDetail = () => {
@@ -854,19 +859,23 @@ const ProductDetail = () => {
                   <VariantLabel>Size</VariantLabel>
                 </VariantHead>
                 <VariantPills>
-                  {product.children.map((child) => (
-                    <VariantPill
-                      key={child.id}
-                      $active={child.id === selectedChildId}
-                      aria-pressed={child.id === selectedChildId}
-                      onClick={() => {
-                        setSelectedChildId(child.id);
-                        setQuantity(1);
-                      }}
-                    >
-                      {getVariantLabel(child, product.title)}
-                    </VariantPill>
-                  ))}
+                  {product.children.map((child) => {
+                    const childOos = !child.stock?.is_available || (child.stock?.num_in_stock != null && child.stock.num_in_stock <= 0);
+                    return (
+                      <VariantPill
+                        key={child.id}
+                        $active={child.id === selectedChildId}
+                        aria-pressed={child.id === selectedChildId}
+                        disabled={childOos}
+                        onClick={() => {
+                          setSelectedChildId(child.id);
+                          setQuantity(1);
+                        }}
+                      >
+                        {getVariantLabel(child, product.title)}
+                      </VariantPill>
+                    );
+                  })}
                 </VariantPills>
               </VariantSection>
             )}
