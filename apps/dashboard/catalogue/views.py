@@ -186,6 +186,8 @@ def _build_stock_groups():
     ):
         cats = sr.product.categories.all()
         category = cats[0].name if cats else "Uncategorised"
+        allocated = sr.num_allocated or 0
+        available = (sr.num_in_stock - allocated) if sr.num_in_stock is not None else None
         by_category[category].append({
             "type": "standalone",
             "product": sr.product,
@@ -194,8 +196,7 @@ def _build_stock_groups():
             "rows": [{
                 "sr": sr,
                 "label": sr.product.get_title(),
-                "num_in_stock": sr.num_in_stock,
-                "allocated": sr.num_allocated or 0,
+                "available": available,
                 "field": f"stock_{sr.id}",
             }],
         })
@@ -211,11 +212,12 @@ def _build_stock_groups():
         for child in parent.children.all():
             for sr in child.stockrecords.all():
                 partner = partner or sr.partner
+                allocated = sr.num_allocated or 0
+                available = (sr.num_in_stock - allocated) if sr.num_in_stock is not None else None
                 rows.append({
                     "sr": sr,
                     "label": child.get_title(),
-                    "num_in_stock": sr.num_in_stock,
-                    "allocated": sr.num_allocated or 0,
+                    "available": available,
                     "field": f"stock_{sr.id}",
                 })
         if not rows:
@@ -265,8 +267,9 @@ class StockLevelListView(View):
                         continue
 
                     sr = row["sr"]
-                    if sr.num_in_stock != new_stock:
-                        sr.num_in_stock = new_stock
+                    new_num_in_stock = (new_stock + (sr.num_allocated or 0)) if new_stock is not None else None
+                    if sr.num_in_stock != new_num_in_stock:
+                        sr.num_in_stock = new_num_in_stock
                         sr.save(update_fields=["num_in_stock"])
                         updated += 1
 

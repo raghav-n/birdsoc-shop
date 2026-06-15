@@ -38,7 +38,7 @@
                 <i class="fas fa-boxes"></i>
                 {% trans "Edit stock levels" %}
                 <span class="text-muted" style="font-size:0.85rem;font-weight:400;">
-                    — quickly update the number of units left in stock.
+                    — set how many units are available to sell for each product.
                     Each variant is tracked separately. Leave blank for untracked stock.
                 </span>
             </h3>
@@ -57,8 +57,7 @@
                         <tr>
                             <th>{% trans "Partner" %}</th>
                             <th>{% trans "Product" %}</th>
-                            <th style="width:110px;">{% trans "Allocated" %}</th>
-                            <th style="width:160px;">{% trans "Units in stock" %}</th>
+                            <th style="width:180px;">{% trans "Units available to sell" %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -66,7 +65,7 @@
                             {% if group.type == "parent" %}
                             <tr class="table-active">
                                 <td>{{ group.partner.name }}</td>
-                                <td colspan="3">
+                                <td colspan="2">
                                     <a href="{% url 'dashboard:catalogue-product' group.product.pk %}">
                                         <strong>{{ group.product.title }}</strong>
                                     </a>
@@ -79,7 +78,6 @@
                                 <tr>
                                     <td></td>
                                     <td style="padding-left:2.5rem;">{{ row.label }}</td>
-                                    <td>{{ row.allocated }}</td>
                                     <td>
                                         <input
                                             type="number"
@@ -88,7 +86,7 @@
                                             step="1"
                                             min="0"
                                             placeholder="—"
-                                            value="{{ row.num_in_stock|default_if_none:'' }}"
+                                            value="{{ row.available|default_if_none:'' }}"
                                         >
                                     </td>
                                 </tr>
@@ -102,7 +100,6 @@
                                             {{ row.label }}
                                         </a>
                                     </td>
-                                    <td>{{ row.allocated }}</td>
                                     <td>
                                         <input
                                             type="number"
@@ -111,7 +108,7 @@
                                             step="1"
                                             min="0"
                                             placeholder="—"
-                                            value="{{ row.num_in_stock|default_if_none:'' }}"
+                                            value="{{ row.available|default_if_none:'' }}"
                                         >
                                     </td>
                                 </tr>
