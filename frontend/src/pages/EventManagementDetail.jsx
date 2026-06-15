@@ -691,6 +691,13 @@ export default function EventManagementDetail() {
   const [promoting, setPromoting] = useState(null);
   const [regeneratingToken, setRegeneratingToken] = useState(false);
   const [drawingLottery, setDrawingLottery] = useState(false);
+  const [showLotteryPreview, setShowLotteryPreview] = useState(false);
+  const [lotteryPreview, setLotteryPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [confirmingDraw, setConfirmingDraw] = useState(false);
+  const [reservedMemberSlots, setReservedMemberSlots] = useState('');
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -794,20 +801,66 @@ export default function EventManagementDetail() {
     }
   };
 
-  const handleRunLotteryDraw = async () => {
-    if (!window.confirm(
-      'Run the lottery draw now? This will randomly pick winners up to the participant cap, ' +
-      'send result emails to everyone, and cannot be undone.'
-    )) return;
-    setDrawingLottery(true);
+  const handlePreviewLotteryDraw = async (seed) => {
+    setPreviewLoading(true);
+    setShowLotteryPreview(true);
     try {
-      const data = await consoleEventService.runLotteryDraw(id);
+      const reserved = parseInt(reservedMemberSlots) || 0;
+      const data = await consoleEventService.previewLotteryDraw(id, { seed, reserved_member_slots: reserved });
+      setLotteryPreview(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to generate preview');
+      setShowLotteryPreview(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleConfirmDraw = async () => {
+    if (!lotteryPreview) return;
+    setConfirmingDraw(true);
+    try {
+      const reserved = parseInt(reservedMemberSlots) || 0;
+      const data = await consoleEventService.runLotteryDraw(id, { seed: lotteryPreview.seed, reserved_member_slots: reserved });
       toast.success(`Draw complete — ${data.winners} winner(s), ${data.losers} not selected.`);
+      setShowLotteryPreview(false);
+      setLotteryPreview(null);
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to run lottery draw');
+      toast.error(err?.response?.data?.detail || 'Failed to confirm lottery draw');
     } finally {
-      setDrawingLottery(false);
+      setConfirmingDraw(false);
+    }
+  };
+
+  const handleSendTestEmails = async () => {
+    const email = testEmail.trim();
+    if (!email) {
+      toast.error('Enter a recipient email address');
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const data = await consoleEventService.sendTestLotteryEmails(id, email);
+      toast.success(data?.detail || `Test emails sent to ${email}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to send test emails');
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleToggleMember = async (booking) => {
+    try {
+      await consoleEventService.updateParticipant(id, booking.ep_id, { is_member: !booking.is_member });
+      setEvent(prev => ({
+        ...prev,
+        bookings: prev.bookings.map(b =>
+          b.ep_id === booking.ep_id ? { ...b, is_member: !b.is_member } : b
+        ),
+      }));
+    } catch {
+      toast.error('Failed to update member status');
     }
   };
 
@@ -1149,21 +1202,38 @@ export default function EventManagementDetail() {
                       ? <>Entries are still open. Close registration (manually or by reaching the registration end date) before running the draw.</>
                       : lotteryPending.length === 0
                         ? <>No entries yet — running the draw would have no effect.</>
-                        : <>Entries are closed. Running the draw will randomly pick winners up to the cap of <strong>{event.max_participants ?? '∞'}</strong> and email everyone. This cannot be undone.</>
+                        : <>Entries are closed. Click Preview to see a random draw result before committing. You can re-shuffle for a different outcome.</>
                   }
                 </div>
               </div>
               {!event.lottery_drawn_at && (
                 <Button
-                  onClick={handleRunLotteryDraw}
+                  onClick={() => handlePreviewLotteryDraw()}
                   disabled={drawingLottery || event.is_registration_open || lotteryPending.length === 0}
                   style={{ background: '#6d28d9', color: '#fff', borderColor: '#6d28d9' }}
                   title={event.is_registration_open ? 'Close registration first.' : ''}
                 >
-                  {drawingLottery ? 'Drawing…' : 'Run lottery draw'}
+                  Preview lottery draw
                 </Button>
               )}
             </div>
+            {!event.lottery_drawn_at && lotteryPending.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', fontSize: '0.82rem', color: '#4b5563' }}>
+                <label htmlFor="reserved-slots" style={{ whiteSpace: 'nowrap' }}>Slots reserved for members:</label>
+                <input
+                  id="reserved-slots"
+                  type="number"
+                  min="0"
+                  value={reservedMemberSlots}
+                  onChange={e => setReservedMemberSlots(e.target.value)}
+                  placeholder="0"
+                  style={{ width: 60, padding: '0.25rem 0.4rem', border: '1px solid #d1d5db', borderRadius: 4, fontSize: '0.82rem' }}
+                />
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                  ({lotteryPending.filter(b => b.is_member).length} member{lotteryPending.filter(b => b.is_member).length === 1 ? '' : 's'} in pool)
+                </span>
+              </div>
+            )}
           </div>
         </TableCard>
       )}
@@ -1212,6 +1282,7 @@ export default function EventManagementDetail() {
                   <Th $mobileHide>Email</Th>
                   <Th>Phone</Th>
                   <Th $mobileHide>Qty</Th>
+                  <Th>Member</Th>
                   <Th $mobileHide>Entered</Th>
                   <Th></Th>
                 </tr>
@@ -1233,6 +1304,13 @@ export default function EventManagementDetail() {
                       <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.email}</Td>
                       <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
                       <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
+                      <Td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={booking.is_member}
+                          onChange={() => handleToggleMember(booking)}
+                        />
+                      </Td>
                       <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
                       <Td>
                         <DangerBtn
@@ -1386,6 +1464,167 @@ export default function EventManagementDetail() {
           togglingAttendance={togglingAttendance}
           removing={removing}
         />
+      )}
+
+      {showLotteryPreview && (
+        <ModalOverlay onClick={e => { if (e.target === e.currentTarget && !confirmingDraw) { setShowLotteryPreview(false); setLotteryPreview(null); } }}>
+          <ModalDialog style={{ width: '100%', maxWidth: 680 }}>
+            <ModalHeader>
+              <div>
+                <ModalTitle>Lottery Draw Preview</ModalTitle>
+                {lotteryPreview && (
+                  <ModalSubtitle>
+                    Cap: {event.max_participants ?? 'unlimited'} &middot; {lotteryPreview.winners.length + lotteryPreview.losers.length} entries &middot; {lotteryPreview.winners.reduce((s, w) => s + w.quantity, 0)} slots filled
+                  </ModalSubtitle>
+                )}
+              </div>
+              {!confirmingDraw && <CloseBtn onClick={() => { setShowLotteryPreview(false); setLotteryPreview(null); }}>&times;</CloseBtn>}
+            </ModalHeader>
+
+            <ModalBody style={{ padding: 0 }}>
+              {previewLoading ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                  Shuffling...
+                </div>
+              ) : lotteryPreview ? (
+                <>
+                  {lotteryPreview.winners.length > 0 && (
+                    <div>
+                      <div style={{ padding: '0.6rem 1rem', background: '#f0fdf4', borderBottom: '1px solid #bbf7d0', fontSize: '0.8rem', fontWeight: 600, color: '#15803d' }}>
+                        Winners ({lotteryPreview.winners.length})
+                      </div>
+                      <TableScroll>
+                        <Table>
+                          <thead>
+                            <tr>
+                              <Th>Participant</Th>
+                              <Th $mobileHide>Email</Th>
+                              <Th>Qty</Th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lotteryPreview.winners.map(p => (
+                              <Tr key={p.ep_id}>
+                                <Td style={{ fontWeight: 500, fontSize: '0.85rem' }}>
+                                  {p.first_name} {p.last_name}
+                                  {p.quantity > 1 && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{p.quantity - 1}</span>}
+                                  {p.is_member && <span style={{ fontSize: '0.65rem', background: '#dbeafe', color: '#1d4ed8', padding: '1px 5px', borderRadius: 4, marginLeft: '0.4rem', fontWeight: 600 }}>Member</span>}
+                                  {p.attended_before && <span style={{ fontSize: '0.65rem', background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4, marginLeft: '0.4rem', fontWeight: 600 }}>Returning</span>}
+                                </Td>
+                                <Td $mobileHide style={{ fontSize: '0.82rem' }}>{p.email}</Td>
+                                <Td style={{ fontSize: '0.82rem' }}>{p.quantity}</Td>
+                              </Tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </TableScroll>
+                    </div>
+                  )}
+
+                  {lotteryPreview.losers.length > 0 && (
+                    <div>
+                      <div style={{ padding: '0.6rem 1rem', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', borderTop: '1px solid #e5e7eb', fontSize: '0.8rem', fontWeight: 600, color: '#6b7280' }}>
+                        Not selected ({lotteryPreview.losers.length})
+                      </div>
+                      <TableScroll>
+                        <Table>
+                          <thead>
+                            <tr>
+                              <Th>Participant</Th>
+                              <Th $mobileHide>Email</Th>
+                              <Th>Qty</Th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lotteryPreview.losers.map(p => (
+                              <Tr key={p.ep_id} style={{ opacity: 0.7 }}>
+                                <Td style={{ fontWeight: 500, fontSize: '0.85rem' }}>
+                                  {p.first_name} {p.last_name}
+                                  {p.quantity > 1 && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.3rem' }}>+{p.quantity - 1}</span>}
+                                  {p.is_member && <span style={{ fontSize: '0.65rem', background: '#dbeafe', color: '#1d4ed8', padding: '1px 5px', borderRadius: 4, marginLeft: '0.4rem', fontWeight: 600 }}>Member</span>}
+                                  {p.attended_before && <span style={{ fontSize: '0.65rem', background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4, marginLeft: '0.4rem', fontWeight: 600 }}>Returning</span>}
+                                </Td>
+                                <Td $mobileHide style={{ fontSize: '0.82rem' }}>{p.email}</Td>
+                                <Td style={{ fontSize: '0.82rem' }}>{p.quantity}</Td>
+                              </Tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </TableScroll>
+                    </div>
+                  )}
+
+                  {lotteryPreview.winners.length === 0 && lotteryPreview.losers.length === 0 && (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
+                      No pending entries to draw.
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </ModalBody>
+
+            {lotteryPreview && (
+              <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', background: '#fafafa' }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+                  Send test emails
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: '0.5rem' }}>
+                  Sends one sample “won” and one “not selected” email (using random participants) to the address below. No participants are emailed and the draw is not run.
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    type="email"
+                    value={testEmail}
+                    onChange={e => setTestEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    disabled={sendingTest}
+                    style={{ flex: 1, padding: '0.45rem 0.6rem', fontSize: '0.82rem', border: '1px solid #d1d5db', borderRadius: 6 }}
+                  />
+                  <SecondaryButton
+                    onClick={handleSendTestEmails}
+                    disabled={sendingTest || !testEmail.trim()}
+                    style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                  >
+                    {sendingTest ? 'Sending...' : 'Send test emails'}
+                  </SecondaryButton>
+                </div>
+              </div>
+            )}
+
+            {lotteryPreview && (
+              <ModalFooter style={{ justifyContent: 'space-between' }}>
+                <SecondaryButton
+                  onClick={() => handlePreviewLotteryDraw()}
+                  disabled={previewLoading || confirmingDraw}
+                  style={{ fontSize: '0.82rem' }}
+                >
+                  {previewLoading ? 'Shuffling...' : 'Re-shuffle'}
+                </SecondaryButton>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <SecondaryButton
+                    onClick={() => { setShowLotteryPreview(false); setLotteryPreview(null); }}
+                    disabled={confirmingDraw}
+                    style={{ fontSize: '0.82rem' }}
+                  >
+                    Cancel
+                  </SecondaryButton>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <Button
+                      onClick={handleConfirmDraw}
+                      disabled={confirmingDraw || previewLoading || (lotteryPreview.winners.length === 0 && lotteryPreview.losers.length === 0)}
+                      style={{ background: '#6d28d9', color: '#fff', borderColor: '#6d28d9', fontSize: '0.82rem' }}
+                    >
+                      {confirmingDraw ? 'Confirming...' : 'Confirm draw'}
+                    </Button>
+                    <span style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+                      This will email all participants
+                    </span>
+                  </div>
+                </div>
+              </ModalFooter>
+            )}
+          </ModalDialog>
+        </ModalOverlay>
       )}
     </Page>
   );

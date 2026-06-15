@@ -64,8 +64,20 @@ export const consoleEventService = {
     api.post(`${BASE}/${id}/regenerate-guide-token`).then(r => r.data),
 
   // Lottery
-  runLotteryDraw: (id) =>
-    api.post(`${BASE}/${id}/run-lottery-draw`).then(r => r.data),
+  previewLotteryDraw: (id, { seed, reserved_member_slots } = {}) =>
+    api.post(`${BASE}/${id}/preview-lottery-draw`, {
+      ...(seed != null ? { seed } : {}),
+      ...(reserved_member_slots ? { reserved_member_slots } : {}),
+    }).then(r => r.data),
+
+  runLotteryDraw: (id, { seed, reserved_member_slots } = {}) =>
+    api.post(`${BASE}/${id}/run-lottery-draw`, {
+      ...(seed != null ? { seed } : {}),
+      ...(reserved_member_slots ? { reserved_member_slots } : {}),
+    }).then(r => r.data),
+
+  sendTestLotteryEmails: (id, email) =>
+    api.post(`${BASE}/${id}/send-test-lottery-emails`, { email }).then(r => r.data),
 };
 
 export const guideService = {

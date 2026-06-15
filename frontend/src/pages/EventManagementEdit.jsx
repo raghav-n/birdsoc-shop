@@ -156,6 +156,26 @@ const DEFAULT_EMAIL_TEMPLATE = `<p>Dear {{first_name}},</p>
 <p>Best regards,<br>
 Bird Society of Singapore</p>`;
 
+const DEFAULT_LOTTERY_WON_SUBJECT = 'Great news — you got a spot at {{event_title}} [please reply to confirm]';
+const DEFAULT_LOTTERY_WON_TEMPLATE = `<p>Hi {{first_name}},</p>
+
+<p>Good news! You've been selected in the lottery for <strong>{{event_title}}</strong>.</p>
+
+<p><strong>This event is in high demand, so to confirm your place, please reply to this email within the next 48 hours.</strong> If we don't hear back from you, your spot will be released to someone else on the waitlist.</p>
+
+<p>We look forward to seeing you there!</p>
+
+<p>— Bird Society of Singapore</p>`;
+
+const DEFAULT_LOTTERY_LOST_SUBJECT = 'Lottery result – {{event_title}}';
+const DEFAULT_LOTTERY_LOST_TEMPLATE = `<p>Hi {{first_name}},</p>
+
+<p>Thanks for entering the lottery for <strong>{{event_title}}</strong>. Unfortunately, you weren't selected in this draw. We had more entries than available spots.</p>
+
+<p>We hope to see you at a future event! Keep an eye on our events page for upcoming opportunities.</p>
+
+<p>— Bird Society of Singapore</p>`;
+
 const LoadingText = styled.div`
   text-align: center;
   padding: 3rem;
@@ -867,8 +887,13 @@ const EMPTY_FORM = {
   registration_required: true,
   waitlist_enabled: false,
   signup_mode: 'first_come',
+  collect_prior_attendance: false,
   price_incl_tax: '0.00',
   confirmed_email_template: DEFAULT_EMAIL_TEMPLATE,
+  lottery_won_email_subject: DEFAULT_LOTTERY_WON_SUBJECT,
+  lottery_won_email_template: DEFAULT_LOTTERY_WON_TEMPLATE,
+  lottery_lost_email_subject: DEFAULT_LOTTERY_LOST_SUBJECT,
+  lottery_lost_email_template: DEFAULT_LOTTERY_LOST_TEMPLATE,
   post_registration_message: '',
   tags: [],
   blog_url: '',
@@ -923,8 +948,13 @@ export default function EventManagementEdit() {
           registration_required: event.registration_required ?? true,
           waitlist_enabled: event.waitlist_enabled ?? false,
           signup_mode: event.signup_mode || 'first_come',
+          collect_prior_attendance: event.collect_prior_attendance ?? false,
           price_incl_tax: event.price_incl_tax || '0.00',
           confirmed_email_template: event.confirmed_email_template || DEFAULT_EMAIL_TEMPLATE,
+          lottery_won_email_subject: event.lottery_won_email_subject || DEFAULT_LOTTERY_WON_SUBJECT,
+          lottery_won_email_template: event.lottery_won_email_template || DEFAULT_LOTTERY_WON_TEMPLATE,
+          lottery_lost_email_subject: event.lottery_lost_email_subject || DEFAULT_LOTTERY_LOST_SUBJECT,
+          lottery_lost_email_template: event.lottery_lost_email_template || DEFAULT_LOTTERY_LOST_TEMPLATE,
           post_registration_message: event.post_registration_message || '',
           tags: event.tags || [],
           blog_url: event.blog_url || '',
@@ -1000,12 +1030,17 @@ export default function EventManagementEdit() {
       registration_required: form.registration_required,
       waitlist_enabled: parseFloat(form.price_incl_tax) > 0 ? false : form.waitlist_enabled,
       signup_mode: parseFloat(form.price_incl_tax) > 0 ? 'first_come' : form.signup_mode,
+      collect_prior_attendance: form.collect_prior_attendance,
       price_incl_tax: form.price_incl_tax,
       currency: 'SGD',
       json_schema: fieldsToSchema(schemaFields),
       price_tiers: entriesToTiers(tierEntries),
       validate_participant_data: true,
       confirmed_email_template: form.confirmed_email_template.trim() || null,
+      lottery_won_email_subject: form.lottery_won_email_subject.trim() || null,
+      lottery_won_email_template: form.lottery_won_email_template.trim() || null,
+      lottery_lost_email_subject: form.lottery_lost_email_subject.trim() || null,
+      lottery_lost_email_template: form.lottery_lost_email_template.trim() || null,
       post_registration_message: form.post_registration_message.trim() || null,
       tags: form.tags,
       blog_url: form.blog_url.trim() || null,
@@ -1335,6 +1370,21 @@ export default function EventManagementEdit() {
                     </Field>
                   </Row>
                 )}
+                <Row>
+                  <Field>
+                    <CheckboxRow>
+                      <input
+                        type="checkbox"
+                        checked={form.collect_prior_attendance}
+                        onChange={set('collect_prior_attendance')}
+                      />
+                      Ask whether participants have attended this event before
+                    </CheckboxRow>
+                    <Hint>
+                      Adds a checkbox to the registration form.{isLottery ? ' In lottery mode, returning participants are deprioritized in the draw.' : ''}
+                    </Hint>
+                  </Field>
+                </Row>
               </>
             );
           })()}
@@ -1425,6 +1475,63 @@ export default function EventManagementEdit() {
                 <RichTextEditor
                   value={form.confirmed_email_template}
                   onChange={val => setForm(prev => ({ ...prev, confirmed_email_template: val }))}
+                />
+              </Field>
+            </Row>
+          </Section>
+        )}
+
+        {/* Lottery result emails */}
+        {form.registration_required
+          && parseFloat(form.price_incl_tax || '0') <= 0
+          && form.signup_mode === 'lottery' && (
+          <Section>
+            <SectionTitle>Lottery Result Emails</SectionTitle>
+            <Hint style={{ marginBottom: '0.875rem' }}>
+              Sent to each entrant when you run the lottery draw — one for winners, one for those not selected.
+              Use the toolbar to format the body. You can insert these variables in the subject or body:{' '}
+              <code>{'{{first_name}}'}</code>, <code>{'{{last_name}}'}</code>, <code>{'{{event_title}}'}</code>,{' '}
+              <code>{'{{event_date}}'}</code>, <code>{'{{event_location}}'}</code>, <code>{'{{quantity}}'}</code>.
+            </Hint>
+
+            <Label style={{ marginBottom: '0.5rem' }}>Winner email — “you got a spot”</Label>
+            <Row>
+              <Field>
+                <Label>Subject</Label>
+                <Input
+                  value={form.lottery_won_email_subject}
+                  onChange={set('lottery_won_email_subject')}
+                  placeholder={DEFAULT_LOTTERY_WON_SUBJECT}
+                />
+              </Field>
+            </Row>
+            <Row>
+              <Field>
+                <Label>Body</Label>
+                <RichTextEditor
+                  value={form.lottery_won_email_template}
+                  onChange={val => setForm(prev => ({ ...prev, lottery_won_email_template: val }))}
+                />
+              </Field>
+            </Row>
+
+            <Label style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>Not-selected email</Label>
+            <Row>
+              <Field>
+                <Label>Subject</Label>
+                <Input
+                  value={form.lottery_lost_email_subject}
+                  onChange={set('lottery_lost_email_subject')}
+                  placeholder={DEFAULT_LOTTERY_LOST_SUBJECT}
+                />
+              </Field>
+            </Row>
+            <Row>
+              <Field>
+                <Label>Body</Label>
+                <RichTextEditor
+                  value={form.lottery_lost_email_template}
+                  onChange={val => setForm(prev => ({ ...prev, lottery_lost_email_template: val }))}
                 />
               </Field>
             </Row>
