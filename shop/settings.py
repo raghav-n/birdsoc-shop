@@ -359,6 +359,7 @@ if TESTING:
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         },
     }
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 
 db_defaults = {
