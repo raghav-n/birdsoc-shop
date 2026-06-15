@@ -1,0 +1,140 @@
+{% extends 'oscar/dashboard/layout.html' %}
+{% load i18n %}
+
+{% block body_class %}{{ block.super }} catalogue{% endblock %}
+
+{% block title %}Stock Levels | {% trans "Dashboard" %}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:index' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:catalogue-product-list' %}">{% trans "Catalogue" %}</a></li>
+        <li class="breadcrumb-item active">{% trans "Stock Levels" %}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block header %}
+<div class="page-header">
+    <h1>{% trans "Stock Levels" %}</h1>
+</div>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-md-12">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="table-header">
+            <h3>
+                <i class="fas fa-boxes"></i>
+                {% trans "Edit stock levels" %}
+                <span class="text-muted" style="font-size:0.85rem;font-weight:400;">
+                    — quickly update the number of units left in stock.
+                    Each variant is tracked separately. Leave blank for untracked stock.
+                </span>
+            </h3>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="card card-body">
+
+                {% for section in category_sections %}
+                <h5 style="margin-top:1.5rem;margin-bottom:0.5rem;padding-bottom:0.25rem;border-bottom:2px solid #dee2e6;">
+                    {{ section.category }}
+                </h5>
+                <table class="table table-striped table-bordered" style="margin-bottom:1.5rem;">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Partner" %}</th>
+                            <th>{% trans "Product" %}</th>
+                            <th style="width:110px;">{% trans "Allocated" %}</th>
+                            <th style="width:160px;">{% trans "Units in stock" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group in section.groups %}
+                            {% if group.type == "parent" %}
+                            <tr class="table-active">
+                                <td>{{ group.partner.name }}</td>
+                                <td colspan="3">
+                                    <a href="{% url 'dashboard:catalogue-product' group.product.pk %}">
+                                        <strong>{{ group.product.title }}</strong>
+                                    </a>
+                                    <span class="badge badge-secondary">
+                                        {{ group.rows|length }} variant{{ group.rows|length|pluralize }}
+                                    </span>
+                                </td>
+                            </tr>
+                                {% for row in group.rows %}
+                                <tr>
+                                    <td></td>
+                                    <td style="padding-left:2.5rem;">{{ row.label }}</td>
+                                    <td>{{ row.allocated }}</td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            name="{{ row.field }}"
+                                            class="form-control form-control-sm"
+                                            step="1"
+                                            min="0"
+                                            placeholder="—"
+                                            value="{{ row.num_in_stock|default_if_none:'' }}"
+                                        >
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                {% with row=group.rows.0 %}
+                                <tr>
+                                    <td>{{ group.partner.name }}</td>
+                                    <td>
+                                        <a href="{% url 'dashboard:catalogue-product' group.product.pk %}">
+                                            {{ row.label }}
+                                        </a>
+                                    </td>
+                                    <td>{{ row.allocated }}</td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            name="{{ row.field }}"
+                                            class="form-control form-control-sm"
+                                            step="1"
+                                            min="0"
+                                            placeholder="—"
+                                            value="{{ row.num_in_stock|default_if_none:'' }}"
+                                        >
+                                    </td>
+                                </tr>
+                                {% endwith %}
+                            {% endif %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">{% trans "No products found." %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% empty %}
+                <p class="text-muted text-center">{% trans "No products found." %}</p>
+                {% endfor %}
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% trans "Save all stock levels" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -146,6 +146,137 @@ class CostPriceListView(View):
         return redirect(reverse("dashboard:catalogue-cost-prices"))
 
 
+def _parse_stock(raw):
+    """Return (int, None) or raise ValueError for invalid/negative input."""
+    raw = raw.strip()
+    if raw == "":
+        return None
+    val = int(raw)
+    if val < 0:
+        raise ValueError("negative")
+    return val
+
+
+def _build_stock_groups():
+    """
+    Return a list of (category_name, [groups]) pairs for the stock-level editor.
+
+    Groups within each category are sorted by title. Categories are sorted
+    alphabetically, with "Uncategorised" last.
+
+    Each group is one of:
+      {"type": "standalone", "product": <Product>, "partner": <Partner>,
+       "rows": [<row>]}
+      {"type": "parent", "product": <Product>, "rows": [<row>, ...]}
+
+    Each row:
+      {"sr": <StockRecord>, "label": str, "num_in_stock": int|None,
+       "allocated": int, "field": "stock_<sr.id>"}
+    """
+    from collections import defaultdict
+
+    by_category = defaultdict(list)
+
+    # Standalone products — one row each
+    for sr in (
+        StockRecord.objects
+        .select_related("product", "partner")
+        .prefetch_related("product__categories")
+        .filter(product__structure="standalone")
+    ):
+        cats = sr.product.categories.all()
+        category = cats[0].name if cats else "Uncategorised"
+        by_category[category].append({
+            "type": "standalone",
+            "product": sr.product,
+            "partner": sr.partner,
+            "sort_key": sr.product.title,
+            "rows": [{
+                "sr": sr,
+                "label": sr.product.get_title(),
+                "num_in_stock": sr.num_in_stock,
+                "allocated": sr.num_allocated or 0,
+                "field": f"stock_{sr.id}",
+            }],
+        })
+
+    # Parent products — one group, one row per child variant
+    for parent in (
+        Product.objects
+        .filter(structure="parent", is_public=True)
+        .prefetch_related("categories", "children__stockrecords__partner")
+    ):
+        rows = []
+        partner = None
+        for child in parent.children.all():
+            for sr in child.stockrecords.all():
+                partner = partner or sr.partner
+                rows.append({
+                    "sr": sr,
+                    "label": child.get_title(),
+                    "num_in_stock": sr.num_in_stock,
+                    "allocated": sr.num_allocated or 0,
+                    "field": f"stock_{sr.id}",
+                })
+        if not rows:
+            continue
+        cats = parent.categories.all()
+        category = cats[0].name if cats else "Uncategorised"
+        by_category[category].append({
+            "type": "parent",
+            "product": parent,
+            "partner": partner,
+            "sort_key": parent.title,
+            "rows": rows,
+        })
+
+    # Sort groups within each category, then sort categories alphabetically
+    result = []
+    for cat in sorted(by_category.keys(), key=lambda c: (c == "Uncategorised", c)):
+        groups = sorted(by_category[cat], key=lambda g: g["sort_key"])
+        result.append({"category": cat, "groups": groups})
+    return result
+
+
+@method_decorator(staff_member_required, name="dispatch")
+class StockLevelListView(View):
+    template_name = "oscar/dashboard/catalogue/stock_level_list.html"
+
+    def get(self, request):
+        return TemplateResponse(
+            request,
+            self.template_name,
+            {"category_sections": _build_stock_groups()},
+        )
+
+    def post(self, request):
+        category_sections = _build_stock_groups()
+        updated = 0
+        errors = 0
+
+        for section in category_sections:
+            for group in section["groups"]:
+                for row in group["rows"]:
+                    raw = request.POST.get(row["field"], "")
+                    try:
+                        new_stock = _parse_stock(raw)
+                    except (ValueError, TypeError):
+                        errors += 1
+                        continue
+
+                    sr = row["sr"]
+                    if sr.num_in_stock != new_stock:
+                        sr.num_in_stock = new_stock
+                        sr.save(update_fields=["num_in_stock"])
+                        updated += 1
+
+        if errors:
+            messages.warning(request, f"Saved {updated} stock level(s). {errors} invalid value(s) skipped.")
+        else:
+            messages.success(request, f"Saved {updated} stock level(s).")
+        return redirect(reverse("dashboard:catalogue-stock-levels"))
+
+
 @method_decorator(staff_member_required, name="dispatch")
 class ProductImageAutoCropView(View):
     def post(self, request, image_id):

@@ -363,7 +363,7 @@ if TESTING:
 
 db_defaults = {
     "ENGINE": "django.db.backends.postgresql",
-    "NAME": "shop_backup" if os.environ.get("LOCAL_HTTP_DEV") == "True" else "shop",
+    "NAME": "shop",
     "USER": DB_USER,
     "PASSWORD": DB_PASS,
     "HOST": "127.0.0.1",
@@ -628,6 +628,10 @@ OSCAR_DASHBOARD_NAVIGATION = [
             {
                 "label": _("Cost Prices"),
                 "url_name": "dashboard:catalogue-cost-prices",
+            },
+            {
+                "label": _("Stock Levels"),
+                "url_name": "dashboard:catalogue-stock-levels",
             },
             # {
             #     "label": _("Low stock alerts"),
