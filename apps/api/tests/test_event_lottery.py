@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from rest_framework.test import APITestCase
 from oscar.core.loading import get_model
@@ -257,6 +258,77 @@ class LotteryTestEmailTests(APITestCase):
             {"first_name": "P", "last_name": "L", "email": email, "phone_number": "+6512345678", "emergency_contact_name": "EC", "emergency_contact_phone": "+6500000000", "quantity": qty},
             format="json",
         )
+
+    @patch("apps.event.utils.send_lottery_lost_email")
+    @patch("apps.event.utils.send_lottery_won_email")
+    def test_sends_two_emails_to_test_address_only(self, mock_won, mock_lost):
+        e = create_event(max_participants=2)
+        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
+        e.save()
+        for em in ["a@x.com", "b@x.com", "c@x.com"]:
+            self._enter(e, em)
+
+        client = staff_client(self.client)
+        r = client.post(
+            f"/api/v1/console/events/{e.id}/send-test-lottery-emails",
+            {"email": "tester@example.com"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        mock_won.assert_called_once()
+        mock_lost.assert_called_once()
+        self.assertEqual(mock_won.call_args.kwargs["to_email"], "tester@example.com")
+        self.assertEqual(mock_lost.call_args.kwargs["to_email"], "tester@example.com")
+
+        # Draw must not have run.
+        e.refresh_from_db()
+        self.assertIsNone(e.lottery_drawn_at)
+        self.assertEqual(EventParticipant.objects.filter(event=e, is_lottery_pending=True).count(), 3)
+        self.assertEqual(EventParticipant.objects.filter(event=e, is_confirmed=True).count(), 0)
+        self.assertEqual(EventParticipant.objects.filter(event=e, is_lottery_lost=True).count(), 0)
+
+    @patch("apps.event.utils.send_lottery_lost_email")
+    @patch("apps.event.utils.send_lottery_won_email")
+    def test_works_with_no_participants(self, mock_won, mock_lost):
+        e = create_event(max_participants=2)
+        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
+        e.save()
+
+        client = staff_client(self.client)
+        r = client.post(
+            f"/api/v1/console/events/{e.id}/send-test-lottery-emails",
+            {"email": "tester@example.com"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        mock_won.assert_called_once()
+        mock_lost.assert_called_once()
+
+    @patch("apps.event.utils.EmailMultiAlternatives")
+    def test_custom_templates_are_rendered(self, MockMsg):
+        e = create_event(max_participants=2)
+        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
+        e.lottery_won_email_subject = "You won {{event_title}}!"
+        e.lottery_won_email_template = "<p>Congrats {{first_name}}, see you at {{event_title}}.</p>"
+        e.lottery_lost_email_subject = "Sorry {{first_name}}"
+        e.lottery_lost_email_template = "<p>Not this time for {{event_title}}.</p>"
+        e.save()
+
+        from apps.event.utils import send_lottery_won_email, send_lottery_lost_email
+        Participant = get_model("event", "Participant")
+        p = Participant(first_name="Alice", last_name="Last", email="a@x.com", quantity=1)
+
+        send_lottery_won_email(e, p, to_email="tester@example.com")
+        self.assertEqual(MockMsg.call_args.kwargs["subject"], f"You won {e.title}!")
+        won_html = MockMsg.return_value.attach_alternative.call_args.args[0]
+        self.assertIn("Congrats Alice", won_html)
+        self.assertIn(e.title, won_html)
+
+        MockMsg.reset_mock()
+        send_lottery_lost_email(e, p, to_email="tester@example.com")
+        self.assertIn("Sorry Alice", MockMsg.call_args.kwargs["subject"])
+        lost_html = MockMsg.return_value.attach_alternative.call_args.args[0]
+        self.assertIn(f"Not this time for {e.title}", lost_html)
 
     def test_requires_email(self):
         e = create_event(max_participants=2)
