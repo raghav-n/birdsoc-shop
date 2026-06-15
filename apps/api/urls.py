@@ -45,7 +45,7 @@ from apps.api.views.payments import PayNowGmailCheckView, PayNowGmailTestEmailVi
 from apps.api.views.forms import FormSubmissionView, FormSchemaView
 from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.bundles import BundleListView
-from apps.api.views.analytics import AnalyticsDashboardView
+from apps.api.views.analytics import AnalyticsDashboardView, SalesPeriodsListView
 from apps.api.views.donations import DonationCreateView
 from apps.api.views.onsite import OnsiteCalculateView, OnsitePendingView, OnsiteOrderView, OnsiteCashConfirmView
 from apps.api.views.order_lookup import OrderSearchView, OrderCollectView
@@ -94,6 +94,7 @@ urlpatterns = [
     path("banners/text", TextBannerView.as_view(), name="banner-text"),
     path("bundles", BundleListView.as_view(), name="bundle-list"),
     path("analytics/dashboard", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
+    path("analytics/periods", SalesPeriodsListView.as_view(), name="analytics-periods"),
     path("onsite/calculate", OnsiteCalculateView.as_view(), name="onsite-calculate"),
     path("orders/search", OrderSearchView.as_view(), name="orders-search"),
     path("orders/<str:number>/collect", OrderCollectView.as_view(), name="orders-collect"),

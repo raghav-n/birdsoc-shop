@@ -7,12 +7,29 @@ from rest_framework.views import APIView
 from oscar.core.loading import get_model
 
 from apps.api.permissions import IsMerchManagementStaff
+from apps.order.models import SalesPeriod
 
 Order = get_model("order", "Order")
 OrderLine = get_model("order", "Line")
 StockRecord = get_model("partner", "StockRecord")
 Product = get_model("catalogue", "Product")
 Category = get_model("catalogue", "Category")
+
+
+class SalesPeriodsListView(APIView):
+    permission_classes = [IsMerchManagementStaff]
+
+    def get(self, request):
+        periods = SalesPeriod.objects.all()
+        return Response([
+            {
+                "id": p.id,
+                "name": p.name,
+                "start": p.start.strftime("%Y-%m-%d"),
+                "end": p.end.strftime("%Y-%m-%d"),
+            }
+            for p in periods
+        ])
 
 
 class AnalyticsDashboardView(APIView):
@@ -155,6 +172,29 @@ class AnalyticsDashboardView(APIView):
         total_profit = total_revenue - total_cost
         profit_margin = float(total_profit / total_revenue * 100) if total_revenue else 0
         total_collected = total_revenue + total_donations
+        total_units = sum(d["units_sold"] for d in by_product.values())
+
+        # Aggregate variant/size distribution across all products
+        variant_totals = defaultdict(int)
+        for d in by_product.values():
+            for label, qty in d["variants"].items():
+                variant_totals[label] += qty
+        size_order = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"]
+        sorted_variants = sorted(
+            variant_totals.items(),
+            key=lambda x: size_order.index(x[0]) if x[0] in size_order else len(size_order),
+        )
+        total_variant_units = sum(q for _, q in sorted_variants) or 1
+        variant_distribution = [
+            {"label": label, "units": qty, "pct": round(qty / total_variant_units * 100, 1)}
+            for label, qty in sorted_variants
+        ]
+
+        # Period duration for velocity calculations
+        if start_date and end_date:
+            period_days = max((end_date - start_date).days + 1, 1)
+        else:
+            period_days = None
 
         products_list = []
         for pid, data in by_product.items():
@@ -198,6 +238,9 @@ class AnalyticsDashboardView(APIView):
 
         partners = sorted({p["partner"] for p in products_list if p["partner"]})
 
+        avg_order_value = float(total_revenue / total_orders) if total_orders else 0
+        avg_units = float(total_units / total_orders) if total_orders else 0
+
         return Response({
             "partners": partners,
             "categories": ordered_categories,
@@ -209,7 +252,14 @@ class AnalyticsDashboardView(APIView):
                 "total_cost": str(total_cost.quantize(Decimal("0.01"))),
                 "total_profit": str(total_profit.quantize(Decimal("0.01"))),
                 "profit_margin": round(profit_margin, 1),
+                "total_units": total_units,
+                "avg_order_value": round(avg_order_value, 2),
+                "avg_units_per_order": round(avg_units, 1),
+                "period_days": period_days,
+                "daily_revenue": round(float(total_revenue) / period_days, 2) if period_days else None,
+                "daily_units": round(total_units / period_days, 1) if period_days else None,
             },
             "by_product": products_list,
             "by_month": months_list,
+            "variant_distribution": variant_distribution,
         })

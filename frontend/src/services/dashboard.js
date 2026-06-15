@@ -7,4 +7,5 @@ export const dashboardService = {
     if (end) params.end = end;
     return api.get('/analytics/dashboard', { params }).then(r => r.data);
   },
+  getPeriods: () => api.get('/analytics/periods').then(r => r.data),
 };
