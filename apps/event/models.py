@@ -166,6 +166,53 @@ class OrganizedEvent(models.Model):
         editable=False,
         help_text=_("Set when the lottery draw has been run for this event."),
     )
+    collect_prior_attendance = models.BooleanField(
+        _("Collect prior attendance"),
+        default=False,
+        help_text=_(
+            "When enabled, participants are asked whether they have attended "
+            "this event before. In lottery mode, returning participants are "
+            "deprioritized in the draw."
+        ),
+    )
+    lottery_won_email_subject = models.CharField(
+        _("Lottery 'won' email subject"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_(
+            "Subject line for the email sent to lottery winners. Leave blank to use the default. "
+            "Supports {{first_name}}, {{last_name}}, {{event_title}}, {{event_date}}, {{event_location}}, {{quantity}}."
+        ),
+    )
+    lottery_won_email_template = models.TextField(
+        _("Lottery 'won' email body"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "HTML body for the email sent to lottery winners. Leave blank to use the default. "
+            "Available variables: {{first_name}}, {{last_name}}, {{email}}, {{phone_number}}, {{quantity}}, {{event_title}}, {{event_date}}, {{event_location}}"
+        ),
+    )
+    lottery_lost_email_subject = models.CharField(
+        _("Lottery 'not selected' email subject"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_(
+            "Subject line for the email sent to participants who weren't selected. Leave blank to use the default. "
+            "Supports {{first_name}}, {{last_name}}, {{event_title}}, {{event_date}}, {{event_location}}, {{quantity}}."
+        ),
+    )
+    lottery_lost_email_template = models.TextField(
+        _("Lottery 'not selected' email body"),
+        blank=True,
+        null=True,
+        help_text=_(
+            "HTML body for the email sent to participants who weren't selected. Leave blank to use the default. "
+            "Available variables: {{first_name}}, {{last_name}}, {{email}}, {{phone_number}}, {{quantity}}, {{event_title}}, {{event_date}}, {{event_location}}"
+        ),
+    )
     guide_token = models.UUIDField(
         _("Guide token"),
         default=uuid.uuid4,
@@ -456,6 +503,7 @@ class EventParticipant(models.Model):
         help_text=_("Lottery entry that wasn't selected in the draw."),
     )
     attended = models.BooleanField(_("Attended"), default=False)
+    is_member = models.BooleanField(_("BirdSoc member"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
     extra_json = models.JSONField(_("Extra data"), blank=True, null=True)
 
