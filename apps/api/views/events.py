@@ -32,6 +32,19 @@ def _can_view_drafts(user):
     return user.groups.filter(name="Events").exists()
 
 
+def _inject_prior_attendance(event):
+    """Return json_schema with attended_before field appended when the event collects it."""
+    schema = event.json_schema
+    if not event.collect_prior_attendance:
+        return schema
+    prop = {"title": "I have attended this event before.", "type": "boolean"}
+    if not schema or not schema.get("properties"):
+        return {"type": "object", "properties": {"attended_before": prop}}
+    merged = dict(schema)
+    merged["properties"] = dict(schema["properties"], attended_before=prop)
+    return merged
+
+
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     lookup_value_regex = r"\d+"
@@ -88,7 +101,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "is_full": e.is_full,
                 "price_incl_tax": str(e.price_incl_tax),
                 "currency": e.currency,
-                "json_schema": e.json_schema,
+                "json_schema": _inject_prior_attendance(e),
                 "price_tiers": e.price_tiers,
                 "max_qty": e.max_qty,
                 "validate_participant_data": e.validate_participant_data,
@@ -133,7 +146,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "is_full": e.is_full,
             "price_incl_tax": str(e.price_incl_tax),
             "currency": e.currency,
-            "json_schema": e.json_schema,
+            "json_schema": _inject_prior_attendance(e),
             "price_tiers": e.price_tiers,
             "max_qty": e.max_qty,
             "validate_participant_data": e.validate_participant_data,

@@ -93,6 +93,10 @@ def _serialize_event(event, include_participants=False):
         "validate_participant_data": event.validate_participant_data,
         "registration_required": event.registration_required,
         "confirmed_email_template": event.confirmed_email_template,
+        "lottery_won_email_subject": event.lottery_won_email_subject or "",
+        "lottery_won_email_template": event.lottery_won_email_template or "",
+        "lottery_lost_email_subject": event.lottery_lost_email_subject or "",
+        "lottery_lost_email_template": event.lottery_lost_email_template or "",
         "post_registration_message": event.post_registration_message or "",
         "tags": event.tags or [],
         "blog_url": event.blog_url,
@@ -106,6 +110,7 @@ def _serialize_event(event, include_participants=False):
         "is_lottery": event.is_lottery,
         "lottery_drawn_at": event.lottery_drawn_at,
         "lottery_entry_count": event.lottery_entry_count,
+        "collect_prior_attendance": event.collect_prior_attendance,
         "guide_token": str(event.guide_token),
         "stats": {
             "confirmed": event.participant_count,
@@ -194,6 +199,7 @@ def _serialize_bookings(event):
             "is_lottery_lost": ep.is_lottery_lost,
             "is_main_contact": ep.is_main_contact,
             "attended": ep.attended,
+            "is_member": ep.is_member,
             "notes": ep.notes,
             "extra_json": ep.extra_json,
             "payment": payment,
@@ -282,10 +288,15 @@ class ConsoleEventsViewSet(ViewSet):
                 validate_participant_data=bool(data.get("validate_participant_data", False)),
                 registration_required=bool(data.get("registration_required", True)),
                 confirmed_email_template=data.get("confirmed_email_template") or None,
+                lottery_won_email_subject=data.get("lottery_won_email_subject") or None,
+                lottery_won_email_template=data.get("lottery_won_email_template") or None,
+                lottery_lost_email_subject=data.get("lottery_lost_email_subject") or None,
+                lottery_lost_email_template=data.get("lottery_lost_email_template") or None,
                 post_registration_message=data.get("post_registration_message") or None,
                 tags=data.get("tags") or [],
                 image=image,
                 blog_url=blog_url,
+                collect_prior_attendance=bool(data.get("collect_prior_attendance", False)),
             )
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -307,6 +318,9 @@ class ConsoleEventsViewSet(ViewSet):
             "price_incl_tax", "currency", "json_schema", "price_tiers",
             "validate_participant_data", "registration_required",
             "confirmed_email_template", "post_registration_message", "tags",
+            "lottery_won_email_subject", "lottery_won_email_template",
+            "lottery_lost_email_subject", "lottery_lost_email_template",
+            "collect_prior_attendance",
         ]
         if "signup_mode" in data:
             if data["signup_mode"] not in dict(OrganizedEvent.SIGNUP_MODE_CHOICES):
@@ -340,7 +354,9 @@ class ConsoleEventsViewSet(ViewSet):
                     except ValueError as exc:
                         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
                 elif field in ("max_participants", "json_schema", "price_tiers",
-                               "confirmed_email_template", "post_registration_message"):
+                               "confirmed_email_template", "post_registration_message",
+                               "lottery_won_email_subject", "lottery_won_email_template",
+                               "lottery_lost_email_subject", "lottery_lost_email_template"):
                     if val == "" or val is None:
                         val = None
                 elif field == "max_qty":
@@ -400,7 +416,7 @@ class ConsoleEventsViewSet(ViewSet):
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         data = request.data
         changed = []
-        for field in ("notes", "is_confirmed", "is_cancelled", "attended"):
+        for field in ("notes", "is_confirmed", "is_cancelled", "attended", "is_member"):
             if field in data:
                 setattr(ep, field, data[field])
                 changed.append(field)
@@ -493,6 +509,33 @@ class ConsoleEventsViewSet(ViewSet):
 
         return Response({"ep_id": ep.id, "is_waitlisted": False, "is_confirmed": ep.is_confirmed})
 
+    @action(detail=True, methods=["post"], url_path="preview-lottery-draw")
+    def preview_lottery_draw(self, request, pk=None):
+        """Return a dry-run draw result without persisting or emailing."""
+        try:
+            event = OrganizedEvent.objects.get(pk=pk)
+        except OrganizedEvent.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not event.is_lottery:
+            return Response(
+                {"detail": "This event is not in lottery mode."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if event.lottery_drawn_at is not None:
+            return Response(
+                {"detail": "The lottery for this event has already been drawn."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.event.utils import compute_lottery_draw
+        seed = request.data.get("seed")
+        if seed is not None:
+            seed = int(seed)
+        reserved = request.data.get("reserved_member_slots", 0)
+        result = compute_lottery_draw(event, seed=seed, reserved_member_slots=reserved)
+        return Response(result)
+
     @action(detail=True, methods=["post"], url_path="run-lottery-draw")
     def run_lottery_draw(self, request, pk=None):
         """Run the random draw for a lottery-mode event."""
@@ -512,14 +555,80 @@ class ConsoleEventsViewSet(ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        seed = request.data.get("seed")
+        if seed is not None:
+            seed = int(seed)
+        reserved = request.data.get("reserved_member_slots", 0)
+
         from apps.event.utils import run_lottery_draw as _run_draw
-        result = _run_draw(event)
+        result = _run_draw(event, seed=seed, reserved_member_slots=reserved)
         event.refresh_from_db()
         return Response({
             "winners": result["winners"],
             "losers": result["losers"],
             "entries": result["entries"],
             "lottery_drawn_at": event.lottery_drawn_at,
+        })
+
+    @action(detail=True, methods=["post"], url_path="send-test-lottery-emails")
+    def send_test_lottery_emails(self, request, pk=None):
+        """Send one sample "won" and one sample "not selected" lottery email to a
+        test address. The draw is NOT run and no real participant is emailed —
+        random participants are only used to fill in the email content.
+        """
+        try:
+            event = OrganizedEvent.objects.get(pk=pk)
+        except OrganizedEvent.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not event.is_lottery:
+            return Response(
+                {"detail": "This event is not in lottery mode."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        test_email = (request.data.get("email") or "").strip()
+        if not test_email:
+            return Response(
+                {"detail": "A recipient email address is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from django.core.validators import validate_email
+        try:
+            validate_email(test_email)
+        except ValidationError:
+            return Response(
+                {"detail": "Please enter a valid email address."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Pick up to two random participants purely to populate the email content.
+        entries = list(
+            EventParticipant.objects.select_related("participant")
+            .filter(event=event, is_cancelled=False)
+            .order_by("?")[:2]
+        )
+
+        def _placeholder():
+            return Participant(
+                first_name="Sample", last_name="Participant",
+                email=test_email, quantity=1,
+            )
+
+        won_participant = entries[0].participant if entries else _placeholder()
+        if len(entries) >= 2:
+            lost_participant = entries[1].participant
+        elif entries:
+            lost_participant = entries[0].participant
+        else:
+            lost_participant = _placeholder()
+
+        from apps.event.utils import send_lottery_won_email, send_lottery_lost_email
+        send_lottery_won_email(event, won_participant, to_email=test_email)
+        send_lottery_lost_email(event, lost_participant, to_email=test_email)
+
+        return Response({
+            "detail": f"Sent sample 'won' and 'not selected' emails to {test_email}.",
         })
 
     @action(detail=True, methods=["post"], url_path="regenerate-guide-token")

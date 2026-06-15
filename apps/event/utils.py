@@ -46,19 +46,11 @@ def set_global_registration_closed(closed: bool) -> None:
         f.write("1" if closed else "0")
 
 
-def run_lottery_draw(event):
-    """
-    Randomly select winners from the pool of lottery-pending entries for ``event``.
+def compute_lottery_draw(event, seed=None, reserved_member_slots=0):
+    """Shuffle pending entries and greedily pick winners — pure computation, no side effects.
 
-    Walks the shuffled pool and picks entries whose full quantity fits in the
-    remaining capacity (greedy — small parties may slip in even after a larger one
-    is skipped). Winners become confirmed; everyone else is marked is_lottery_lost.
-    Sets event.lottery_drawn_at and sends a result email per entry.
-
-    Returns a dict with counts: {"winners": N, "losers": M, "entries": total}.
-
-    Safe to call repeatedly only for already-drawn events: it will no-op and return
-    zeros if there are no pending entries.
+    If ``reserved_member_slots`` > 0, that many slots are filled from members
+    first.  Unused reserved slots fall back to the public pool.
     """
     import random
     from oscar.core.loading import get_model
@@ -67,50 +59,148 @@ def run_lottery_draw(event):
     pending = list(
         EventParticipant.objects.select_related("participant")
         .filter(event=event, is_lottery_pending=True, is_cancelled=False)
+        .order_by("id")
     )
+    if seed is None:
+        seed = random.randint(0, 2**31 - 1)
+
     if not pending:
-        # Still mark drawn so admins see "already drawn" state if they re-run.
+        return {"seed": seed, "winners": [], "losers": [], "entry_ids": []}
+
+    rng = random.Random(seed)
+    rng.shuffle(pending)
+
+    # Stable sort: newcomers first, returning participants last
+    if event.collect_prior_attendance:
+        def _attended(ep):
+            ej = ep.extra_json
+            if isinstance(ej, list):
+                ej = ej[0] if ej else {}
+            return bool(ej and isinstance(ej, dict) and ej.get("attended_before"))
+        pending.sort(key=_attended)
+
+    capacity = event.max_participants
+    taken = event.participant_count
+    remaining = (capacity - taken) if capacity is not None else None
+
+    reserved_member_slots = max(int(reserved_member_slots or 0), 0)
+
+    winners = []
+    losers = []
+
+    if reserved_member_slots and remaining is not None:
+        members = [ep for ep in pending if ep.is_member]
+        non_members = [ep for ep in pending if not ep.is_member]
+
+        member_remaining = reserved_member_slots
+        member_winners = []
+        member_leftover = []
+        for ep in members:
+            qty = ep.participant.quantity
+            if qty <= member_remaining:
+                member_winners.append(ep)
+                member_remaining -= qty
+            else:
+                member_leftover.append(ep)
+
+        for ep in member_winners:
+            winners.append(ep)
+            remaining -= ep.participant.quantity
+
+        # Remaining capacity open to everyone (leftover members + non-members)
+        public_pool = member_leftover + non_members
+        for ep in public_pool:
+            qty = ep.participant.quantity
+            if qty <= remaining:
+                winners.append(ep)
+                remaining -= qty
+            else:
+                losers.append(ep)
+    else:
+        for ep in pending:
+            qty = ep.participant.quantity
+            if remaining is None or qty <= remaining:
+                winners.append(ep)
+                if remaining is not None:
+                    remaining -= qty
+            else:
+                losers.append(ep)
+
+    def _serialise(ep):
+        p = ep.participant
+        d = {
+            "ep_id": ep.id,
+            "first_name": p.first_name,
+            "last_name": p.last_name,
+            "email": p.email,
+            "phone_number": p.phone_number or "",
+            "quantity": p.quantity,
+            "registered_at": ep.registered_at,
+            "is_member": ep.is_member,
+        }
+        if event.collect_prior_attendance:
+            ej = ep.extra_json
+            if isinstance(ej, list):
+                ej = ej[0] if ej else {}
+            d["attended_before"] = bool(ej and isinstance(ej, dict) and ej.get("attended_before"))
+        return d
+
+    return {
+        "seed": seed,
+        "winners": [_serialise(ep) for ep in winners],
+        "losers": [_serialise(ep) for ep in losers],
+        "entry_ids": sorted(ep.id for ep in pending),
+    }
+
+
+def run_lottery_draw(event, seed=None, reserved_member_slots=0):
+    """
+    Randomly select winners from the pool of lottery-pending entries for ``event``.
+
+    If ``seed`` is provided the draw is deterministic (used to replay a preview).
+    Sets event.lottery_drawn_at and sends a result email per entry.
+
+    Returns a dict with counts: {"winners": N, "losers": M, "entries": total}.
+    """
+    from oscar.core.loading import get_model
+    EventParticipant = get_model("event", "EventParticipant")
+
+    result = compute_lottery_draw(event, seed=seed, reserved_member_slots=reserved_member_slots)
+    winner_ids = {w["ep_id"] for w in result["winners"]}
+    loser_ids = {l["ep_id"] for l in result["losers"]}
+
+    if not winner_ids and not loser_ids:
         if not event.lottery_drawn_at:
             from django.utils import timezone
             event.lottery_drawn_at = timezone.now()
             event.save(update_fields=["lottery_drawn_at"])
         return {"winners": 0, "losers": 0, "entries": 0}
 
-    random.shuffle(pending)
+    all_ids = winner_ids | loser_ids
+    eps = {ep.id: ep for ep in EventParticipant.objects.select_related("participant").filter(id__in=all_ids)}
 
-    capacity = event.max_participants
-    # Confirmed slots already taken outside the lottery pool (shouldn't happen for
-    # a lottery event, but guard anyway).
-    taken = event.participant_count
-    remaining = (capacity - taken) if capacity is not None else None
+    for eid in winner_ids:
+        ep = eps[eid]
+        ep.is_lottery_pending = False
+        ep.is_confirmed = True
+        ep.save(update_fields=["is_lottery_pending", "is_confirmed"])
 
-    winners = []
-    losers = []
-    for ep in pending:
-        qty = ep.participant.quantity
-        if remaining is None or qty <= remaining:
-            ep.is_lottery_pending = False
-            ep.is_confirmed = True
-            ep.save(update_fields=["is_lottery_pending", "is_confirmed"])
-            winners.append(ep)
-            if remaining is not None:
-                remaining -= qty
-        else:
-            ep.is_lottery_pending = False
-            ep.is_lottery_lost = True
-            ep.save(update_fields=["is_lottery_pending", "is_lottery_lost"])
-            losers.append(ep)
+    for eid in loser_ids:
+        ep = eps[eid]
+        ep.is_lottery_pending = False
+        ep.is_lottery_lost = True
+        ep.save(update_fields=["is_lottery_pending", "is_lottery_lost"])
 
     from django.utils import timezone
     event.lottery_drawn_at = timezone.now()
     event.save(update_fields=["lottery_drawn_at"])
 
-    for ep in winners:
-        send_lottery_won_email(event, ep.participant)
-    for ep in losers:
-        send_lottery_lost_email(event, ep.participant)
+    for eid in winner_ids:
+        send_lottery_won_email(event, eps[eid].participant)
+    for eid in loser_ids:
+        send_lottery_lost_email(event, eps[eid].participant)
 
-    return {"winners": len(winners), "losers": len(losers), "entries": len(pending)}
+    return {"winners": len(winner_ids), "losers": len(loser_ids), "entries": len(all_ids)}
 
 
 def send_lottery_entered_email(event, participant):
@@ -179,82 +269,144 @@ Phone: {participant.phone_number or '—'}{qty_line_html}{ec_line_html}</p>
         logger.error(f"Failed to send lottery entered email: {exc}")
 
 
-def send_lottery_won_email(event, participant):
-    """Tell a participant they won a spot in the lottery draw."""
+def _lottery_email_context(event, participant):
+    """Template context shared by the customisable lottery result emails."""
+    return {
+        "first_name": participant.first_name,
+        "last_name": participant.last_name,
+        "email": participant.email,
+        "phone_number": participant.phone_number,
+        "quantity": participant.quantity,
+        "event_title": event.title,
+        "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
+        "event_location": event.location or "",
+        "event": event,
+        "participant": participant,
+    }
+
+
+def send_lottery_won_email(event, participant, to_email=None):
+    """Tell a participant they won a spot in the lottery draw.
+
+    The subject and HTML body can be customised per-event via
+    ``event.lottery_won_email_subject`` / ``event.lottery_won_email_template``;
+    when blank the built-in defaults below are used.
+
+    Pass ``to_email`` to redirect the message to a test address instead of the
+    participant's own email (used by the "send test emails" feature). In that
+    case the follow-up confirmation email is skipped so no real recipient is
+    contacted.
+    """
     from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+    recipient = to_email or participant.email
 
-    subject = f"Great news — you got a spot at {event.title}!"
-    slot_word = "spot" if participant.quantity == 1 else "spots"
-    html_content = f"""
+    ctx = Context(_lottery_email_context(event, participant))
+    custom_subject = (event.lottery_won_email_subject or "").strip()
+    custom_body = (event.lottery_won_email_template or "").strip()
+
+    if custom_subject:
+        subject = Template(custom_subject).render(ctx)
+    else:
+        subject = f"Great news — you got a spot at {event.title} [please reply to confirm]"
+
+    if custom_body:
+        html_content = Template(custom_body).render(ctx)
+        text_content = ""
+    else:
+        slot_word = "spot" if participant.quantity == 1 else "spots"
+        html_content = f"""
 <p>Hi {participant.first_name},</p>
 
-<p>Good news! You've been selected in the lottery for <strong>{event.title}</strong>.
-Your {slot_word} {'is' if participant.quantity == 1 else 'are'} now <strong>confirmed</strong>.</p>
+<p>Good news! You've been selected in the lottery for <strong>{event.title}</strong>.</p>
+
+<p><b>This event is in high demand, so to confirm your place, please reply to this email within the next 48 hours.</b> If we don't hear back from you, your {slot_word} will be released to someone else on the waitlist.</p>
 
 <p>We look forward to seeing you there!</p>
 
 <p>— Bird Society of Singapore</p>
 """
-    text_content = (
-        f"Hi {participant.first_name},\n\n"
-        f"Good news! You've been selected in the lottery for {event.title}. "
-        f"Your {slot_word} {'is' if participant.quantity == 1 else 'are'} now confirmed.\n\n"
-        f"We look forward to seeing you there!\n\n"
-        f"— Bird Society of Singapore"
-    )
+        text_content = (
+            f"Hi {participant.first_name},\n\n"
+            f"Good news! You've been selected in the lottery for {event.title}. "
+            f"This event is in high demand, so to confirm your place, please reply to this email within the next 48 hours. "
+            f"We look forward to seeing you there!\n\n"
+            f"— Bird Society of Singapore"
+        )
     try:
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
             from_email=from_email,
-            to=[participant.email],
+            to=[recipient],
             reply_to=[reply_to_email] if reply_to_email else None,
         )
         msg.attach_alternative(html_content, "text/html")
         msg.send()
-        # Fire the regular confirmed email too if a template is configured
-        if event.confirmed_email_template and event.confirmed_email_template.strip():
+        # Fire the regular confirmed email too if a template is configured.
+        # Skipped for test sends so we never contact a real participant.
+        if not to_email and event.confirmed_email_template and event.confirmed_email_template.strip():
             send_free_registration_confirmation_email(event, participant)
-        logger.info(f"Lottery won email sent to {participant.email} for event {event.id}")
+        logger.info(f"Lottery won email sent to {recipient} for event {event.id}")
     except Exception as exc:
         logger.error(f"Failed to send lottery won email: {exc}")
 
 
-def send_lottery_lost_email(event, participant):
-    """Tell a participant they weren't selected in the lottery draw."""
+def send_lottery_lost_email(event, participant, to_email=None):
+    """Tell a participant they weren't selected in the lottery draw.
+
+    The subject and HTML body can be customised per-event via
+    ``event.lottery_lost_email_subject`` / ``event.lottery_lost_email_template``;
+    when blank the built-in defaults below are used.
+
+    Pass ``to_email`` to redirect the message to a test address instead of the
+    participant's own email (used by the "send test emails" feature).
+    """
     from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+    recipient = to_email or participant.email
 
-    subject = f"Lottery result – {event.title}"
-    html_content = f"""
+    ctx = Context(_lottery_email_context(event, participant))
+    custom_subject = (event.lottery_lost_email_subject or "").strip()
+    custom_body = (event.lottery_lost_email_template or "").strip()
+
+    if custom_subject:
+        subject = Template(custom_subject).render(ctx)
+    else:
+        subject = f"Lottery result – {event.title}"
+
+    if custom_body:
+        html_content = Template(custom_body).render(ctx)
+        text_content = ""
+    else:
+        html_content = f"""
 <p>Hi {participant.first_name},</p>
 
 <p>Thanks for entering the lottery for <strong>{event.title}</strong>. Unfortunately,
-you weren't selected in this draw — demand was higher than the number of available spots.</p>
+you weren't selected in this draw. We had more entries than available spots.</p>
 
 <p>We hope to see you at a future event! Keep an eye on our events page for upcoming opportunities.</p>
 
 <p>— Bird Society of Singapore</p>
 """
-    text_content = (
-        f"Hi {participant.first_name},\n\n"
-        f"Thanks for entering the lottery for {event.title}. Unfortunately, you weren't "
-        f"selected in this draw — demand was higher than the number of available spots.\n\n"
-        f"We hope to see you at a future event!\n\n"
-        f"— Bird Society of Singapore"
-    )
+        text_content = (
+            f"Hi {participant.first_name},\n\n"
+            f"Thanks for entering the lottery for {event.title}. Unfortunately, you weren't "
+            f"selected in this draw. We had more entries than available spots.\n\n"
+            f"We hope to see you at a future event!\n\n"
+            f"— Bird Society of Singapore"
+        )
     try:
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
             from_email=from_email,
-            to=[participant.email],
+            to=[recipient],
             reply_to=[reply_to_email] if reply_to_email else None,
         )
         msg.attach_alternative(html_content, "text/html")
         msg.send()
-        logger.info(f"Lottery lost email sent to {participant.email} for event {event.id}")
+        logger.info(f"Lottery lost email sent to {recipient} for event {event.id}")
     except Exception as exc:
         logger.error(f"Failed to send lottery lost email: {exc}")
 
