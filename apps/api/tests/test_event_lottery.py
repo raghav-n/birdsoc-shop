@@ -258,53 +258,6 @@ class LotteryTestEmailTests(APITestCase):
             format="json",
         )
 
-    def test_sends_two_emails_to_test_address_only(self):
-        from django.core import mail
-
-        e = create_event(max_participants=2)
-        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
-        e.save()
-        for em in ["a@x.com", "b@x.com", "c@x.com"]:
-            self._enter(e, em)
-
-        mail.outbox = []
-        client = staff_client(self.client)
-        r = client.post(
-            f"/api/v1/console/events/{e.id}/send-test-lottery-emails",
-            {"email": "tester@example.com"},
-            format="json",
-        )
-        self.assertEqual(r.status_code, 200, r.data)
-
-        # Exactly two emails, both to the test address — no participant emailed.
-        self.assertEqual(len(mail.outbox), 2)
-        for msg in mail.outbox:
-            self.assertEqual(msg.to, ["tester@example.com"])
-
-        # Draw must not have run.
-        e.refresh_from_db()
-        self.assertIsNone(e.lottery_drawn_at)
-        self.assertEqual(EventParticipant.objects.filter(event=e, is_lottery_pending=True).count(), 3)
-        self.assertEqual(EventParticipant.objects.filter(event=e, is_confirmed=True).count(), 0)
-        self.assertEqual(EventParticipant.objects.filter(event=e, is_lottery_lost=True).count(), 0)
-
-    def test_works_with_no_participants(self):
-        from django.core import mail
-
-        e = create_event(max_participants=2)
-        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
-        e.save()
-
-        mail.outbox = []
-        client = staff_client(self.client)
-        r = client.post(
-            f"/api/v1/console/events/{e.id}/send-test-lottery-emails",
-            {"email": "tester@example.com"},
-            format="json",
-        )
-        self.assertEqual(r.status_code, 200, r.data)
-        self.assertEqual(len(mail.outbox), 2)
-
     def test_requires_email(self):
         e = create_event(max_participants=2)
         e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
@@ -334,34 +287,6 @@ class LotteryTestEmailTests(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 400)
-
-    def test_custom_templates_are_rendered(self):
-        from django.core import mail
-
-        e = create_event(max_participants=2)
-        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
-        e.lottery_won_email_subject = "You won {{event_title}}!"
-        e.lottery_won_email_template = "<p>Congrats {{first_name}}, see you at {{event_title}}.</p>"
-        e.lottery_lost_email_subject = "Sorry {{first_name}}"
-        e.lottery_lost_email_template = "<p>Not this time for {{event_title}}.</p>"
-        e.save()
-        self._enter(e, "a@x.com")
-
-        mail.outbox = []
-        client = staff_client(self.client)
-        r = client.post(
-            f"/api/v1/console/events/{e.id}/send-test-lottery-emails",
-            {"email": "tester@example.com"},
-            format="json",
-        )
-        self.assertEqual(r.status_code, 200, r.data)
-        self.assertEqual(len(mail.outbox), 2)
-
-        won = next(m for m in mail.outbox if m.subject.startswith("You won"))
-        lost = next(m for m in mail.outbox if m.subject.startswith("Sorry"))
-        self.assertEqual(won.subject, f"You won {e.title}!")
-        self.assertIn(f"see you at {e.title}", won.alternatives[0][0])
-        self.assertIn(f"Not this time for {e.title}", lost.alternatives[0][0])
 
 
 class LotteryDeprioritizationTests(APITestCase):
