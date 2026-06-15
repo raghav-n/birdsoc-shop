@@ -293,9 +293,8 @@ def send_lottery_won_email(event, participant, to_email=None):
     when blank the built-in defaults below are used.
 
     Pass ``to_email`` to redirect the message to a test address instead of the
-    participant's own email (used by the "send test emails" feature). In that
-    case the follow-up confirmation email is skipped so no real recipient is
-    contacted.
+    participant's own email (used by the "send test emails" feature) so no real
+    recipient is contacted.
     """
     from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
@@ -343,10 +342,6 @@ def send_lottery_won_email(event, participant, to_email=None):
         )
         msg.attach_alternative(html_content, "text/html")
         msg.send()
-        # Fire the regular confirmed email too if a template is configured.
-        # Skipped for test sends so we never contact a real participant.
-        if not to_email and event.confirmed_email_template and event.confirmed_email_template.strip():
-            send_free_registration_confirmation_email(event, participant)
         logger.info(f"Lottery won email sent to {recipient} for event {event.id}")
     except Exception as exc:
         logger.error(f"Failed to send lottery won email: {exc}")

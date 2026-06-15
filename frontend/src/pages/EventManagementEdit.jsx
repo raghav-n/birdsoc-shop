@@ -1459,8 +1459,8 @@ export default function EventManagementEdit() {
           </Section>
         )}
 
-        {/* Confirmation email */}
-        {form.registration_required && (
+        {/* Confirmation email — not used for lottery events (the lottery winner email covers it) */}
+        {form.registration_required && form.signup_mode !== 'lottery' && (
           <Section>
             <SectionTitle>Registration Confirmation Email</SectionTitle>
             <Hint style={{ marginBottom: '0.875rem' }}>
