@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal, InvalidOperation
 
@@ -23,6 +24,17 @@ class OrganizedEvent(models.Model):
     """
 
     title = models.CharField(_("Event Title"), max_length=255)
+    slug = models.SlugField(
+        _("Slug"),
+        max_length=300,
+        unique=True,
+        blank=True,
+        help_text=_(
+            "URL-friendly identifier used in public event links. Generated once "
+            "from the start date and title when the event is first created, and "
+            "left unchanged afterwards so existing links keep working."
+        ),
+    )
     description = models.TextField(_("Description"), blank=True)
     start_date = models.DateTimeField(_("Start Date/Time"))
     end_date = models.DateTimeField(_("End Date/Time"), blank=True, null=True)
@@ -228,6 +240,31 @@ class OrganizedEvent(models.Model):
 
     def __str__(self):
         return self.title
+
+    def _generate_unique_slug(self):
+        """Build a unique slug from the start date and title, e.g.
+        ``2026-06-14-sentosa-morning-walk``. Appends ``-2``, ``-3`` … on collision."""
+        date_part = ""
+        if self.start_date:
+            dt = self.start_date
+            if timezone.is_aware(dt):
+                dt = timezone.localtime(dt)
+            date_part = dt.strftime("%Y-%m-%d")
+        base = slugify(f"{date_part} {self.title}".strip())[:280] or "event"
+        slug = base
+        n = 2
+        manager = type(self)._default_manager
+        while manager.filter(slug=slug).exclude(pk=self.pk).exists():
+            slug = f"{base}-{n}"
+            n += 1
+        return slug
+
+    def save(self, *args, **kwargs):
+        # Generate the slug once, at creation. Leaving it untouched afterwards
+        # keeps previously shared links valid even if the title changes later.
+        if not self.slug:
+            self.slug = self._generate_unique_slug()
+        super().save(*args, **kwargs)
 
     @property
     def is_registration_open(self):

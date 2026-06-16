@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import styled from 'styled-components';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, MapPin, Users, ArrowLeft, Check } from 'lucide-react';
 import Alert from '../components/Alert';
 import Loading from '../components/Loading';
@@ -611,6 +611,7 @@ function ExtraField({ fieldKey, schema, value, onChange, error }) {
 
 export default function EventDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [event, setEvent] = useState(null);
@@ -654,10 +655,15 @@ export default function EventDetail() {
     eventService.getEvent(id)
       .then(data => {
         setEvent(data);
+        // Canonicalise the URL: if reached via a legacy numeric ID (or any
+        // non-slug value), swap to the slug URL without adding a history entry.
+        if (data.slug && String(id) !== data.slug) {
+          navigate(`/events/${data.slug}`, { replace: true });
+        }
       })
       .catch(() => setFetchError('Failed to load event.'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, navigate]);
 
   const fetchPrice = useCallback(async (qty, donation, allExtraFields) => {
     const n = Number(qty) || 1;

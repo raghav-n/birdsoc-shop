@@ -242,7 +242,7 @@ const EventCard = ({ event, featured }) => {
     );
   }
 
-  const goToEvent = () => navigate(`/events/${event.id}`);
+  const goToEvent = () => navigate(`/events/${event.slug || event.id}`);
 
   return (
     <Card

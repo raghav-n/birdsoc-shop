@@ -47,10 +47,26 @@ def _inject_prior_attendance(event):
 
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
-    lookup_value_regex = r"\d+"
+    # Accepts both the new slug URLs (e.g. ``2026-06-14-sentosa-walk``) and the
+    # legacy numeric IDs (e.g. ``42``) so old links keep working.
+    lookup_value_regex = r"[-\w]+"
 
     def get_queryset(self):
         return OrganizedEvent._default_manager.all()
+
+    def _resolve_event(self, lookup, queryset=None):
+        """Look an event up by slug (current public URLs) or numeric pk (legacy URLs).
+
+        Returns ``None`` if no match. Slugs always carry a date prefix and title,
+        so they are never all-digits; a purely numeric lookup is treated as a pk.
+        """
+        qs = queryset if queryset is not None else OrganizedEvent._default_manager.all()
+        try:
+            if lookup is not None and str(lookup).isdigit():
+                return qs.get(pk=int(lookup))
+            return qs.get(slug=lookup)
+        except OrganizedEvent.DoesNotExist:
+            return None
 
     def list(self, request):
         past = request.query_params.get("past") in ("1", "true", "True")
@@ -66,6 +82,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             data = [
                 {
                     "id": e.id,
+                    "slug": e.slug,
                     "title": e.title,
                     "description": e.description,
                     "start_date": e.start_date,
@@ -91,6 +108,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         data = [
             {
                 "id": e.id,
+                "slug": e.slug,
                 "title": e.title,
                 "description": e.description,
                 "start_date": e.start_date,
@@ -126,15 +144,17 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(data)
 
     def retrieve(self, request, pk=None):
-        try:
-            e = OrganizedEvent._default_manager.select_related("image").get(pk=pk)
-        except OrganizedEvent.DoesNotExist:
+        e = self._resolve_event(
+            pk, OrganizedEvent._default_manager.select_related("image")
+        )
+        if e is None:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         # Draft mode: inactive events are visible only to staff
         if not e.is_active and not _can_view_drafts(request.user):
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         data = {
             "id": e.id,
+            "slug": e.slug,
             "title": e.title,
             "description": e.description,
             "start_date": e.start_date,
@@ -184,9 +204,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        try:
-            event = OrganizedEvent._default_manager.get(pk=pk)
-        except OrganizedEvent.DoesNotExist:
+        event = self._resolve_event(pk)
+        if event is None:
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -224,9 +243,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"], url_path="register")
     def register(self, request, pk=None):
         # Validate event
-        try:
-            event = OrganizedEvent._default_manager.get(pk=pk)
-        except OrganizedEvent.DoesNotExist:
+        event = self._resolve_event(pk)
+        if event is None:
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -565,9 +583,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         `participants` may be provided as a JSON string.
         """
         # Validate event
-        try:
-            event = OrganizedEvent._default_manager.get(pk=pk)
-        except OrganizedEvent.DoesNotExist:
+        event = self._resolve_event(pk)
+        if event is None:
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -931,9 +948,8 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         Returns line items with resolved unit_price and totals.
         """
         # Validate event
-        try:
-            event = OrganizedEvent._default_manager.get(pk=pk)
-        except OrganizedEvent.DoesNotExist:
+        event = self._resolve_event(pk)
+        if event is None:
             return Response(
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
