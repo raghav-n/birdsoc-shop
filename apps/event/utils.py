@@ -911,3 +911,48 @@ def send_group_payment_confirmation_emails(event_registration_group):
             f"Failed to send group payment confirmation email for group {group.id}: {str(e)}"
         )
         # Don't raise the exception to avoid blocking the payment verification process
+
+
+def _followup_email_context(event, participant):
+    """Template context for an ad-hoc follow-up email to a participant."""
+    return {
+        "first_name": participant.first_name,
+        "last_name": participant.last_name,
+        "email": participant.email,
+        "phone_number": participant.phone_number,
+        "quantity": participant.quantity,
+        "event_title": event.title,
+        "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
+        "event_location": event.location or "",
+        "event": event,
+        "participant": participant,
+    }
+
+
+def send_followup_email(event, participant, subject, body, to_email=None):
+    """Send a one-off follow-up email composed by staff to a participant.
+
+    ``subject`` and ``body`` are rendered as Django templates so the same
+    ``{{first_name}}`` / ``{{event_title}}`` placeholders used elsewhere work
+    here too. Pass ``to_email`` to redirect the message to a test address
+    instead of the participant's own email. Raises on send failure so callers
+    can surface the error to the user.
+    """
+    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
+    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+    recipient = to_email or participant.email
+
+    ctx = Context(_followup_email_context(event, participant))
+    rendered_subject = Template(subject).render(ctx).strip() or event.title
+    html_content = Template(body).render(ctx)
+
+    msg = EmailMultiAlternatives(
+        subject=rendered_subject,
+        body="",
+        from_email=from_email,
+        to=[recipient],
+        reply_to=[reply_to_email] if reply_to_email else None,
+    )
+    msg.attach_alternative(html_content, "text/html")
+    msg.send()
+    logger.info(f"Follow-up email sent to {recipient} for event {event.id}")

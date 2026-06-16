@@ -150,6 +150,87 @@ class LotteryDrawTests(APITestCase):
         self.assertEqual(r.status_code, 400)
 
 
+class LotteryPromoteTests(APITestCase):
+    def _enter(self, event, email, qty=1):
+        return self.client.post(
+            f"/api/v1/events/{event.id}/register",
+            {"first_name": "P", "last_name": "L", "email": email, "phone_number": "+6512345678", "emergency_contact_name": "EC", "emergency_contact_phone": "+6500000000", "quantity": qty},
+            format="json",
+        )
+
+    def _draw_event(self, max_participants=1):
+        e = create_event(max_participants=max_participants)
+        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
+        e.save()
+        self._enter(e, "winner@x.com")
+        self._enter(e, "loser@x.com")
+        from apps.event.utils import run_lottery_draw
+        run_lottery_draw(e)
+        return e
+
+    def _promote_url(self, e, ep):
+        return f"/api/v1/console/events/{e.id}/participants/{ep.id}/promote-from-lottery"
+
+    @patch("apps.event.utils.send_lottery_won_email")
+    def test_promote_not_selected_confirms_and_emails(self, mock_won):
+        e = self._draw_event(max_participants=1)
+        # Free up a slot so capacity allows the promotion
+        winner = EventParticipant.objects.get(event=e, is_confirmed=True)
+        winner.is_confirmed = False
+        winner.is_cancelled = True
+        winner.save(update_fields=["is_confirmed", "is_cancelled"])
+
+        loser = EventParticipant.objects.get(event=e, is_lottery_lost=True)
+        mock_won.reset_mock()  # ignore the won-email sent during the initial draw
+        client = staff_client(self.client)
+        r = client.post(self._promote_url(e, loser))
+        self.assertEqual(r.status_code, 200, r.data)
+
+        loser.refresh_from_db()
+        self.assertTrue(loser.is_confirmed)
+        self.assertFalse(loser.is_lottery_lost)
+        mock_won.assert_called_once()
+
+    @patch("apps.event.utils.send_lottery_won_email")
+    def test_promote_rejected_when_no_capacity(self, mock_won):
+        e = self._draw_event(max_participants=1)
+        loser = EventParticipant.objects.get(event=e, is_lottery_lost=True)
+        mock_won.reset_mock()  # ignore the won-email sent during the initial draw
+        client = staff_client(self.client)
+        r = client.post(self._promote_url(e, loser))
+        self.assertEqual(r.status_code, 400)
+        loser.refresh_from_db()
+        self.assertTrue(loser.is_lottery_lost)
+        mock_won.assert_not_called()
+
+    @patch("apps.event.utils.send_lottery_won_email")
+    def test_promote_unlimited_capacity_allows(self, mock_won):
+        e = self._draw_event(max_participants=None)
+        # With unlimited capacity everyone wins, so create a forced not-selected entry
+        loser = EventParticipant.objects.filter(event=e, is_confirmed=True).first()
+        loser.is_confirmed = False
+        loser.is_lottery_lost = True
+        loser.save(update_fields=["is_confirmed", "is_lottery_lost"])
+
+        client = staff_client(self.client)
+        r = client.post(self._promote_url(e, loser))
+        self.assertEqual(r.status_code, 200, r.data)
+        loser.refresh_from_db()
+        self.assertTrue(loser.is_confirmed)
+
+    def test_promote_rejects_non_lottery_entry(self):
+        e = create_event(max_participants=5)
+        self.client.post(
+            f"/api/v1/events/{e.id}/register",
+            {"first_name": "A", "last_name": "B", "email": "a@x.com", "phone_number": "+6512345678", "emergency_contact_name": "EC", "emergency_contact_phone": "+6500000000", "quantity": 1},
+            format="json",
+        )
+        ep = EventParticipant.objects.get(event=e)
+        client = staff_client(self.client)
+        r = client.post(self._promote_url(e, ep))
+        self.assertEqual(r.status_code, 400)
+
+
 class LotteryPreviewTests(APITestCase):
     def _enter(self, event, email, qty=1):
         return self.client.post(

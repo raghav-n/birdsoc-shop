@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -456,3 +457,99 @@ class EventImageTests(APITestCase):
         anon = APIClient()
         r = anon.get("/api/v1/console/event-images")
         self.assertIn(r.status_code, (401, 403))
+
+
+class FollowupEmailTests(APITestCase):
+    """Tests for the standalone "send follow-up email" endpoint."""
+
+    def setUp(self):
+        _events_staff_client(self.client)
+        self.event = create_event(title="Sentosa Walk", max_participants=50)
+
+    def _add_participant(self, email, *, is_confirmed=True, is_cancelled=False, is_waitlisted=False):
+        Participant = get_model("event", "Participant")
+        p = Participant._default_manager.create(
+            first_name="A", last_name="B", email=email, quantity=1,
+        )
+        return EventParticipant.objects.create(
+            event=self.event, participant=p,
+            is_confirmed=is_confirmed, is_cancelled=is_cancelled, is_waitlisted=is_waitlisted,
+        )
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_sends_only_to_confirmed_participants(self, mock_send):
+        self._add_participant("confirmed1@example.com")
+        self._add_participant("confirmed2@example.com")
+        self._add_participant("cancelled@example.com", is_confirmed=False, is_cancelled=True)
+        self._add_participant("waitlisted@example.com", is_confirmed=False, is_waitlisted=True)
+
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "Hi {{first_name}}", "body": "<p>See you at {{event_title}}</p>"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["sent"], 2)
+        self.assertEqual(mock_send.call_count, 2)
+        emailed = {c.args[1].email for c in mock_send.call_args_list}
+        self.assertEqual(emailed, {"confirmed1@example.com", "confirmed2@example.com"})
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_dedupes_by_email(self, mock_send):
+        self._add_participant("dup@example.com")
+        self._add_participant("dup@example.com")
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "S", "body": "<p>B</p>"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["sent"], 1)
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_test_email_sends_single_to_address_only(self, mock_send):
+        self._add_participant("confirmed@example.com")
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "S", "body": "<p>B</p>", "test_email": "tester@example.com"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        mock_send.assert_called_once()
+        self.assertEqual(mock_send.call_args.kwargs["to_email"], "tester@example.com")
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_requires_subject_and_body(self, mock_send):
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "", "body": "<p>B</p>"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "S", "body": ""},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        mock_send.assert_not_called()
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_invalid_test_email_rejected(self, mock_send):
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "S", "body": "<p>B</p>", "test_email": "not-an-email"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        mock_send.assert_not_called()
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_no_confirmed_participants_returns_400(self, mock_send):
+        r = self.client.post(
+            f"/api/v1/console/events/{self.event.id}/send-followup-email",
+            {"subject": "S", "body": "<p>B</p>"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        mock_send.assert_not_called()

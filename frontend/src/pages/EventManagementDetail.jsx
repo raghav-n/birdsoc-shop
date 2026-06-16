@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { consoleEventService } from '../services/consoleEvents';
-import { Copy, RefreshCw } from 'lucide-react';
+import { Copy, RefreshCw, Mail } from 'lucide-react';
 import HelpModal from '../components/HelpModal';
+import RichTextEditor from '../components/RichTextEditor';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -676,6 +677,184 @@ function BookingModal({ booking, eventId, schemaProps, onClose, onToggleAttendan
   );
 }
 
+// ─── Follow-up email modal ────────────────────────────────────────────────────
+
+const DEFAULT_FOLLOWUP_SUBJECT = 'Update about {{event_title}}';
+const DEFAULT_FOLLOWUP_BODY = `<p>Hi {{first_name}},</p>
+
+<p>We're writing with an update about <strong>{{event_title}}</strong>.</p>
+
+<p></p>
+
+<p>See you there!</p>
+
+<p>— Bird Society of Singapore</p>`;
+
+const FollowupDialog = styled(ModalDialog)`
+  @media (min-width: 641px) {
+    width: 640px;
+  }
+`;
+
+const FollowupLabel = styled.label`
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  display: block;
+  margin-bottom: 0.3rem;
+`;
+
+const FollowupInput = styled.input`
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  outline: none;
+  &:focus { border-color: var(--link-text); box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+`;
+
+const FollowupHint = styled.p`
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0.4rem 0 0;
+  line-height: 1.5;
+  code {
+    background: #f3f4f6;
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.72rem;
+  }
+`;
+
+const TestRow = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+`;
+
+function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
+  const [subject, setSubject] = useState(DEFAULT_FOLLOWUP_SUBJECT);
+  const [body, setBody] = useState(DEFAULT_FOLLOWUP_BODY);
+  const [testEmail, setTestEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+
+  const bodyIsEmpty = !body || body.replace(/<[^>]*>/g, '').trim() === '';
+
+  const handleSendTest = async () => {
+    const email = testEmail.trim();
+    if (!email) { toast.error('Enter a test recipient email'); return; }
+    if (!subject.trim()) { toast.error('Enter a subject'); return; }
+    if (bodyIsEmpty) { toast.error('Write an email body first'); return; }
+    setSendingTest(true);
+    try {
+      const data = await consoleEventService.sendFollowupEmail(eventId, { subject, body, test_email: email });
+      toast.success(data?.detail || `Test email sent to ${email}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to send test email');
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!subject.trim()) { toast.error('Enter a subject'); return; }
+    if (bodyIsEmpty) { toast.error('Write an email body first'); return; }
+    if (confirmedCount === 0) { toast.error('There are no confirmed participants to email'); return; }
+    if (!window.confirm(`Send this follow-up email to ${confirmedCount} confirmed participant(s)? This cannot be undone.`)) return;
+    setSending(true);
+    try {
+      const data = await consoleEventService.sendFollowupEmail(eventId, { subject, body });
+      toast.success(data?.detail || 'Follow-up email sent');
+      onClose();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to send follow-up email');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <ModalOverlay onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <FollowupDialog>
+        <ModalHeader>
+          <div>
+            <ModalTitle>Send follow-up email</ModalTitle>
+            <ModalSubtitle>
+              {eventTitle} · {confirmedCount} confirmed participant{confirmedCount === 1 ? '' : 's'}
+            </ModalSubtitle>
+          </div>
+          <CloseBtn onClick={onClose} aria-label="Close">×</CloseBtn>
+        </ModalHeader>
+
+        <ModalBody>
+          <div>
+            <FollowupLabel>Subject</FollowupLabel>
+            <FollowupInput
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder={DEFAULT_FOLLOWUP_SUBJECT}
+            />
+          </div>
+
+          <div>
+            <FollowupLabel>Message</FollowupLabel>
+            <RichTextEditor value={body} onChange={setBody} />
+            <FollowupHint>
+              Sent to all confirmed participants. You can insert these variables in the subject or body:{' '}
+              <code>{'{{first_name}}'}</code>, <code>{'{{last_name}}'}</code>, <code>{'{{event_title}}'}</code>,{' '}
+              <code>{'{{event_date}}'}</code>, <code>{'{{event_location}}'}</code>.
+            </FollowupHint>
+          </div>
+
+          <TestRow>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <FollowupLabel>Send a test to yourself first</FollowupLabel>
+              <FollowupInput
+                type="email"
+                value={testEmail}
+                onChange={e => setTestEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+            <SecondaryBtn
+              onClick={handleSendTest}
+              disabled={sendingTest}
+              style={{ padding: '0.5rem 0.9rem', fontSize: '0.84rem' }}
+            >
+              {sendingTest ? 'Sending…' : 'Send test'}
+            </SecondaryBtn>
+          </TestRow>
+        </ModalBody>
+
+        <ModalFooter>
+          <PrimaryBtn
+            onClick={handleSend}
+            disabled={sending}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.84rem' }}
+          >
+            {sending ? 'Sending…' : `Send to ${confirmedCount} participant${confirmedCount === 1 ? '' : 's'}`}
+          </PrimaryBtn>
+          <SecondaryBtn
+            onClick={onClose}
+            disabled={sending}
+            style={{ padding: '0.5rem 1rem', fontSize: '0.84rem', marginLeft: 'auto' }}
+          >
+            Cancel
+          </SecondaryBtn>
+        </ModalFooter>
+      </FollowupDialog>
+    </ModalOverlay>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function EventManagementDetail() {
@@ -698,6 +877,7 @@ export default function EventManagementDetail() {
   const [reservedMemberSlots, setReservedMemberSlots] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [showFollowup, setShowFollowup] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -774,6 +954,20 @@ export default function EventManagementDetail() {
       load();
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Failed to promote participant');
+    } finally {
+      setPromoting(null);
+    }
+  };
+
+  const handlePromoteFromLottery = async (booking) => {
+    if (!window.confirm(`Promote ${booking.first_name} ${booking.last_name} into a confirmed spot? They'll be emailed that they got a place.`)) return;
+    setPromoting(booking.ep_id);
+    try {
+      await consoleEventService.promoteFromLottery(id, booking.ep_id);
+      toast.success('Applicant promoted and notified');
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to promote applicant');
     } finally {
       setPromoting(null);
     }
@@ -1063,6 +1257,8 @@ export default function EventManagementDetail() {
         </ul>
         <h3>Registration open/closed</h3>
         <p>Use the <strong>Close registration</strong> / <strong>Open registration</strong> button to pause or resume sign-ups for this specific event without deactivating it.</p>
+        <h3>Follow-up email</h3>
+        <p>Click <strong>Follow-up email</strong> to compose and send a one-off message to all confirmed participants — e.g. reminders, what-to-bring notes, or schedule changes. Format the body with the toolbar and insert variables like <code>{'{{first_name}}'}</code> and <code>{'{{event_title}}'}</code>. Send a test to yourself first to preview it.</p>
       </HelpModal>
 
       <BackLink to="/console/events">← Events</BackLink>
@@ -1107,6 +1303,12 @@ export default function EventManagementDetail() {
               {togglingReg ? '…' : event.registration_open ? 'Close registration' : 'Open registration'}
             </SecondaryButton>
           )}
+          <SecondaryButton
+            onClick={() => setShowFollowup(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <Mail size={14} /> Follow-up email
+          </SecondaryButton>
           <SecondaryButton onClick={() => navigate(`/console/events/${id}/edit`)}>
             Edit event
           </SecondaryButton>
@@ -1344,6 +1546,7 @@ export default function EventManagementDetail() {
                   <Th>Phone</Th>
                   <Th $mobileHide>Qty</Th>
                   <Th $mobileHide>Entered</Th>
+                  <Th></Th>
                 </tr>
               </thead>
               <tbody>
@@ -1361,6 +1564,14 @@ export default function EventManagementDetail() {
                     <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{booking.phone_number || '—'}</Td>
                     <Td $mobileHide style={{ fontSize: '0.82rem' }}>{booking.quantity}</Td>
                     <Td $mobileHide style={{ fontSize: '0.82rem', color: '#6b7280' }}>{fmtDate(booking.registered_at)}</Td>
+                    <Td>
+                      <GreenBtn
+                        onClick={() => handlePromoteFromLottery(booking)}
+                        disabled={promoting === booking.ep_id}
+                      >
+                        {promoting === booking.ep_id ? '…' : 'Promote'}
+                      </GreenBtn>
+                    </Td>
                   </Tr>
                 ))}
               </tbody>
@@ -1463,6 +1674,15 @@ export default function EventManagementDetail() {
           verifying={verifying}
           togglingAttendance={togglingAttendance}
           removing={removing}
+        />
+      )}
+
+      {showFollowup && (
+        <FollowupEmailModal
+          eventId={id}
+          eventTitle={event.title}
+          confirmedCount={confirmed.length}
+          onClose={() => setShowFollowup(false)}
         />
       )}
 

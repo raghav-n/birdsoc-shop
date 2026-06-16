@@ -509,6 +509,50 @@ class ConsoleEventsViewSet(ViewSet):
 
         return Response({"ep_id": ep.id, "is_waitlisted": False, "is_confirmed": ep.is_confirmed})
 
+    @action(detail=True, methods=["post"], url_path="participants/(?P<ep_id>[0-9]+)/promote-from-lottery")
+    def promote_from_lottery(self, request, pk=None, ep_id=None):
+        """Promote a not-selected lottery applicant into a confirmed spot.
+
+        Used after a draw when a winner drops out or extra capacity opens up.
+        Confirms the applicant and emails them the same "you got a spot" notice
+        winners receive.
+        """
+        try:
+            ep = EventParticipant.objects.select_related("participant", "event").get(
+                id=ep_id, event_id=pk
+            )
+        except EventParticipant.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        event = ep.event
+        if not event.is_lottery:
+            return Response(
+                {"detail": "This event is not in lottery mode."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not ep.is_lottery_lost or ep.is_cancelled:
+            return Response(
+                {"detail": "This applicant is not in the not-selected pool."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if event.max_participants is not None:
+            available = event.max_participants - event.participant_count - event.pending_count
+            if ep.participant.quantity > available:
+                return Response(
+                    {"detail": f"Not enough spots available. Only {available} spot(s) free."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        ep.is_lottery_lost = False
+        ep.is_confirmed = True
+        ep.save(update_fields=["is_lottery_lost", "is_confirmed"])
+
+        from apps.event.utils import send_lottery_won_email
+        send_lottery_won_email(event, ep.participant)
+
+        return Response({"ep_id": ep.id, "is_lottery_lost": False, "is_confirmed": True})
+
     @action(detail=True, methods=["post"], url_path="preview-lottery-draw")
     def preview_lottery_draw(self, request, pk=None):
         """Return a dry-run draw result without persisting or emailing."""
@@ -630,6 +674,98 @@ class ConsoleEventsViewSet(ViewSet):
         return Response({
             "detail": f"Sent sample 'won' and 'not selected' emails to {test_email}.",
         })
+
+    @action(detail=True, methods=["post"], url_path="send-followup-email")
+    def send_followup_email(self, request, pk=None):
+        """Send an ad-hoc follow-up email to all confirmed participants.
+
+        Body: ``{"subject": str, "body": str, "test_email": str?}``.
+        When ``test_email`` is provided the message is sent only to that
+        address (using a sample/first participant for placeholder values) and
+        no real participant is contacted.
+        """
+        try:
+            event = OrganizedEvent.objects.get(pk=pk)
+        except OrganizedEvent.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        subject = (request.data.get("subject") or "").strip()
+        body = (request.data.get("body") or "").strip()
+        if not subject:
+            return Response(
+                {"detail": "A subject is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not body:
+            return Response(
+                {"detail": "An email body is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.event.utils import send_followup_email
+
+        # Test mode: send a single sample to the given address.
+        test_email = (request.data.get("test_email") or "").strip()
+        if test_email:
+            from django.core.validators import validate_email
+            try:
+                validate_email(test_email)
+            except ValidationError:
+                return Response(
+                    {"detail": "Please enter a valid email address."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            sample = (
+                EventParticipant.objects.select_related("participant")
+                .filter(event=event, is_confirmed=True, is_cancelled=False, is_waitlisted=False)
+                .order_by("registered_at")
+                .first()
+            )
+            participant = sample.participant if sample else Participant(
+                first_name="Sample", last_name="Participant",
+                email=test_email, quantity=1,
+            )
+            try:
+                send_followup_email(event, participant, subject, body, to_email=test_email)
+            except Exception as exc:
+                return Response(
+                    {"detail": f"Failed to send test email: {exc}"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            return Response({"detail": f"Sent a test follow-up email to {test_email}."})
+
+        # Real send: every confirmed, non-cancelled participant (deduped by email).
+        confirmed = (
+            EventParticipant.objects.select_related("participant")
+            .filter(event=event, is_confirmed=True, is_cancelled=False, is_waitlisted=False)
+            .order_by("registered_at")
+        )
+        seen = set()
+        sent = 0
+        failed = 0
+        for ep in confirmed:
+            p = ep.participant
+            email = (p.email or "").strip().lower()
+            if not email or email in seen:
+                continue
+            seen.add(email)
+            try:
+                send_followup_email(event, p, subject, body)
+                sent += 1
+            except Exception as exc:
+                failed += 1
+                # logged inside the helper; keep going for the rest
+                pass
+
+        if sent == 0 and failed == 0:
+            return Response(
+                {"detail": "No confirmed participants to email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        detail = f"Follow-up email sent to {sent} participant(s)."
+        if failed:
+            detail += f" {failed} failed to send."
+        return Response({"detail": detail, "sent": sent, "failed": failed})
 
     @action(detail=True, methods=["post"], url_path="regenerate-guide-token")
     def regenerate_guide_token(self, request, pk=None):

@@ -32,6 +32,9 @@ export const consoleEventService = {
   promoteFromWaitlist: (eventId, epId) =>
     api.post(`${BASE}/${eventId}/participants/${epId}/promote-from-waitlist`).then(r => r.data),
 
+  promoteFromLottery: (eventId, epId) =>
+    api.post(`${BASE}/${eventId}/participants/${epId}/promote-from-lottery`).then(r => r.data),
+
   // Registration verification
   verifyRegistration: (regId) =>
     api.post(`/console/event-registrations/${regId}/verify`).then(r => r.data),
@@ -78,6 +81,14 @@ export const consoleEventService = {
 
   sendTestLotteryEmails: (id, email) =>
     api.post(`${BASE}/${id}/send-test-lottery-emails`, { email }).then(r => r.data),
+
+  // Follow-up email — send to all confirmed participants, or to a test address
+  sendFollowupEmail: (id, { subject, body, test_email } = {}) =>
+    api.post(`${BASE}/${id}/send-followup-email`, {
+      subject,
+      body,
+      ...(test_email ? { test_email } : {}),
+    }).then(r => r.data),
 };
 
 export const guideService = {
