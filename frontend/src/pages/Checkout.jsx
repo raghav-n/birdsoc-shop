@@ -59,7 +59,7 @@ const BackButton = styled.button`
 `;
 
 const CheckoutTitle = styled.h1`
-  font-family: var(--bs-sans);
+  font-family: var(--bs-display);
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.8px;

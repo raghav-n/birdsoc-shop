@@ -54,7 +54,7 @@ export const BsOverline = styled.div`
 `;
 
 export const BsH1 = styled.h1`
-  font-family: var(--bs-sans);
+  font-family: var(--bs-display);
   font-size: 2.75rem;
   font-weight: 700;
   letter-spacing: -1.4px;
@@ -70,7 +70,7 @@ export const BsH1 = styled.h1`
 `;
 
 export const BsH2 = styled.h2`
-  font-family: var(--bs-sans);
+  font-family: var(--bs-display);
   font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -1px;

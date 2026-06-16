@@ -1,4 +1,5 @@
 import styled, { createGlobalStyle } from 'styled-components';
+import { FONTS } from './fonts';
 
 export const GlobalStyle = createGlobalStyle`
   :root {
@@ -41,8 +42,9 @@ export const GlobalStyle = createGlobalStyle`
     --bs-coral-fg: #6B2418;
     --bs-sky-soft: #CADADF;
     --bs-sky-fg: #1F4A57;
-    --bs-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-    --bs-mono: "Source Sans 3", ui-monospace, monospace;
+    --bs-display: ${FONTS.display};
+    --bs-sans: ${FONTS.body};
+    --bs-mono: ${FONTS.mono};
   }
 
   html {
@@ -81,7 +83,7 @@ export const GlobalStyle = createGlobalStyle`
 
   h1, h2, h3, h4, h5, h6 {
     color: var(--dark);
-    font-family: var(--bs-sans);
+    font-family: var(--bs-display);
     font-weight: 700;
     letter-spacing: -0.4px;
     margin: 0 0 1rem 0;

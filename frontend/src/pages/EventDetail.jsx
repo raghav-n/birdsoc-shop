@@ -52,7 +52,7 @@ const EventHeroImage = styled.img`
 // ─── Event info ────────────────────────────────────────────────────────────────
 
 const EventTitle = styled.h1`
-  font-family: var(--bs-sans);
+  font-family: var(--bs-display);
   font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -1px;
