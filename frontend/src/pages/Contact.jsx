@@ -41,6 +41,8 @@ const Form = styled.form`
 `;
 
 const TextArea = styled.textarea`
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.75rem;
   border: 2px solid #e9ecef;
   border-radius: 4px;

@@ -14,6 +14,12 @@ const PageContainer = styled.div`
   padding: 2rem 1rem 4rem;
 `;
 
+const PageHeading = styled.h1`
+  font-size: 2rem;
+  margin: 0 0 1.5rem;
+  color: var(--dark);
+`;
+
 const Hero = styled.div`
   text-align: center;
   margin-bottom: 2.5rem;
@@ -366,6 +372,8 @@ const Donate = () => {
         </HeroSubtitle>
       </Hero>
       */}
+
+      <PageHeading>Support BirdSoc SG</PageHeading>
 
       {/* ── About / impact ── */}
       <IntroGrid>

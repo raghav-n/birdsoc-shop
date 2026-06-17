@@ -893,6 +893,12 @@ export default function EventDetail() {
   const spotsLeft = (!isLottery && event.max_participants != null)
     ? event.max_participants - (event.participant_count || 0)
     : null;
+  // Registration (and therefore the waitlist) is only actually open when it
+  // hasn't been closed globally/manually and the close date hasn't passed.
+  const registrationOpen = !event.global_registration_closed
+    && event.registration_open !== false
+    && !(event.registration_end && new Date(event.registration_end) < new Date());
+  const waitlistOpen = event.waitlist_enabled && registrationOpen;
 
   const jsonProps = event.json_schema?.properties || {};
 
@@ -949,7 +955,7 @@ export default function EventDetail() {
             {!isLottery && event.is_full && (
               <SpotsBadge $full>
                 <Users size={11} strokeWidth={1.7} />
-                {event.waitlist_enabled ? 'Full · waitlist' : 'Full'}
+                {waitlistOpen ? 'Full · waitlist' : 'Full'}
               </SpotsBadge>
             )}
             {!isLottery && spotsLeft !== null && !event.is_full && spotsLeft <= 8 && (
