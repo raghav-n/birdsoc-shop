@@ -255,29 +255,23 @@ def _record_unmatched_payment(order_number, amount):
         unmatched_payment.save(update_fields=update_fields)
 
 
-@csrf_exempt
-def verify_payment(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request method"}, status=405)
+def _process_order_payment(order_number, amount):
+    """Verify a single order PayNow payment.
 
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return JsonResponse({"error": "Unauthorized"}, status=401)
-
-    token = auth_header.split(" ")[1]
-    payload = verify_jwt(token)
-    if not payload:
-        return JsonResponse({"error": "Invalid or expired token"}, status=401)
-
-    order_number = payload.get("order_number")
-    amount = payload.get("amount")
-
+    Returns ``(status_code, body_dict)`` so the same logic can back both the
+    single-order endpoint and the batch endpoint.
+    """
     print(
         f"Received payment verification for order {order_number} with amount {amount}"
     )
 
     if not order_number or not amount:
-        return JsonResponse({"error": "Invalid payload"}, status=400)
+        return 400, {"error": "Invalid payload"}
+
+    try:
+        amt = Decimal(str(amount))
+    except Exception:
+        return 400, {"error": "Invalid amount format"}
 
     try:
         order = Order._default_manager.get(number=order_number)
@@ -286,14 +280,16 @@ def verify_payment(request):
         reference = f"{settings.ORDER_PREFIX}{order_number}"
         pending = PendingCheckout.objects.filter(reference=reference).first()
         if pending is None:
-            _record_unmatched_payment(order_number=order_number, amount=Decimal(amount))
-            return JsonResponse(
-                {"error": f"Order {order_number} not found"}, status=404
-            )
+            _record_unmatched_payment(order_number=order_number, amount=amt)
+            return 404, {"error": f"Order {order_number} not found"}
 
         # Try to place the order from the pending checkout
-        result = _place_order_from_pending(pending, Decimal(amount))
+        result = _place_order_from_pending(pending, amt)
         order = result["order"]
+        if order is None:
+            return 400, {
+                "error": result.get("error") or f"Could not place order {order_number}"
+            }
 
     # Store payment confirmation with the amount
     try:
@@ -301,70 +297,54 @@ def verify_payment(request):
         if order.payment_events.filter(
             event_type__code__in=["paynow-auto-verified", "paynow-verified"]
         ).exists():
-            return JsonResponse(
-                {"error": f"Order {order_number} already marked as paid."}, status=400
-            )
+            return 400, {"error": f"Order {order_number} already marked as paid."}
 
-        confirm_paynow_payment(order, Decimal(amount))
+        confirm_paynow_payment(order, amt)
 
     except PaymentConfirmationError:
-        return JsonResponse({"error": "Payment confirmation failed."}, status=400)
+        return 400, {"error": "Payment confirmation failed."}
 
-    return JsonResponse(
-        {"success": f"Order {order_number} marked as paid. Amount: SGD {amount}."}
-    )
+    return 200, {
+        "success": f"Order {order_number} marked as paid. Amount: SGD {amount}."
+    }
 
 
-@csrf_exempt
-def verify_event_payment(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request method"}, status=405)
+def _process_event_payment(
+    registration_id=None,
+    reference=None,
+    group_id=None,
+    group_reference=None,
+    amount=None,
+):
+    """Verify a single event registration / group PayNow payment.
 
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return JsonResponse({"error": "Unauthorized"}, status=401)
-
-    token = auth_header.split(" ")[1]
-    payload = verify_jwt(token)
-    if not payload:
-        return JsonResponse({"error": "Invalid or expired token"}, status=401)
-
-    registration_id = payload.get("registration_id")
-    reference = payload.get("reference")
-    group_id = payload.get("group_id")
-    group_reference = payload.get("group_reference")
-    amount = payload.get("amount")
-
+    Returns ``(status_code, body_dict)`` so the same logic can back both the
+    single-event endpoint and the batch endpoint.
+    """
     if not amount:
-        return JsonResponse({"error": "Invalid payload"}, status=400)
+        return 400, {"error": "Invalid payload"}
 
     # Disallow ambiguous requests: either a single registration or a group, not both
     reg_keys = bool(registration_id or reference)
     grp_keys = bool(group_id or group_reference)
     if not reg_keys and not grp_keys:
-        return JsonResponse(
-            {
-                "error": "Must provide registration_id/reference or group_id/group_reference"
-            },
-            status=400,
-        )
+        return 400, {
+            "error": "Must provide registration_id/reference or group_id/group_reference"
+        }
     if reg_keys and grp_keys:
-        return JsonResponse(
-            {"error": "Provide either registration fields or group fields, not both"},
-            status=400,
-        )
+        return 400, {
+            "error": "Provide either registration fields or group fields, not both"
+        }
 
     from oscar.core.loading import get_model
 
     EventRegistration = get_model("event", "EventRegistration")
     EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
-    from decimal import Decimal
-
     try:
         amt = Decimal(str(amount))
     except Exception:
-        return JsonResponse({"error": "Invalid amount format"}, status=400)
+        return 400, {"error": "Invalid amount format"}
 
     # Group verification path
     if grp_keys:
@@ -376,23 +356,18 @@ def verify_event_payment(request):
                     reference=group_reference
                 )
         except EventRegistrationGroup.DoesNotExist:
-            return JsonResponse({"error": "Group not found"}, status=404)
+            return 404, {"error": "Group not found"}
 
         if grp.payment_verified:
-            return JsonResponse({"error": "Group already marked as paid."}, status=400)
+            return 400, {"error": "Group already marked as paid."}
 
         if (grp.amount_total + (grp.donation_amount or Decimal("0"))) != amt:
-            return JsonResponse(
-                {
-                    "error": f"Amount mismatch. Expected SGD {grp.amount_total + (grp.donation_amount or Decimal('0'))}"
-                },
-                status=400,
-            )
+            return 400, {
+                "error": f"Amount mismatch. Expected SGD {grp.amount_total + (grp.donation_amount or Decimal('0'))}"
+            }
 
         grp.verify(user=None)
-        return JsonResponse(
-            {"success": f"Event registration group {grp.id} marked as paid."}
-        )
+        return 200, {"success": f"Event registration group {grp.id} marked as paid."}
 
     # Single registration verification path
     try:
@@ -401,20 +376,129 @@ def verify_event_payment(request):
         else:
             reg = EventRegistration._default_manager.get(reference=reference)
     except EventRegistration.DoesNotExist:
-        return JsonResponse({"error": "Registration not found"}, status=404)
+        return 404, {"error": "Registration not found"}
 
     if reg.payment_verified:
-        return JsonResponse(
-            {"error": "Registration already marked as paid."}, status=400
-        )
+        return 400, {"error": "Registration already marked as paid."}
 
     if (reg.amount + (reg.donation_amount or Decimal("0"))) != amt:
-        return JsonResponse(
-            {
-                "error": f"Amount mismatch. Expected SGD {reg.amount + (reg.donation_amount or Decimal('0'))}"
-            },
-            status=400,
-        )
+        return 400, {
+            "error": f"Amount mismatch. Expected SGD {reg.amount + (reg.donation_amount or Decimal('0'))}"
+        }
 
     reg.verify(user=None)
-    return JsonResponse({"success": f"Event registration {reg.id} marked as paid."})
+    return 200, {"success": f"Event registration {reg.id} marked as paid."}
+
+
+def _authenticated_payload(request):
+    """Validate POST + Bearer JWT. Returns ``(payload, error_response)``.
+
+    Exactly one of the two will be truthy: on success ``payload`` is the decoded
+    JWT dict; on failure ``error_response`` is a ready-to-return ``JsonResponse``.
+    """
+    if request.method != "POST":
+        return None, JsonResponse({"error": "Invalid request method"}, status=405)
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None, JsonResponse({"error": "Unauthorized"}, status=401)
+
+    token = auth_header.split(" ")[1]
+    payload = verify_jwt(token)
+    if not payload:
+        return None, JsonResponse({"error": "Invalid or expired token"}, status=401)
+
+    return payload, None
+
+
+@csrf_exempt
+def verify_payment(request):
+    payload, error = _authenticated_payload(request)
+    if error:
+        return error
+
+    status_code, body = _process_order_payment(
+        payload.get("order_number"), payload.get("amount")
+    )
+    return JsonResponse(body, status=status_code)
+
+
+@csrf_exempt
+def verify_event_payment(request):
+    payload, error = _authenticated_payload(request)
+    if error:
+        return error
+
+    status_code, body = _process_event_payment(
+        registration_id=payload.get("registration_id"),
+        reference=payload.get("reference"),
+        group_id=payload.get("group_id"),
+        group_reference=payload.get("group_reference"),
+        amount=payload.get("amount"),
+    )
+    return JsonResponse(body, status=status_code)
+
+
+@csrf_exempt
+def verify_payment_batch(request):
+    """Verify many PayNow payments in a single request.
+
+    The signed JWT carries ``items``: a list of objects each with a ``type`` of
+    ``"order"`` or ``"event"`` plus the same fields the single endpoints accept.
+    Each item is processed independently; a failure on one never aborts the
+    others. Always responds 200 with a ``results`` list mirroring the input
+    order, each entry carrying the per-item ``status`` and success/error body.
+    """
+    payload, error = _authenticated_payload(request)
+    if error:
+        return error
+
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return JsonResponse(
+            {"error": "Invalid payload: 'items' must be a list"}, status=400
+        )
+
+    results = []
+    for item in items:
+        if not isinstance(item, dict):
+            results.append(
+                {"status": 400, "error": "Invalid item: expected an object"}
+            )
+            continue
+
+        item_type = item.get("type")
+        try:
+            if item_type == "order":
+                reference = item.get("order_number")
+                status_code, body = _process_order_payment(
+                    item.get("order_number"), item.get("amount")
+                )
+            elif item_type == "event":
+                reference = (
+                    item.get("group_reference")
+                    or item.get("reference")
+                    or item.get("group_id")
+                    or item.get("registration_id")
+                )
+                status_code, body = _process_event_payment(
+                    registration_id=item.get("registration_id"),
+                    reference=item.get("reference"),
+                    group_id=item.get("group_id"),
+                    group_reference=item.get("group_reference"),
+                    amount=item.get("amount"),
+                )
+            else:
+                reference = None
+                status_code, body = 400, {
+                    "error": f"Unknown item type: {item_type!r}"
+                }
+        except Exception as exc:  # never let one bad item abort the batch
+            reference = item.get("order_number") or item.get("group_reference")
+            status_code, body = 500, {"error": f"Processing error: {exc}"}
+
+        results.append(
+            {"type": item_type, "reference": reference, "status": status_code, **body}
+        )
+
+    return JsonResponse({"results": results})

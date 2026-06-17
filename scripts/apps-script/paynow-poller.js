@@ -1,8 +1,8 @@
 // PayNow email poller — runs in Google Apps Script on the mailbox that
-// receives Maybank PayNow alert emails. For each unprocessed alert it
-// extracts the order/event reference + amount and POSTs a signed JWT to
-// the matching shop API. Configure the regexes and endpoints via Script
-// Properties; sensible defaults are baked in.
+// receives Maybank PayNow alert emails. It scans all unprocessed alerts,
+// extracts the order/event reference + amount from each, and POSTs them as a
+// single signed JWT batch to the shop's batch-verify API. Configure the
+// regexes and endpoint via Script Properties; sensible defaults are baked in.
 //
 // Trigger: install a time-driven trigger (every 1–5 minutes) that calls
 // `processPayNowEmails`.
@@ -11,8 +11,7 @@ const DEFAULTS = {
   ORDER_REGEX: 'OTHR-MER-([A-Za-z0-9-]+)',
   AMOUNT_REGEX: 'S\\$([\\d.]+)',
   EVENT_REG_REF_REGEX: '(OBD25-[A-Za-z0-9-]+)',
-  ORDER_API_URL: 'https://shop.birdsociety.sg/api/verify-payment/',
-  EVENT_API_URL: 'https://shop.birdsociety.sg/api/verify-event-payment/',
+  BATCH_API_URL: 'https://shop.birdsociety.sg/api/verify-payment-batch/',
   GMAIL_QUERY: 'subject:"PayNow Alert - You have received a payment via PayNow" newer_than:1d',
 };
 
@@ -26,8 +25,7 @@ function loadConfig() {
     orderRe: new RegExp(get('ORDER_REGEX')),
     amountRe: new RegExp(get('AMOUNT_REGEX')),
     eventRe: new RegExp(get('EVENT_REG_REF_REGEX')),
-    orderUrl: get('ORDER_API_URL'),
-    eventUrl: get('EVENT_API_URL'),
+    batchUrl: get('BATCH_API_URL'),
     query: get('GMAIL_QUERY'),
   };
 }
@@ -56,6 +54,7 @@ function postSigned(url, payload, secret) {
 function processPayNowEmails() {
   const cfg = loadConfig();
   const seen = new Set();
+  const items = [];
   const threads = GmailApp.search(cfg.query);
 
   for (const thread of threads) {
@@ -67,27 +66,46 @@ function processPayNowEmails() {
       const orderMatch = body.match(cfg.orderRe);
       const eventMatch = !orderMatch && body.match(cfg.eventRe);
 
-      let key, url, payload, label;
+      let key, item;
       if (orderMatch) {
         key = 'order:' + orderMatch[1];
-        url = cfg.orderUrl;
-        payload = { order_number: orderMatch[1], amount };
-        label = 'Order ' + orderMatch[1];
+        item = { type: 'order', order_number: orderMatch[1], amount };
       } else if (eventMatch) {
         key = 'reg:' + eventMatch[1];
-        url = cfg.eventUrl;
-        payload = { group_reference: eventMatch[1], amount };
-        label = 'Event registration ' + eventMatch[1];
+        item = { type: 'event', group_reference: eventMatch[1], amount };
       } else {
         Logger.log('No order or event ref found in message id ' + msg.getId());
         continue;
       }
 
+      // Dedupe within this run so the same reference isn't sent twice.
       if (seen.has(key)) continue;
-      const resp = postSigned(url, payload, cfg.secret);
-      Logger.log(label + ' -> ' + resp.getResponseCode() + ' : ' + resp.getContentText());
-      if (resp.getResponseCode() === 200) seen.add(key);
-      Utilities.sleep(1000);
+      seen.add(key);
+      items.push(item);
+    }
+  }
+
+  if (!items.length) {
+    Logger.log('No PayNow alerts to process. Done.');
+    return;
+  }
+
+  // Single batch call: every reference is verified in one signed request.
+  const resp = postSigned(cfg.batchUrl, { items }, cfg.secret);
+  const code = resp.getResponseCode();
+  Logger.log('Batch (' + items.length + ' items) -> ' + code + ' : ' + resp.getContentText());
+
+  if (code === 200) {
+    let results = [];
+    try {
+      results = JSON.parse(resp.getContentText()).results || [];
+    } catch (e) {
+      Logger.log('Could not parse batch response: ' + e);
+    }
+    for (const r of results) {
+      Logger.log(
+        (r.reference || '(unknown)') + ' [' + r.status + '] ' + (r.success || r.error || '')
+      );
     }
   }
   Logger.log('Done.');
