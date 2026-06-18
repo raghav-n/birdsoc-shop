@@ -539,6 +539,16 @@ class EventParticipant(models.Model):
         default=False,
         help_text=_("Lottery entry that wasn't selected in the draw."),
     )
+    lottery_result_email_sent_at = models.DateTimeField(
+        _("Lottery result email sent at"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "When the won/lost result email was sent. NULL means it still "
+            "needs sending — the send_lottery_result_emails command picks "
+            "these up and is safe to re-run."
+        ),
+    )
     attended = models.BooleanField(_("Attended"), default=False)
     is_member = models.BooleanField(_("BirdSoc member"), default=False)
     notes = models.TextField(_("Notes"), blank=True)

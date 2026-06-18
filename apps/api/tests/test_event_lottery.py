@@ -552,6 +552,78 @@ class LotteryDeprioritizationTests(APITestCase):
         self.assertFalse(by_email["new@x.com"]["attended_before"])
 
 
+class LotteryResultEmailCommandTests(APITestCase):
+    def _enter(self, event, email, qty=1):
+        return self.client.post(
+            f"/api/v1/events/{event.id}/register",
+            {"first_name": "P", "last_name": "L", "email": email, "phone_number": "+6512345678", "emergency_contact_name": "EC", "emergency_contact_phone": "+6500000000", "quantity": qty},
+            format="json",
+        )
+
+    def _drawn_event(self):
+        e = create_event(max_participants=2)
+        e.signup_mode = OrganizedEvent.SIGNUP_MODE_LOTTERY
+        e.save()
+        for em in ["a@x.com", "b@x.com", "c@x.com", "d@x.com"]:
+            self._enter(e, em)
+        from apps.event.utils import run_lottery_draw
+        run_lottery_draw(e)
+        return e
+
+    @patch("apps.event.utils.send_lottery_lost_email")
+    @patch("apps.event.utils.send_lottery_won_email")
+    def test_draw_does_not_send_emails_inline(self, mock_won, mock_lost):
+        """The draw must not email in-request — that previously timed out the worker."""
+        self._drawn_event()
+        mock_won.assert_not_called()
+        mock_lost.assert_not_called()
+        # Every drawn entry is queued (sent_at NULL) for the background command.
+        self.assertEqual(
+            EventParticipant.objects.filter(
+                is_lottery_pending=False, lottery_result_email_sent_at__isnull=True
+            ).count(),
+            4,
+        )
+
+    @patch("apps.event.utils.send_lottery_lost_email", return_value=True)
+    @patch("apps.event.utils.send_lottery_won_email", return_value=True)
+    def test_command_sends_and_is_idempotent(self, mock_won, mock_lost):
+        from django.core.management import call_command
+        e = self._drawn_event()
+
+        call_command("send_lottery_result_emails")
+        self.assertEqual(mock_won.call_count, 2)
+        self.assertEqual(mock_lost.call_count, 2)
+        self.assertEqual(
+            EventParticipant.objects.filter(
+                event=e, lottery_result_email_sent_at__isnull=True
+            ).count(),
+            0,
+        )
+
+        # Re-running sends nothing more.
+        mock_won.reset_mock()
+        mock_lost.reset_mock()
+        call_command("send_lottery_result_emails")
+        mock_won.assert_not_called()
+        mock_lost.assert_not_called()
+
+    @patch("apps.event.utils.send_lottery_lost_email", return_value=False)
+    @patch("apps.event.utils.send_lottery_won_email", return_value=False)
+    def test_failed_send_is_retried(self, mock_won, mock_lost):
+        from django.core.management import call_command
+        e = self._drawn_event()
+
+        call_command("send_lottery_result_emails")
+        # Nothing stamped, so all remain queued for the next run.
+        self.assertEqual(
+            EventParticipant.objects.filter(
+                event=e, lottery_result_email_sent_at__isnull=True, is_lottery_pending=False
+            ).count(),
+            4,
+        )
+
+
 class LotteryConsoleCreateTests(APITestCase):
     def test_console_rejects_lottery_with_price(self):
         from django.utils import timezone

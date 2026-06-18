@@ -158,7 +158,14 @@ def run_lottery_draw(event, seed=None, reserved_member_slots=0):
     Randomly select winners from the pool of lottery-pending entries for ``event``.
 
     If ``seed`` is provided the draw is deterministic (used to replay a preview).
-    Sets event.lottery_drawn_at and sends a result email per entry.
+    Marks winners/losers and sets event.lottery_drawn_at.
+
+    Result emails are NOT sent here. Each drawn entry is left with
+    ``lottery_result_email_sent_at = NULL`` and the ``send_lottery_result_emails``
+    management command (run from cron) delivers them out-of-band. Sending dozens
+    of emails synchronously inside the web request previously blew past the
+    gunicorn worker timeout, killing the worker mid-loop and leaving some entrants
+    un-emailed with no way to retry.
 
     Returns a dict with counts: {"winners": N, "losers": M, "entries": total}.
     """
@@ -183,6 +190,7 @@ def run_lottery_draw(event, seed=None, reserved_member_slots=0):
         ep = eps[eid]
         ep.is_lottery_pending = False
         ep.is_confirmed = True
+        # Leave lottery_result_email_sent_at NULL so the cron command emails them.
         ep.save(update_fields=["is_lottery_pending", "is_confirmed"])
 
     for eid in loser_ids:
@@ -194,11 +202,6 @@ def run_lottery_draw(event, seed=None, reserved_member_slots=0):
     from django.utils import timezone
     event.lottery_drawn_at = timezone.now()
     event.save(update_fields=["lottery_drawn_at"])
-
-    for eid in winner_ids:
-        send_lottery_won_email(event, eps[eid].participant)
-    for eid in loser_ids:
-        send_lottery_lost_email(event, eps[eid].participant)
 
     return {"winners": len(winner_ids), "losers": len(loser_ids), "entries": len(all_ids)}
 
@@ -295,26 +298,31 @@ def send_lottery_won_email(event, participant, to_email=None):
     Pass ``to_email`` to redirect the message to a test address instead of the
     participant's own email (used by the "send test emails" feature) so no real
     recipient is contacted.
+
+    Returns ``True`` if the message was sent, ``False`` otherwise. Callers that
+    track delivery (the send_lottery_result_emails command) rely on this so a
+    failure leaves the entry to be retried rather than marked done.
     """
     from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
     recipient = to_email or participant.email
 
-    ctx = Context(_lottery_email_context(event, participant))
-    custom_subject = (event.lottery_won_email_subject or "").strip()
-    custom_body = (event.lottery_won_email_template or "").strip()
+    try:
+        ctx = Context(_lottery_email_context(event, participant))
+        custom_subject = (event.lottery_won_email_subject or "").strip()
+        custom_body = (event.lottery_won_email_template or "").strip()
 
-    if custom_subject:
-        subject = Template(custom_subject).render(ctx)
-    else:
-        subject = f"Great news — you got a spot at {event.title} [please reply to confirm]"
+        if custom_subject:
+            subject = Template(custom_subject).render(ctx)
+        else:
+            subject = f"Great news — you got a spot at {event.title} [please reply to confirm]"
 
-    if custom_body:
-        html_content = Template(custom_body).render(ctx)
-        text_content = ""
-    else:
-        slot_word = "spot" if participant.quantity == 1 else "spots"
-        html_content = f"""
+        if custom_body:
+            html_content = Template(custom_body).render(ctx)
+            text_content = ""
+        else:
+            slot_word = "spot" if participant.quantity == 1 else "spots"
+            html_content = f"""
 <p>Hi {participant.first_name},</p>
 
 <p>Good news! You've been selected in the lottery for <strong>{event.title}</strong>.</p>
@@ -325,14 +333,14 @@ def send_lottery_won_email(event, participant, to_email=None):
 
 <p>— Bird Society of Singapore</p>
 """
-        text_content = (
-            f"Hi {participant.first_name},\n\n"
-            f"Good news! You've been selected in the lottery for {event.title}. "
-            f"This event is in high demand, so to confirm your place, please reply to this email within the next 48 hours. "
-            f"We look forward to seeing you there!\n\n"
-            f"— Bird Society of Singapore"
-        )
-    try:
+            text_content = (
+                f"Hi {participant.first_name},\n\n"
+                f"Good news! You've been selected in the lottery for {event.title}. "
+                f"This event is in high demand, so to confirm your place, please reply to this email within the next 48 hours. "
+                f"We look forward to seeing you there!\n\n"
+                f"— Bird Society of Singapore"
+            )
+
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
@@ -343,8 +351,10 @@ def send_lottery_won_email(event, participant, to_email=None):
         msg.attach_alternative(html_content, "text/html")
         msg.send()
         logger.info(f"Lottery won email sent to {recipient} for event {event.id}")
+        return True
     except Exception as exc:
         logger.error(f"Failed to send lottery won email: {exc}")
+        return False
 
 
 def send_lottery_lost_email(event, participant, to_email=None):
@@ -356,25 +366,30 @@ def send_lottery_lost_email(event, participant, to_email=None):
 
     Pass ``to_email`` to redirect the message to a test address instead of the
     participant's own email (used by the "send test emails" feature).
+
+    Returns ``True`` if the message was sent, ``False`` otherwise. Callers that
+    track delivery (the send_lottery_result_emails command) rely on this so a
+    failure leaves the entry to be retried rather than marked done.
     """
     from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
     recipient = to_email or participant.email
 
-    ctx = Context(_lottery_email_context(event, participant))
-    custom_subject = (event.lottery_lost_email_subject or "").strip()
-    custom_body = (event.lottery_lost_email_template or "").strip()
+    try:
+        ctx = Context(_lottery_email_context(event, participant))
+        custom_subject = (event.lottery_lost_email_subject or "").strip()
+        custom_body = (event.lottery_lost_email_template or "").strip()
 
-    if custom_subject:
-        subject = Template(custom_subject).render(ctx)
-    else:
-        subject = f"Lottery result – {event.title}"
+        if custom_subject:
+            subject = Template(custom_subject).render(ctx)
+        else:
+            subject = f"Lottery result – {event.title}"
 
-    if custom_body:
-        html_content = Template(custom_body).render(ctx)
-        text_content = ""
-    else:
-        html_content = f"""
+        if custom_body:
+            html_content = Template(custom_body).render(ctx)
+            text_content = ""
+        else:
+            html_content = f"""
 <p>Hi {participant.first_name},</p>
 
 <p>Thanks for entering the lottery for <strong>{event.title}</strong>. Unfortunately,
@@ -384,14 +399,14 @@ you weren't selected in this draw. We had more entries than available spots.</p>
 
 <p>— Bird Society of Singapore</p>
 """
-        text_content = (
-            f"Hi {participant.first_name},\n\n"
-            f"Thanks for entering the lottery for {event.title}. Unfortunately, you weren't "
-            f"selected in this draw. We had more entries than available spots.\n\n"
-            f"We hope to see you at a future event!\n\n"
-            f"— Bird Society of Singapore"
-        )
-    try:
+            text_content = (
+                f"Hi {participant.first_name},\n\n"
+                f"Thanks for entering the lottery for {event.title}. Unfortunately, you weren't "
+                f"selected in this draw. We had more entries than available spots.\n\n"
+                f"We hope to see you at a future event!\n\n"
+                f"— Bird Society of Singapore"
+            )
+
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
@@ -402,8 +417,10 @@ you weren't selected in this draw. We had more entries than available spots.</p>
         msg.attach_alternative(html_content, "text/html")
         msg.send()
         logger.info(f"Lottery lost email sent to {recipient} for event {event.id}")
+        return True
     except Exception as exc:
         logger.error(f"Failed to send lottery lost email: {exc}")
+        return False
 
 
 def promote_from_waitlist(event):
