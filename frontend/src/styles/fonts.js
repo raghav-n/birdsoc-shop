@@ -12,5 +12,5 @@
 export const FONTS = {
   display: '"Schibsted Grotesk", system-ui, sans-serif',
   body: '"Hanken Grotesk", system-ui, sans-serif',
-  mono: '"Spline Sans Mono", ui-monospace, monospace',
+  mono: '"IBM Plex Sans Condensed", system-ui, sans-serif',
 };
