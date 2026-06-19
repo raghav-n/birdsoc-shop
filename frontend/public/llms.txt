@@ -1,0 +1,37 @@
+# BirdSoc SG Shop
+
+> The official online shop of the Bird Society of Singapore (UEN T23SS0038A). Browse and buy bird-society merchandise, register for events, and make donations. Payment is via PayNow. Order collection and event details are managed through the site.
+
+## Shop
+
+- [Home](https://shop.birdsociety.sg/): Featured products and shop highlights
+- [Products](https://shop.birdsociety.sg/products): Full merchandise catalogue
+- [Cart](https://shop.birdsociety.sg/cart): Review items before checkout
+- [Checkout](https://shop.birdsociety.sg/checkout): Place an order and pay via PayNow
+
+## Events
+
+- [Events](https://shop.birdsociety.sg/events): Upcoming Bird Society events open for registration
+- [Event details](https://shop.birdsociety.sg/events/:id): Information and registration for a specific event
+
+## Donations
+
+- [Donate](https://shop.birdsociety.sg/donate): Support the Bird Society of Singapore with a donation
+
+## Account & Orders
+
+- [Login](https://shop.birdsociety.sg/login): Sign in to your account
+- [Register](https://shop.birdsociety.sg/register): Create a new account
+- [Orders](https://shop.birdsociety.sg/orders): View your past orders (sign-in required)
+
+## Help
+
+- [FAQ](https://shop.birdsociety.sg/faq): Frequently asked questions
+- [Contact](https://shop.birdsociety.sg/contact): Get in touch with the shop team
+- [Refund policy](https://shop.birdsociety.sg/refund): How refunds and returns work
+
+## About the Bird Society
+
+- [About us](https://birdsociety.sg/about-us/): About the Bird Society of Singapore
+- [Support us](https://birdsociety.sg/support-us/): Ways to support the society
+- [Data protection notice](https://birdsociety.sg/data-protection-notice/): How personal data is handled
