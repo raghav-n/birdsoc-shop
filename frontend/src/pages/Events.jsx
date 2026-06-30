@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import {
   BsPage, BsHero, BsHeroInner, BsOverline, BsH1, BsLead,
@@ -196,6 +197,18 @@ const PastRow = styled.div`
   border-radius: 10px;
   padding: 8px 14px 8px 8px;
   opacity: 0.85;
+  cursor: pointer;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+    border-color: var(--bs-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--bs-accent);
+    outline-offset: 2px;
+  }
 
   @media (max-width: 600px) {
     padding: 8px;
@@ -257,6 +270,7 @@ const formatDateShort = (dateStr) => {
 };
 
 const Events = () => {
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -387,8 +401,21 @@ const Events = () => {
 
             {showPast && (
               <PastList>
-                {pastEvents.map(event => (
-                  <PastRow key={event.id}>
+                {pastEvents.map(event => {
+                  const goToEvent = () => navigate(`/events/${event.slug || event.id}`);
+                  return (
+                  <PastRow
+                    key={event.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={goToEvent}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        goToEvent();
+                      }
+                    }}
+                  >
                     <PastThumb>
                       {event.image_url && <img src={event.image_url} alt={event.title} />}
                     </PastThumb>
@@ -407,6 +434,7 @@ const Events = () => {
                           target="_blank"
                           rel="noopener noreferrer"
                           $size="sm"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <BookOpen size={12} strokeWidth={1.7} />
                           Read recap
@@ -414,7 +442,8 @@ const Events = () => {
                       </RECAP_BTN_HIDE>
                     )}
                   </PastRow>
-                ))}
+                  );
+                })}
               </PastList>
             )}
           </PastSection>
