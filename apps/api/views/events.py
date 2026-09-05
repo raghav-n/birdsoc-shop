@@ -143,6 +143,46 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         ]
         return Response(data)
 
+    @action(detail=False, methods=["get"], url_path="site-cards")
+    def site_cards(self, request):
+        """Presentation-only site cards for a tag, drafts included.
+
+        Returns the ``metadata["site_card"]`` block for every event carrying the
+        requested ``?tag=`` (default ``obd-2026``), regardless of ``is_active``,
+        ordered by the card's ``order``. This is the one place draft events are
+        exposed publicly, and only their landing-page card fields are returned —
+        no capacity, pricing, registration or participant data — so it cannot
+        affect booking behaviour anywhere else. The normal /events list and its
+        draft-hiding are untouched.
+        """
+        tag = (request.query_params.get("tag") or "obd-2026").strip()
+        cards = []
+        # Filter by tag in Python so the JSON lookup works on SQLite and Postgres alike.
+        for e in OrganizedEvent._default_manager.all():
+            if tag not in (e.tags or []):
+                continue
+            card = (e.metadata or {}).get("site_card") if isinstance(e.metadata, dict) else None
+            if not card:
+                continue
+            cards.append(
+                {
+                    "id": e.id,
+                    "slug": e.slug,
+                    "title": e.title,
+                    "location": e.location,
+                    "is_active": e.is_active,
+                    "order": card.get("order"),
+                    "name": card.get("name"),
+                    "region": card.get("region"),
+                    "ebird_url": card.get("ebird_url"),
+                    "start": card.get("start"),
+                    "end": card.get("end"),
+                    "description": card.get("description"),
+                }
+            )
+        cards.sort(key=lambda c: (c.get("order") is None, c.get("order")))
+        return Response(cards)
+
     def retrieve(self, request, pk=None):
         e = self._resolve_event(
             pk, OrganizedEvent._default_manager.select_related("image")

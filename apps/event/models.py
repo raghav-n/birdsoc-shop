@@ -114,6 +114,17 @@ class OrganizedEvent(models.Model):
         default=list,
         help_text=_("List of tag strings for categorising this event"),
     )
+    metadata = models.JSONField(
+        _("Metadata"),
+        blank=True,
+        null=True,
+        default=dict,
+        help_text=_(
+            "Free-form JSON for presentation data that lives with the event "
+            "(e.g. landing-page site-card fields: order, ebird_url, start, end). "
+            "Not used by registration or payment logic."
+        ),
+    )
     blog_url = models.URLField(
         _("Blog post URL"),
         blank=True,
