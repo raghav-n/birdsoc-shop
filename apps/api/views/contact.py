@@ -60,13 +60,9 @@ class ContactFormAPIView(APIView):
 
         if not subject:
             errors["subject"] = "Subject is required"
-        elif len(subject) < 5:
-            errors["subject"] = "Subject must be at least 5 characters"
 
         if not body:
             errors["body"] = "Message is required"
-        elif len(body) < 10:
-            errors["body"] = "Message must be at least 10 characters"
 
         if not pdpa_agreement:
             errors["pdpa_agreement"] = (

@@ -50,24 +50,6 @@ class ContactFormTests(APITestCase):
         self.assertEqual(r.status_code, 400)
         self.assertIn("name", r.data["errors"])
 
-    def test_short_subject(self):
-        r = self.client.post(
-            "/api/v1/contact",
-            self._valid_payload(subject="Hi"),
-            format="json",
-        )
-        self.assertEqual(r.status_code, 400)
-        self.assertIn("subject", r.data["errors"])
-
-    def test_short_body(self):
-        r = self.client.post(
-            "/api/v1/contact",
-            self._valid_payload(body="Short"),
-            format="json",
-        )
-        self.assertEqual(r.status_code, 400)
-        self.assertIn("body", r.data["errors"])
-
     def test_pdpa_not_agreed(self):
         r = self.client.post(
             "/api/v1/contact",
