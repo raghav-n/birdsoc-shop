@@ -456,6 +456,8 @@ function NotesCell({ epId, eventId, initialNotes, onSaved }) {
   );
 }
 
+const unslugify = (s) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+
 // ─── Extra info renderer ──────────────────────────────────────────────────────
 
 function renderExtra(extra, schemaProps) {
@@ -467,7 +469,7 @@ function renderExtra(extra, schemaProps) {
       {Object.entries(items)
         .filter(([k]) => !k.startsWith('_'))
         .map(([k, v]) => (
-          <span key={k}>{schemaProps?.[k]?.title || k}: {String(v)}  </span>
+          <span key={k}>{unslugify(schemaProps?.[k]?.title || k)}: {String(v)}  </span>
         ))}
     </div>
   );
