@@ -61,13 +61,14 @@ const AlertMessage = styled.div`
   line-height: 1.4;
 `;
 
-const Alert = ({ 
-  variant = 'info', 
-  title, 
-  children, 
-  className, 
-  html = null, 
-  safeHtml = false 
+const Alert = ({
+  variant = 'info',
+  title,
+  children,
+  className,
+  html = null,
+  safeHtml = false,
+  hideIcon = false
 }) => {
   const getIcon = () => {
     switch (variant) {
@@ -85,7 +86,7 @@ const Alert = ({
 
   return (
     <AlertContainer variant={variant} className={className}>
-      <AlertIcon>{getIcon()}</AlertIcon>
+      {!hideIcon && <AlertIcon>{getIcon()}</AlertIcon>}
       <AlertContent>
         {title && <AlertTitle>{title}</AlertTitle>}
         <AlertMessage>

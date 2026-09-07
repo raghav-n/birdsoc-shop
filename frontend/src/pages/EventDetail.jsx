@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import styled from 'styled-components';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Calendar, MapPin, Users, ArrowLeft, Check } from 'lucide-react';
 import Alert from '../components/Alert';
 import Loading from '../components/Loading';
@@ -440,6 +440,23 @@ const RVal = styled.span`
   word-break: break-word;
 `;
 
+const ParticipantGroup = styled.div`
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--bs-rule-soft);
+  &:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+`;
+
+const ParticipantHead = styled.div`
+  font-family: var(--bs-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--bs-accent);
+  margin-bottom: 0.35rem;
+`;
+
 // ─── Success ───────────────────────────────────────────────────────────────────
 
 const SlotWarning = styled.div`
@@ -463,8 +480,11 @@ const CountdownBadge = styled.span`
   letter-spacing: 0.4px;
 `;
 
+// Minutes a reserved (unpaid) registration is held before its slot is released.
+const PAYMENT_WINDOW_MIN = 15;
+
 function PaymentCountdown({ registeredAt }) {
-  const WINDOW_MS = 15 * 60 * 1000;
+  const WINDOW_MS = PAYMENT_WINDOW_MIN * 60 * 1000;
   const deadline = new Date(registeredAt).getTime() + WINDOW_MS;
 
   const [remaining, setRemaining] = useState(() => Math.max(0, deadline - Date.now()));
@@ -559,11 +579,34 @@ const fmt = (s) => {
 };
 
 const fmtAmt = (n) => `S$${parseFloat(n).toFixed(2)}`;
+const unslugify = (s) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+
+// Render schema help text, turning [label](url) markdown links into anchors so
+// a field description can point at, e.g., a size chart. Plain text is passed
+// through unchanged.
+const HINT_LINK_RE = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+function renderHint(text) {
+  if (!text) return null;
+  const nodes = [];
+  let lastIndex = 0;
+  let key = 0;
+  let match;
+  HINT_LINK_RE.lastIndex = 0;
+  while ((match = HINT_LINK_RE.exec(text)) !== null) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+    nodes.push(
+      <a key={key++} href={match[2]} target="_blank" rel="noopener noreferrer">{match[1]}</a>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes;
+}
 
 // ─── Extra schema field ────────────────────────────────────────────────────────
 
 function ExtraField({ fieldKey, schema, value, onChange, error }) {
-  const label = schema.title || fieldKey;
+  const label = unslugify(schema.title || fieldKey);
 
   if (schema.type === 'boolean') {
     return (
@@ -584,6 +627,7 @@ function ExtraField({ fieldKey, schema, value, onChange, error }) {
           <option value="">Select…</option>
           {schema.enum.map(opt => <option key={opt} value={opt}>{opt}</option>)}
         </FSelect>
+        {schema.description && <FHint>{renderHint(schema.description)}</FHint>}
         {error && <FError>{error}</FError>}
       </Field>
     );
@@ -597,10 +641,11 @@ function ExtraField({ fieldKey, schema, value, onChange, error }) {
       <FInput
         type={isNumeric ? 'number' : 'text'}
         inputMode={isNumeric ? 'numeric' : undefined}
+        onWheel={isNumeric ? e => e.target.blur() : undefined}
         $err={!!error}
         value={value || ''}
         placeholder={schema.description || ''}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => onChange(isNumeric && e.target.value !== '' ? Number(e.target.value) : e.target.value)}
       />
       {error && <FError>{error}</FError>}
     </Field>
@@ -612,7 +657,20 @@ function ExtraField({ fieldKey, schema, value, onChange, error }) {
 export default function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+
+  // Reserved-allocation access code (e.g. NParks volunteers). Read from the
+  // ?access= link and cached in sessionStorage so the slug canonicalisation
+  // redirect below (which drops the query string) doesn't lose it.
+  const [accessCode] = useState(() => {
+    const fromUrl = searchParams.get('access');
+    if (fromUrl) {
+      try { sessionStorage.setItem('event_access_code', fromUrl); } catch { /* ignore */ }
+      return fromUrl;
+    }
+    try { return sessionStorage.getItem('event_access_code') || ''; } catch { return ''; }
+  });
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -658,12 +716,13 @@ export default function EventDetail() {
         // Canonicalise the URL: if reached via a legacy numeric ID (or any
         // non-slug value), swap to the slug URL without adding a history entry.
         if (data.slug && String(id) !== data.slug) {
-          navigate(`/events/${data.slug}`, { replace: true });
+          const suffix = accessCode ? `?access=${encodeURIComponent(accessCode)}` : '';
+          navigate(`/events/${data.slug}${suffix}`, { replace: true });
         }
       })
       .catch(() => setFetchError('Failed to load event.'))
       .finally(() => setLoading(false));
-  }, [id, navigate]);
+  }, [id, navigate, accessCode]);
 
   const fetchPrice = useCallback(async (qty, donation, allExtraFields) => {
     const n = Number(qty) || 1;
@@ -679,11 +738,12 @@ export default function EventDetail() {
       const data = await eventService.priceBreakdown(id, {
         participants,
         donation: donation ? Math.round(parseFloat(donation) * 100) : 0,
+        access_code: accessCode || undefined,
       });
       setPriceData(data);
     } catch { /* non-critical */ }
     finally { setPriceLoading(false); }
-  }, [id]);
+  }, [id, accessCode]);
 
   useEffect(() => {
     if (!event) return;
@@ -861,15 +921,21 @@ export default function EventDetail() {
         donation: form.donation ? Math.round(parseFloat(form.donation) * 100) : 0,
       };
       if (extraJson.some(o => Object.keys(o).length > 0)) payload.extra_json = extraJson;
+      if (accessCode) payload.access_code = accessCode;
       const res = await eventService.registerForEvent(id, payload);
       setResult(res);
       setStep('success');
+      const paymentRequired =
+        res.confirmed === false && res.registration &&
+        parseFloat(res.registration.amount) > 0;
       showToast.success(
         res.lottery_pending
           ? 'Lottery entry received!'
           : res.waitlisted
             ? "You're on the waitlist!"
-            : 'Registration confirmed!'
+            : paymentRequired
+              ? `Registration confirmed! Please make payment within ${PAYMENT_WINDOW_MIN} minutes.`
+              : 'Registration confirmed!'
       );
     } catch (err) {
       const msg = err.response?.data?.detail || 'Registration failed. Please try again.';
@@ -907,6 +973,13 @@ export default function EventDetail() {
     : unitPrice * qty;
   const grandTotal = priceTotal + donationAmt;
   const capacityAvailable = !priceData?.capacity || priceData.capacity.available;
+
+  // Reserved allocation (e.g. NParks volunteers) unlocked via the ?access= link.
+  // When active it overrides the per-registration quantity cap and price.
+  const allocation = priceData?.allocation || null;
+  const maxQtyCap = allocation
+    ? allocation.max_qty_per_registration
+    : Math.min(event.max_qty ?? 5, 5);
 
   // Result-derived values for success screen
   const isPaidResult = result?.confirmed === false;
@@ -1003,6 +1076,25 @@ export default function EventDetail() {
         }
         if (!isLottery && event.is_full && !event.waitlist_enabled) {
           return <Alert variant="error">This event is full.</Alert>;
+        }
+        // Reserved allocation (e.g. NParks volunteers) is fully claimed.
+        if (allocation && allocation.remaining <= 0) {
+          const goPublic = (e) => {
+            e.preventDefault();
+            try { sessionStorage.removeItem('event_access_code'); } catch { /* ignore */ }
+            window.location.assign(`/events/${event.slug || event.id}`);
+          };
+          return (
+            <Alert variant="warning" hideIcon>
+              Sorry! The {allocation.name} allocation is fully claimed — all
+              reserved slots have been taken.
+              {allocation.public_available && (
+                <> You can still sign up as a member of the public —{' '}
+                  <a href={`/events/${event.slug || event.id}`} onClick={goPublic}>click here</a>.
+                </>
+              )}
+            </Alert>
+          );
         }
 
         const isWaitlistMode = !isLottery && event.waitlist_enabled && (
@@ -1105,22 +1197,24 @@ export default function EventDetail() {
                       <FInput
                         type="number"
                         min="1"
-                        max={Math.min(event.max_qty ?? 5, 5)}
+                        max={maxQtyCap}
                         value={form.quantity}
                         onChange={(e) => {
                           const raw = e.target.value;
                           if (raw === '') { setForm(p => ({ ...p, quantity: '' })); return; }
-                          const cap = Math.min(event.max_qty ?? 5, 5);
-                          const n = Math.max(1, Math.min(cap, Math.floor(Number(raw)) || 1));
+                          const n = Math.max(1, Math.min(maxQtyCap, Math.floor(Number(raw)) || 1));
                           setForm(p => ({ ...p, quantity: n }));
                         }}
                         onBlur={(e) => {
-                          const cap = Math.min(event.max_qty ?? 5, 5);
-                          const n = Math.max(1, Math.min(cap, Math.floor(Number(e.target.value)) || 1));
+                          const n = Math.max(1, Math.min(maxQtyCap, Math.floor(Number(e.target.value)) || 1));
                           setForm(p => ({ ...p, quantity: n }));
                         }}
                       />
-                      <FHint>Max {Math.min(event.max_qty ?? 5, 5)} per registration</FHint>
+                      <FHint>
+                        {allocation
+                          ? `${allocation.name} rate — max ${maxQtyCap} per registration`
+                          : `Max ${maxQtyCap} per registration`}
+                      </FHint>
                     </Field>
                   </FieldGrid>
                 </Section>
@@ -1142,7 +1236,7 @@ export default function EventDetail() {
                         const hasSchema = Object.keys(jsonProps).length > 0;
                         const inner = (
                           <>
-                            {i === 0 && qty > 1 && (
+                            {i === 0 && qty > 1 && (form.first_name || form.last_name || form.email) && (
                               <div style={{
                                 background: 'var(--bs-body)',
                                 border: '1px solid var(--bs-rule-soft)',
@@ -1281,7 +1375,7 @@ export default function EventDetail() {
                           item => (item.tier?.name || '') === (items[0].tier?.name || '') && item.unit_price === items[0].unit_price
                         );
                         if (allSame) {
-                          const label = items[0].tier?.name || 'Event fee';
+                          const label = allocation ? allocation.name : (items[0].tier?.name || 'Event fee');
                           const total = items.reduce((s, item) => s + parseFloat(item.line_total), 0);
                           const count = items.reduce((s, item) => s + item.quantity, 0);
                           return (
@@ -1371,16 +1465,33 @@ export default function EventDetail() {
                     </ReviewRow>
                   )}
                   {qty > 1 && <ReviewRow><RKey>Quantity</RKey><RVal>{qty}</RVal></ReviewRow>}
-                  {extraFields.flatMap((pf, i) =>
-                    Object.entries(pf)
-                      .filter(([, v]) => v !== undefined && v !== '' && v !== false)
-                      .map(([k, v]) => (
-                        <ReviewRow key={`${i}_${k}`}>
-                          <RKey>{qty > 1 ? `P${i + 1}: ` : ''}{jsonProps[k]?.title || k}</RKey>
-                          <RVal>{v === true ? 'Yes' : v === false ? 'No' : String(v)}</RVal>
-                        </ReviewRow>
-                      ))
-                  )}
+                  {qty > 1
+                    ? extraFields.map((pf, i) => {
+                        const ep = i > 0 ? (extraParticipants[i - 1] || {}) : null;
+                        const pName = i === 0
+                          ? `${form.first_name} ${form.last_name}`
+                          : ep?.name || `Participant ${i + 1}`;
+                        const details = Object.keys(jsonProps)
+                          .filter(k => pf[k] !== undefined && pf[k] !== '' && pf[k] !== false)
+                          .map(k => `${unslugify(jsonProps[k]?.title || k)}: ${pf[k] === true ? 'Yes' : String(pf[k])}`)
+                          .join(' · ');
+                        return (
+                          <ReviewRow key={i}>
+                            <RKey>{pName}</RKey>
+                            <RVal style={{ fontSize: '0.78rem', fontWeight: 400 }}>{details}</RVal>
+                          </ReviewRow>
+                        );
+                      })
+                    : extraFields.flatMap((pf, i) =>
+                        Object.keys(jsonProps)
+                          .filter(k => pf[k] !== undefined && pf[k] !== '' && pf[k] !== false)
+                          .map(k => (
+                            <ReviewRow key={`${i}_${k}`}>
+                              <RKey>{unslugify(jsonProps[k]?.title || k)}</RKey>
+                              <RVal>{pf[k] === true ? 'Yes' : pf[k] === false ? 'No' : String(pf[k])}</RVal>
+                            </ReviewRow>
+                          ))
+                      )}
                 </Card>
 
                 <Card>
