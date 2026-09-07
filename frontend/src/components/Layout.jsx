@@ -60,7 +60,11 @@ const Layout = ({ children }) => {
 
   const isDonationPage = location.pathname.startsWith('/donate');
   const isConsolePage = location.pathname === '/console' || location.pathname.startsWith('/console/');
+  const isEventsPage = location.pathname === '/events' || location.pathname.startsWith('/events/');
   const hideBanners = isDonationPage || isConsolePage;
+  // Event registrations don't go through the shop basket, so the "shop closed"
+  // notice is irrelevant (and misleading) on event pages.
+  const hideClosedBanner = hideBanners || isEventsPage;
 
   useEffect(() => {
     bannerService.getTextBanner().then((data) => {
@@ -76,7 +80,7 @@ const Layout = ({ children }) => {
           <SafeHtml html={textBanner} tag="div" />
         </TextBannerBar>
       )}
-      {!shopOpen && !hideBanners && (
+      {!shopOpen && !hideClosedBanner && (
         <ClosedBanner>
           Our shop is currently closed. You can browse products, but purchases are unavailable right now.
         </ClosedBanner>
