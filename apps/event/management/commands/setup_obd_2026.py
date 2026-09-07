@@ -23,6 +23,7 @@ The command is idempotent: it matches existing events by exact title and
 updates them in place, so it is safe to re-run. Re-running never resets
 participant registrations.
 """
+import secrets
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -32,6 +33,8 @@ from django.utils.dateparse import parse_datetime
 from oscar.core.loading import get_model
 
 OrganizedEvent = get_model("event", "OrganizedEvent")
+EventGroup = get_model("event", "EventGroup")
+EventAllocation = get_model("event", "EventAllocation")
 
 # Tentative registration window (Asia/Singapore). Adjust here or via the console.
 REGISTRATION_START = "2026-09-07T09:00:00+08:00"
@@ -47,6 +50,21 @@ CAPACITY_PER_SITE = 20  # 120 places across six sites
 MAX_QTY = 5
 
 TAG = "obd-2026"
+
+# Event group tying the six sites together as one campaign. Enables the shared
+# reserved allocation below (a pool that spans all six events).
+GROUP_NAME = "October Big Day 2026"
+GROUP_SLUG = "october-big-day-2026"
+
+# Reserved allocation: NParks volunteers, one flat pool shared across all six
+# sites. Priced low, one ticket per registration, gated by an access code that
+# is generated once and stored in the DB (never hard-coded here) — the command
+# prints it on creation so it can be circulated to volunteers.
+ALLOCATION_CODE = "nparks"
+ALLOCATION_NAME = "NParks Volunteer"
+ALLOCATION_TOTAL_SLOTS = 15
+ALLOCATION_PRICE = Decimal("5.00")
+ALLOCATION_MAX_QTY = 1
 
 # Landing page this event ties back to.
 EVENT_HOME = "https://obd26.birdsociety.sg"
@@ -259,6 +277,20 @@ class Command(BaseCommand):
         reg_start = _dt(REGISTRATION_START)
         reg_end = _dt(REGISTRATION_END)
 
+        # Event group (umbrella over the six sites). Created up front so each
+        # event can be attached to it in the loop below.
+        group = None
+        if not dry_run:
+            group, group_created = EventGroup._default_manager.get_or_create(
+                slug=GROUP_SLUG,
+                defaults={"name": GROUP_NAME},
+            )
+            self.stdout.write(
+                f"[{'CREATE' if group_created else 'EXISTS'}] group {GROUP_NAME} ({GROUP_SLUG})"
+            )
+        else:
+            self.stdout.write(f"[GROUP] {GROUP_NAME} ({GROUP_SLUG})")
+
         created, updated = 0, 0
 
         for order, site in enumerate(SITES, start=1):
@@ -305,6 +337,7 @@ class Command(BaseCommand):
                 waitlist_enabled=False,
                 tags=[TAG],
                 metadata={"site_card": site_card},
+                group=group,
                 is_active=is_active,
             )
 
@@ -326,12 +359,50 @@ class Command(BaseCommand):
                     updated += 1
 
         if dry_run:
+            self.stdout.write(
+                f"[ALLOCATION] {ALLOCATION_NAME}: {ALLOCATION_TOTAL_SLOTS} slots @ "
+                f"${ALLOCATION_PRICE}, max {ALLOCATION_MAX_QTY}/registration"
+            )
             self.stdout.write(self.style.WARNING("Dry-run: no changes applied."))
             return
+
+        # Reserved allocation for the group. Idempotent: created once with a
+        # freshly generated access code stored in the DB; re-runs keep the
+        # existing code and slot count so the circulated link stays valid.
+        allocation, alloc_created = EventAllocation._default_manager.get_or_create(
+            group=group,
+            code=ALLOCATION_CODE,
+            defaults={
+                "name": ALLOCATION_NAME,
+                "total_slots": ALLOCATION_TOTAL_SLOTS,
+                "price_incl_tax": ALLOCATION_PRICE,
+                "max_qty_per_registration": ALLOCATION_MAX_QTY,
+                "access_code": f"NPARKS-OBD26-{secrets.token_hex(3).upper()}",
+                "is_active": True,
+            },
+        )
+        if alloc_created:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"[CREATE] allocation {ALLOCATION_NAME}: {ALLOCATION_TOTAL_SLOTS} "
+                    f"slots @ ${ALLOCATION_PRICE}, max {ALLOCATION_MAX_QTY}/registration"
+                )
+            )
+        else:
+            self.stdout.write(
+                f"[EXISTS] allocation {ALLOCATION_NAME} "
+                f"({allocation.claimed}/{allocation.total_slots} claimed) — code preserved"
+            )
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Done. {created} created, {updated} updated. "
                 f"State: {'ACTIVE (public)' if force_active else 'draft (hidden)' if force_active is False else 'unchanged'}."
+            )
+        )
+        self.stdout.write(
+            self.style.WARNING(
+                f"\nNParks access code: {allocation.access_code}\n"
+                "Append it to any site link as ?access=<code> and circulate to volunteers."
             )
         )

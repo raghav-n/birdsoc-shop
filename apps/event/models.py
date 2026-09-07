@@ -18,6 +18,68 @@ class EventImage(models.Model):
         ordering = ["-uploaded_at"]
 
 
+class EventGroup(models.Model):
+    """
+    A collection of related events that belong together as one campaign or
+    series (e.g. the six "October Big Day 2026" site events).
+
+    A group is an umbrella for presentation (one landing page over many events)
+    and for shared registration rules such as reserved allocations
+    (see :class:`EventAllocation`) that span every event in the group.
+    """
+
+    name = models.CharField(_("Name"), max_length=255)
+    slug = models.SlugField(
+        _("Slug"),
+        max_length=300,
+        unique=True,
+        help_text=_("URL-friendly identifier used in group landing links."),
+    )
+    description = models.TextField(_("Description"), blank=True)
+    metadata = models.JSONField(
+        _("Metadata"),
+        blank=True,
+        null=True,
+        default=dict,
+        help_text=_("Free-form presentation data shared across the group."),
+    )
+    is_active = models.BooleanField(_("Active"), default=True)
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = _("Event Group")
+        verbose_name_plural = _("Event Groups")
+
+    def __str__(self):
+        return self.name
+
+    def reserved_hold(self):
+        """Reserved seats still held back for the public across active allocations."""
+        return sum(a.remaining for a in self.allocations.filter(is_active=True))
+
+    def public_capacity_remaining(self):
+        """
+        Seats still available to the *public* across the whole group, holding
+        back reserved allocation slots that have not yet been claimed.
+
+        The hold is dynamic: as volunteers claim reserved slots those slots move
+        out of "held" into "occupied", so the public ceiling stays put while
+        unclaimed reserved seats shrink. Returns ``None`` when any event in the
+        group is uncapped (no meaningful group ceiling to enforce).
+        """
+        events = list(self.events.all())
+        if not events:
+            return None
+        caps = [e.max_participants for e in events]
+        if any(c is None for c in caps):
+            return None
+        total_cap = sum(caps)
+        occupied = sum(e.participant_count + e.pending_count for e in events)
+        return max(total_cap - self.reserved_hold() - occupied, 0)
+
+
 class OrganizedEvent(models.Model):
     """
     Model representing an organized event.
@@ -76,6 +138,18 @@ class OrganizedEvent(models.Model):
         on_delete=models.SET_NULL,
         related_name="events",
         verbose_name=_("Image"),
+    )
+    group = models.ForeignKey(
+        "event.EventGroup",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="events",
+        verbose_name=_("Event Group"),
+        help_text=_(
+            "Optional group tying this event to a wider campaign/series. Enables "
+            "shared reserved allocations across every event in the group."
+        ),
     )
     validate_participant_data = models.BooleanField(
         _("Validate participant data"),
@@ -608,6 +682,16 @@ class EventRegistration(models.Model):
         null=True,
         blank=True,
     )
+    # Optional link to a reserved allocation (e.g. NParks volunteer pool) that
+    # was consumed by this registration. Used to count usage against the
+    # allocation's group-wide cap.
+    allocation = models.ForeignKey(
+        "event.EventAllocation",
+        on_delete=models.SET_NULL,
+        related_name="registrations",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     payment_verified = models.BooleanField(default=False)
     payment_verified_by = models.ForeignKey(
@@ -728,4 +812,101 @@ class EventRegistrationGroup(models.Model):
         """Return all Participants linked to this payment group."""
         return self.registrations.select_related("participant").values_list(
             "participant__first_name", "participant__last_name"
+        )
+
+
+class EventAllocation(models.Model):
+    """
+    A reserved pool of slots shared across every event in an :class:`EventGroup`,
+    with its own price, per-registration cap and access gate.
+
+    Example: 15 slots reserved for NParks volunteers across the six October Big
+    Day sites, at $5 each, one ticket per registration, unlocked by an access
+    code embedded in the group landing link.
+
+    The pool is drained globally: a registration at *any* event in the group
+    that quotes the access code consumes one slot, until ``total_slots`` is
+    reached. This is the one constraint per-event capacity cannot express.
+    """
+
+    group = models.ForeignKey(
+        EventGroup,
+        on_delete=models.CASCADE,
+        related_name="allocations",
+        verbose_name=_("Event Group"),
+    )
+    code = models.SlugField(
+        _("Code"),
+        max_length=50,
+        help_text=_("Machine slug for this allocation, e.g. 'nparks'."),
+    )
+    name = models.CharField(
+        _("Name"),
+        max_length=255,
+        help_text=_("Human label shown to eligible registrants, e.g. 'NParks Volunteer'."),
+    )
+    total_slots = models.PositiveIntegerField(
+        _("Total slots"),
+        help_text=_("Size of the reserved pool, shared across the whole group."),
+    )
+    price_incl_tax = models.DecimalField(
+        _("Price (incl tax)"), max_digits=12, decimal_places=2, default=0
+    )
+    max_qty_per_registration = models.PositiveIntegerField(
+        _("Max quantity per registration"),
+        default=1,
+        help_text=_("Cap on tickets a single registration may book from this pool."),
+    )
+    access_code = models.CharField(
+        _("Access code"),
+        max_length=64,
+        blank=True,
+        help_text=_(
+            "Code that unlocks this allocation (matched case-insensitively). "
+            "Delivered via the group landing link; leave blank to disable the gate."
+        ),
+    )
+    is_active = models.BooleanField(_("Active"), default=True)
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
+
+    class Meta:
+        ordering = ["group", "name"]
+        unique_together = [("group", "code")]
+        verbose_name = _("Event Allocation")
+        verbose_name_plural = _("Event Allocations")
+
+    def __str__(self):
+        return f"{self.name} ({self.claimed}/{self.total_slots}) — {self.group.name}"
+
+    @property
+    def claimed(self):
+        """Slots consumed so far: non-cancelled registrations across the group."""
+        from django.db.models import Sum
+
+        total = (
+            self.registrations.exclude(status="cancelled")
+            .aggregate(n=Sum("participant__quantity"))
+            .get("n")
+        )
+        return int(total or 0)
+
+    @property
+    def remaining(self):
+        return max(self.total_slots - self.claimed, 0)
+
+    @classmethod
+    def resolve(cls, event, access_code):
+        """
+        Return the active allocation on ``event``'s group matching ``access_code``,
+        or ``None`` if the event has no group, the code is blank, or nothing matches.
+        """
+        code = (access_code or "").strip()
+        group_id = getattr(event, "group_id", None)
+        if not code or not group_id:
+            return None
+        return (
+            cls.objects.filter(group_id=group_id, is_active=True)
+            .filter(access_code__iexact=code)
+            .first()
         )

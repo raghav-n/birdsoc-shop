@@ -18,6 +18,7 @@ Participant = get_model("event", "Participant")
 EventParticipant = get_model("event", "EventParticipant")
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
+EventAllocation = get_model("event", "EventAllocation")
 
 # Global registration flag helpers
 from apps.event.utils import get_global_registration_closed
@@ -200,7 +201,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "start_date": e.start_date,
             "end_date": e.end_date,
             "location": e.location,
-            "participant_count": e.participant_count,
+            "participant_count": e.participant_count + e.pending_count,
             "max_participants": e.max_participants,
             "is_active": e.is_active,
             "is_full": e.is_full,
@@ -350,7 +351,30 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(
                 {"detail": "quantity must be >= 1"}, status=status.HTTP_400_BAD_REQUEST
             )
-        if quantity > event.max_qty:
+        # Reserved allocation (e.g. NParks volunteer pool): unlocked by an
+        # access code carried in the registration payload. When present, it
+        # overrides price and per-registration quantity, and draws from a
+        # group-wide pool checked below just before the record is created.
+        allocation = EventAllocation.resolve(event, request.data.get("access_code"))
+
+        if allocation is not None:
+            if quantity > allocation.max_qty_per_registration:
+                return Response(
+                    {
+                        "detail": f"Maximum {allocation.max_qty_per_registration} "
+                        f"ticket(s) per registration for {allocation.name}."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if allocation.remaining < quantity:
+                return Response(
+                    {
+                        "detail": f"The reserved {allocation.name} allocation is full.",
+                        "code": "allocation_full",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif quantity > event.max_qty:
             return Response(
                 {"detail": f"Maximum {event.max_qty} tickets per registration"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -358,7 +382,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Duplicate email check: reject if this email is already registered for the same event
         if EventParticipant.objects.filter(
-            event=event, participant__email__iexact=email
+            event=event, participant__email__iexact=email, is_cancelled=False
         ).exists():
             return Response(
                 {"detail": "This email is already registered for this event."},
@@ -389,11 +413,23 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # Compute unit price from price_tiers (fallback to event.price_incl_tax)
-        unit_price = event.get_unit_price_from_tiers(extra_json or {})
+        # Compute per-participant price. A reserved allocation sets a flat price
+        # for every ticket and bypasses the event's tier rules; otherwise price
+        # is resolved from the event's price_tiers.
         from decimal import Decimal as _D
 
-        amount = unit_price * _D(str(quantity))
+        if allocation is not None:
+            unit_price = _D(str(allocation.price_incl_tax))
+            amount = unit_price * _D(str(quantity))
+        elif isinstance(extra_json, list) and extra_json:
+            amount = sum(
+                (event.get_unit_price_from_tiers(slot) for slot in extra_json),
+                _D("0"),
+            )
+            unit_price = amount / _D(str(quantity)) if quantity else amount
+        else:
+            unit_price = event.get_unit_price_from_tiers(extra_json or {})
+            amount = unit_price * _D(str(quantity))
         # Optional donation top-up (parse early to determine paid flow correctly)
         donation_raw = request.data.get("donation")
         donation_int = 0
@@ -465,11 +501,20 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_201_CREATED,
             )
 
-        # Capacity check: include pending registrations if paid
+        # Capacity check: include pending registrations if paid.
+        # For public registrations in a group, the effective ceiling also holds
+        # back unclaimed reserved allocation slots across the whole group.
+        # Reserved-allocation registrations bypass the hold (they consume it).
         if event.max_participants is not None:
             confirmed = event.participant_count
             pending = event.pending_count if is_paid else 0
-            if confirmed + pending + quantity > event.max_participants:
+            site_remaining = event.max_participants - confirmed - pending
+            effective_remaining = site_remaining
+            if allocation is None and event.group_id:
+                group_remaining = event.group.public_capacity_remaining()
+                if group_remaining is not None:
+                    effective_remaining = min(effective_remaining, group_remaining)
+            if quantity > effective_remaining:
                 if event.waitlist_enabled and not is_paid:
                     # Join the waitlist instead
                     event_participant = EventParticipant.objects.create(
@@ -507,7 +552,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                         },
                         status=status.HTTP_201_CREATED,
                     )
-                remaining = max(event.max_participants - confirmed - pending, 0)
+                remaining = max(effective_remaining, 0)
                 return Response(
                     {
                         "detail": f"Cannot add participant. Only {remaining} spots remaining."
@@ -558,22 +603,43 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Create with temporary reference to get ID
         from oscar.core.loading import get_model as _get_model
+        from django.db import transaction as _transaction
 
         EventRegistration = _get_model("event", "EventRegistration")
 
-        reg = EventRegistration.objects.create(
-            event=event,
-            participant=participant,
-            amount=amount,
-            currency=event.currency,
-            reference="",  # set after we have an ID
-            emergency_contact_name=emergency_contact_name,
-            emergency_contact_phone=emergency_contact_phone,
-            donation_amount=Decimal(donation_int or 0),
-        )
-        # Set deterministic reference now that we have an ID
-        reg.reference = f"EV-{event.id}-{reg.id}"
-        reg.save(update_fields=["reference"])
+        # Authoritative pool check for reserved allocations: lock the allocation
+        # row and re-count under the lock so concurrent registrations cannot
+        # oversell the shared pool. The early check above is only a fast reject.
+        with _transaction.atomic():
+            if allocation is not None:
+                locked = (
+                    EventAllocation.objects.select_for_update()
+                    .filter(pk=allocation.pk)
+                    .first()
+                )
+                if locked is None or locked.remaining < quantity:
+                    return Response(
+                        {
+                            "detail": f"The reserved {allocation.name} allocation is full.",
+                            "code": "allocation_full",
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            reg = EventRegistration.objects.create(
+                event=event,
+                participant=participant,
+                amount=amount,
+                currency=event.currency,
+                reference="",  # set after we have an ID
+                emergency_contact_name=emergency_contact_name,
+                emergency_contact_phone=emergency_contact_phone,
+                donation_amount=Decimal(donation_int or 0),
+                allocation=allocation,
+            )
+            # Set deterministic reference now that we have an ID
+            reg.reference = f"EV-{event.id}-{reg.id}"
+            reg.save(update_fields=["reference"])
 
         upload = request.FILES.get("payment_proof")
         if upload:
@@ -1000,6 +1066,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 {"detail": "Event not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        # Reserved allocation preview: if a valid access code is supplied, the
+        # returned prices/allocation block reflect the reserved pool.
+        allocation = EventAllocation.resolve(event, request.data.get("access_code"))
+
         participants_payload = request.data.get("participants")
         if participants_payload is None:
             return Response(
@@ -1076,7 +1146,10 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-            unit_price = event.get_unit_price_from_tiers(extra_json or {})
+            if allocation is not None:
+                unit_price = _D(str(allocation.price_incl_tax))
+            else:
+                unit_price = event.get_unit_price_from_tiers(extra_json or {})
             line_total = unit_price * _D(str(quantity))
             total_qty += quantity
             total_amount += line_total
@@ -1120,12 +1193,18 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
 
         requires_payment = (total_amount > 0) or (donation_int > 0)
 
-        # Capacity preview
+        # Capacity preview. Public previews (no allocation) in a group are
+        # capped by the group-wide hold on unclaimed reserved slots; reserved
+        # previews see the plain per-site remaining.
         capacity = None
         if event.max_participants is not None:
             confirmed = event.participant_count
             pending = event.pending_count if requires_payment else 0
             remaining = max(event.max_participants - confirmed - pending, 0)
+            if allocation is None and event.group_id:
+                group_remaining = event.group.public_capacity_remaining()
+                if group_remaining is not None:
+                    remaining = min(remaining, group_remaining)
             capacity = {
                 "available": total_qty <= remaining,
                 "remaining": remaining,
@@ -1147,5 +1226,27 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         }
         if capacity is not None:
             response["capacity"] = capacity
+
+        if allocation is not None:
+            # Whether a general-public registration could still proceed at this
+            # site (honouring the group-wide hold) — used to offer a public
+            # fallback when the reserved allocation is exhausted.
+            public_available = True
+            if event.max_participants is not None:
+                pub_remaining = event.max_participants - event.participant_count - event.pending_count
+                if event.group_id:
+                    group_remaining = event.group.public_capacity_remaining()
+                    if group_remaining is not None:
+                        pub_remaining = min(pub_remaining, group_remaining)
+                public_available = pub_remaining >= total_qty
+            response["allocation"] = {
+                "code": allocation.code,
+                "name": allocation.name,
+                "price_incl_tax": str(allocation.price_incl_tax),
+                "max_qty_per_registration": allocation.max_qty_per_registration,
+                "remaining": allocation.remaining,
+                "total_slots": allocation.total_slots,
+                "public_available": public_available,
+            }
 
         return Response(response)
