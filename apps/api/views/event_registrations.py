@@ -11,7 +11,6 @@ from apps.util.gmail_client import (
     find_paynow_email_for_event_registration,
     GmailClientError,
 )
-from apps.event.utils import send_payment_confirmation_email, send_group_payment_confirmation_emails
 
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
@@ -245,13 +244,14 @@ class EventRegistrationPayNowEmailCheckView(APIView):
                 "message": f"Amount mismatch. Expected SGD {expected}.",
             })
 
-        from django.utils import timezone
-        reg.payment_verified = True
-        reg.payment_verified_on = timezone.now()
-        reg.status = "confirmed"
-        reg.save(update_fields=["payment_verified", "payment_verified_on", "status"])
-
-        send_payment_confirmation_email(reg)
+        # Delegate to the canonical verify() so the participant slot is
+        # confirmed (is_confirmed=True), status is set to the valid "paid"
+        # value, and the confirmation email is sent — matching the manual
+        # verification path. Hand-rolling these fields here previously left
+        # status="confirmed" (not a valid STATUS_CHOICES value) and the
+        # EventParticipant unconfirmed, so the registration was neither
+        # counted toward capacity nor shown as confirmed in the console.
+        reg.verify()
 
         return Response({"confirmed": True, "amount": found["amount"]})
 
@@ -307,13 +307,12 @@ class EventRegistrationGroupPayNowEmailCheckView(APIView):
                 "message": f"Amount mismatch. Expected SGD {expected}.",
             })
 
-        from django.utils import timezone
-        grp.payment_verified = True
-        grp.payment_verified_on = timezone.now()
-        grp.status = "confirmed"
-        grp.save(update_fields=["payment_verified", "payment_verified_on", "status"])
-        grp.registrations.filter(status="pending").update(status="confirmed")
-
-        send_group_payment_confirmation_emails(grp)
+        # Delegate to the canonical verify() so every child registration's
+        # participant slot is confirmed (is_confirmed=True) and its status set
+        # to the valid "paid" value, and the group confirmation email is sent.
+        # Hand-rolling these fields here previously left statuses as the invalid
+        # "confirmed" value with participants unconfirmed, so paid group
+        # registrations counted toward neither capacity nor the confirmed list.
+        grp.verify()
 
         return Response({"confirmed": True, "amount": found["amount"]})
