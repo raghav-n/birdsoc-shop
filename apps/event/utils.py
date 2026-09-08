@@ -640,7 +640,7 @@ def send_slot_released_email(registration=None, group=None):
 Due to high demand, we've had to release your {slot_word}.</p>
 
 <p>If you'd still like to attend, please <a href="https://shop.birdsociety.sg/events/{event.id}">register again</a>
-while spots are available.</p>
+while spots are available. If you think this is a mistake, please let us know by replying to this email.</p>
 
 <p>Sorry for the inconvenience — we hope to see you there!</p>
 
@@ -651,7 +651,7 @@ while spots are available.</p>
         f"We haven't received payment for {event.title} within 15 minutes of your registration. "
         f"Due to high demand, we've had to release your {slot_word}.\n\n"
         f"If you'd still like to attend, please register again at https://shop.birdsociety.sg/events/{event.id} "
-        f"while spots are available.\n\n"
+        f"while spots are available. If you think this is a mistake, please let us know by replying to this email.\n\n"
         f"Sorry for the inconvenience — we hope to see you there!\n\n"
         f"— Bird Society of Singapore"
     )
