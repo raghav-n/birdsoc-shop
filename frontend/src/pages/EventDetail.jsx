@@ -737,7 +737,7 @@ export default function EventDetail() {
     try {
       const data = await eventService.priceBreakdown(id, {
         participants,
-        donation: donation ? Math.round(parseFloat(donation) * 100) : 0,
+        donation: donation ? Math.round(parseFloat(donation)) : 0,
         access_code: accessCode || undefined,
       });
       setPriceData(data);
@@ -918,7 +918,7 @@ export default function EventDetail() {
         emergency_contact_name: form.emergency_contact_name.trim(),
         emergency_contact_phone: form.emergency_contact_phone.trim(),
         quantity: qtyNum,
-        donation: form.donation ? Math.round(parseFloat(form.donation) * 100) : 0,
+        donation: form.donation ? Math.round(parseFloat(form.donation)) : 0,
       };
       if (extraJson.some(o => Object.keys(o).length > 0)) payload.extra_json = extraJson;
       if (accessCode) payload.access_code = accessCode;
