@@ -33,17 +33,35 @@ def _can_view_drafts(user):
     return user.groups.filter(name="Events").exists()
 
 
-def _inject_prior_attendance(event):
-    """Return json_schema with attended_before field appended when the event collects it."""
-    schema = event.json_schema
-    if not event.collect_prior_attendance:
-        return schema
-    prop = {"title": "I have attended this event before.", "type": "boolean"}
+def _append_schema_prop(schema, key, prop):
+    """Return a copy of ``schema`` with ``prop`` appended under ``key``."""
     if not schema or not schema.get("properties"):
-        return {"type": "object", "properties": {"attended_before": prop}}
+        return {"type": "object", "properties": {key: prop}}
     merged = dict(schema)
-    merged["properties"] = dict(schema["properties"], attended_before=prop)
+    merged["properties"] = dict(schema["properties"], **{key: prop})
     return merged
+
+
+def _inject_dynamic_questions(event):
+    """Return json_schema with console-toggled questions appended when enabled."""
+    schema = event.json_schema
+    if event.collect_prior_attendance:
+        schema = _append_schema_prop(
+            schema,
+            "attended_before",
+            {"title": "I have attended this event before.", "type": "boolean"},
+        )
+    if event.collect_driving:
+        schema = _append_schema_prop(
+            schema,
+            "driving",
+            {
+                "title": "Will you be driving?",
+                "type": "string",
+                "enum": ["Yes", "No", "Unsure"],
+            },
+        )
+    return schema
 
 
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -120,7 +138,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "is_full": e.is_full,
                 "price_incl_tax": str(e.price_incl_tax),
                 "currency": e.currency,
-                "json_schema": _inject_prior_attendance(e),
+                "json_schema": _inject_dynamic_questions(e),
                 "price_tiers": e.price_tiers,
                 "max_qty": e.max_qty,
                 "validate_participant_data": e.validate_participant_data,
@@ -207,7 +225,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             "is_full": e.is_full,
             "price_incl_tax": str(e.price_incl_tax),
             "currency": e.currency,
-            "json_schema": _inject_prior_attendance(e),
+            "json_schema": _inject_dynamic_questions(e),
             "price_tiers": e.price_tiers,
             "max_qty": e.max_qty,
             "validate_participant_data": e.validate_participant_data,

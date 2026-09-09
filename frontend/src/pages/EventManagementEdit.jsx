@@ -888,6 +888,7 @@ const EMPTY_FORM = {
   waitlist_enabled: false,
   signup_mode: 'first_come',
   collect_prior_attendance: false,
+  collect_driving: false,
   price_incl_tax: '0.00',
   confirmed_email_template: DEFAULT_EMAIL_TEMPLATE,
   lottery_won_email_subject: DEFAULT_LOTTERY_WON_SUBJECT,
@@ -949,6 +950,7 @@ export default function EventManagementEdit() {
           waitlist_enabled: event.waitlist_enabled ?? false,
           signup_mode: event.signup_mode || 'first_come',
           collect_prior_attendance: event.collect_prior_attendance ?? false,
+          collect_driving: event.collect_driving ?? false,
           price_incl_tax: event.price_incl_tax || '0.00',
           confirmed_email_template: event.confirmed_email_template || DEFAULT_EMAIL_TEMPLATE,
           lottery_won_email_subject: event.lottery_won_email_subject || DEFAULT_LOTTERY_WON_SUBJECT,
@@ -1031,6 +1033,7 @@ export default function EventManagementEdit() {
       waitlist_enabled: parseFloat(form.price_incl_tax) > 0 ? false : form.waitlist_enabled,
       signup_mode: parseFloat(form.price_incl_tax) > 0 ? 'first_come' : form.signup_mode,
       collect_prior_attendance: form.collect_prior_attendance,
+      collect_driving: form.collect_driving,
       price_incl_tax: form.price_incl_tax,
       currency: 'SGD',
       json_schema: fieldsToSchema(schemaFields),
@@ -1382,6 +1385,21 @@ export default function EventManagementEdit() {
                     </CheckboxRow>
                     <Hint>
                       Adds a checkbox to the registration form.{isLottery ? ' In lottery mode, returning participants are deprioritized in the draw.' : ''}
+                    </Hint>
+                  </Field>
+                </Row>
+                <Row>
+                  <Field>
+                    <CheckboxRow>
+                      <input
+                        type="checkbox"
+                        checked={form.collect_driving}
+                        onChange={set('collect_driving')}
+                      />
+                      Ask whether participants will be driving
+                    </CheckboxRow>
+                    <Hint>
+                      Adds a "Will you be driving?" question (Yes / No / Unsure) to the registration form.
                     </Hint>
                   </Field>
                 </Row>

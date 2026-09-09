@@ -111,6 +111,7 @@ def _serialize_event(event, include_participants=False):
         "lottery_drawn_at": event.lottery_drawn_at,
         "lottery_entry_count": event.lottery_entry_count,
         "collect_prior_attendance": event.collect_prior_attendance,
+        "collect_driving": event.collect_driving,
         "guide_token": str(event.guide_token),
         "stats": {
             "confirmed": event.participant_count,
@@ -297,6 +298,7 @@ class ConsoleEventsViewSet(ViewSet):
                 image=image,
                 blog_url=blog_url,
                 collect_prior_attendance=bool(data.get("collect_prior_attendance", False)),
+                collect_driving=bool(data.get("collect_driving", False)),
             )
         except Exception as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -321,6 +323,7 @@ class ConsoleEventsViewSet(ViewSet):
             "lottery_won_email_subject", "lottery_won_email_template",
             "lottery_lost_email_subject", "lottery_lost_email_template",
             "collect_prior_attendance",
+            "collect_driving",
         ]
         if "signup_mode" in data:
             if data["signup_mode"] not in dict(OrganizedEvent.SIGNUP_MODE_CHOICES):

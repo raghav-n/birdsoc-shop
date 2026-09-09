@@ -272,6 +272,14 @@ class OrganizedEvent(models.Model):
             "deprioritized in the draw."
         ),
     )
+    collect_driving = models.BooleanField(
+        _("Collect driving"),
+        default=False,
+        help_text=_(
+            "When enabled, participants are asked whether they will be driving "
+            "to the event (Yes / No / Unsure)."
+        ),
+    )
     lottery_won_email_subject = models.CharField(
         _("Lottery 'won' email subject"),
         max_length=255,
