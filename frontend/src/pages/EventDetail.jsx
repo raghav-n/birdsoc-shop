@@ -956,8 +956,12 @@ export default function EventDetail() {
   const donationAmt = (event.is_lottery || !form.donation) ? 0 : parseFloat(form.donation);
   const isLottery = !!event.is_lottery;
   const lotteryDrawn = !!event.lottery_drawn_at;
+  // Prefer the group-aware slots_left from the API (it holds back reserved
+  // allocation seats); fall back to the per-event count for older responses.
   const spotsLeft = (!isLottery && event.max_participants != null)
-    ? event.max_participants - (event.participant_count || 0)
+    ? (event.slots_left != null
+        ? event.slots_left
+        : event.max_participants - (event.participant_count || 0))
     : null;
   // Registration (and therefore the waitlist) is only actually open when it
   // hasn't been closed globally/manually and the close date hasn't passed.

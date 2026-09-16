@@ -207,9 +207,13 @@ const eventToneFromTag = (tag) => {
 
 const EventCard = ({ event, featured }) => {
   const navigate = useNavigate();
-  const spotsLeft = event.max_participants
-    ? event.max_participants - (event.participant_count || 0)
-    : null;
+  // Prefer the group-aware slots_left from the API (it holds back reserved
+  // allocation seats); fall back to the per-event count for older responses.
+  const spotsLeft = event.slots_left != null
+    ? event.slots_left
+    : (event.max_participants
+        ? event.max_participants - (event.participant_count || 0)
+        : null);
   const isFull = event.is_full || spotsLeft === 0;
   const dp = event.start_date ? getDateParts(event.start_date) : null;
   const endDp = event.end_date ? getDateParts(event.end_date) : null;

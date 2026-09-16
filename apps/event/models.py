@@ -413,6 +413,40 @@ class OrganizedEvent(models.Model):
         return (self.participant_count + self.pending_count) >= self.max_participants
 
     @property
+    def public_slots_left(self):
+        """
+        Seats a public (non-reserved) registrant can still book, holding back
+        any unclaimed reserved allocation slots in this event's group.
+
+        Mirrors the capacity check used by the quote/registration flow: the
+        plain per-event remaining, then capped by the group-wide public ceiling
+        (:meth:`EventGroup.public_capacity_remaining`). Returns ``None`` when the
+        event is uncapped, so callers can treat it as "no limit".
+        """
+        if self.max_participants is None:
+            return None
+        remaining = max(
+            self.max_participants - self.participant_count - self.pending_count, 0
+        )
+        if self.group_id:
+            group_remaining = self.group.public_capacity_remaining()
+            if group_remaining is not None:
+                remaining = min(remaining, group_remaining)
+        return remaining
+
+    @property
+    def public_is_full(self):
+        """
+        True when no seats remain for the *public*, excluding reserved
+        allocation slots still held back for the group. Unlike :attr:`is_full`,
+        an event whose only free seats are a reserved hold reads as full here.
+        """
+        left = self.public_slots_left
+        if left is None:
+            return False
+        return left <= 0
+
+    @property
     def waitlist_count(self):
         """Number of non-cancelled waitlisted entries."""
         return self.eventparticipant_set.filter(is_waitlisted=True, is_cancelled=False).count()
