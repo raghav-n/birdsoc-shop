@@ -205,7 +205,7 @@
           <a href="#faq" class="nav-link">FAQ</a>
           <a href="#contact" class="nav-link">Contact</a>
         </span>
-        <a href="#register" class="btn btn-primary btn-sm">Register</a>
+        <a id="navCta" href="#register" class="btn btn-primary btn-sm">Register</a>
       </nav>
     </div>
   </header>
@@ -221,7 +221,7 @@
           <span class="wc-clip" style="font-size:clamp(44px,min(15.3vw,15svh),178px);margin-top:-4px">BIG DAY</span>
           <span style="font-size:clamp(31px,4.4vw,42px);color:var(--amber);letter-spacing:0.08em;margin-top:16px">2026</span>
         </h1>
-        <a href="#register" class="btn btn-primary btn-lg">Register now →</a>
+        <a id="heroCta" href="#register" class="btn btn-primary btn-lg">Register now →</a>
       </div>
     </div>
     <div style="width:100%;max-width:min(1040px,74svh);box-sizing:border-box;margin:16px auto clamp(-18px,-2.3vw,-7px);padding:0 24px;display:flex;align-items:flex-end;justify-content:center;gap:clamp(6px,2.2vw,20px)">
@@ -674,20 +674,35 @@
 
   function setCopy(state) {
     const set = function (id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    // Drive the two standalone CTA buttons (nav + hero). When registration is
+    // not bookable, relabel them and make them non-interactive so the page
+    // never invites people to register into a full or unopened event.
+    const setCta = function (txt, bookable) {
+      ['navCta', 'heroCta'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = txt;
+        if (bookable) {
+          el.removeAttribute('aria-disabled');
+        } else {
+          el.setAttribute('aria-disabled', 'true');
+        }
+      });
+    };
     if (state === 'open') {
-      set('heroCta', 'Register now');
+      setCta('Register now', true);
       set('placesHeading', 'places — register early');
       set('placesBody', 'Sites fill on a first-come basis. Confirmation is sent by email once payment is received.');
       set('registerHeading', 'Register now');
       set('registerBody', 'Slots are limited! The event starts at 1pm at Fort Canning Park and ends at your selected birding site at 6pm.');
     } else if (state === 'full') {
-      set('heroCta', 'Registration full');
+      setCta('Registration full', false);
       set('placesHeading', 'places — fully booked');
       set('placesBody', 'Every site is full. Not registered? You can still take part from anywhere — submit an eBird checklist on 10 October.');
-      set('registerHeading', 'Fully booked');
+      set('registerHeading', 'Registration is full');
       set('registerBody', 'All sites are full — thank you! Not registered? You can still join in by submitting an eBird checklist on 10 October, wherever you are.');
     } else {
-      set('heroCta', 'Registration opens soon');
+      setCta('Registration opens soon', false);
       set('placesHeading', 'places — registration opens soon');
       set('placesBody', 'Registration details will be announced on the Society’s Instagram, Facebook and Telegram channels.');
       set('registerHeading', 'Registration opens soon');
