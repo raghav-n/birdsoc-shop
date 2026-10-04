@@ -133,8 +133,21 @@ const Td = styled.td`
 `;
 
 const Tr = styled.tr`
-  background: #fff;
+  background: ${p => p.$sub ? '#fafafa' : '#fff'};
   &:last-child td { border-bottom: none; }
+`;
+
+const ExtraList = styled.div`
+  font-size: 0.75rem;
+  color: #4b5563;
+  margin-top: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+`;
+
+const ExtraLabel = styled.span`
+  color: #9ca3af;
 `;
 
 const Badge = styled.span`
@@ -238,6 +251,54 @@ function fmt(s) {
   });
 }
 
+const unslugify = (s) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+
+function fmtValue(v) {
+  if (v === true) return 'Yes';
+  if (v === false) return 'No';
+  if (Array.isArray(v)) return v.join(', ');
+  if (v && typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+// Renders every non-internal field of one extra_json slot as "Label: value".
+function ExtraInfo({ slot, schemaProps, extraItems = [] }) {
+  const fields = Object.entries(slot || {})
+    .filter(([k, v]) => !k.startsWith('_') && v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => [unslugify(schemaProps?.[k]?.title || k), fmtValue(v)]);
+  const items = [...extraItems, ...fields];
+  if (items.length === 0) return null;
+  return (
+    <ExtraList>
+      {items.map(([label, value]) => (
+        <span key={label}><ExtraLabel>{label}:</ExtraLabel> {value}</span>
+      ))}
+    </ExtraList>
+  );
+}
+
+// extra_json is a list with one slot per person; slot 0 is the main registrant.
+function getSlots(booking) {
+  if (Array.isArray(booking.extra_json)) return booking.extra_json;
+  if (booking.extra_json && typeof booking.extra_json === 'object') return [booking.extra_json];
+  return [];
+}
+
+// Additional people in a multi-person registration (everyone after the main registrant).
+function getSubParticipants(booking) {
+  const slots = getSlots(booking);
+  const count = Math.max((booking.quantity || 1) - 1, 0);
+  return Array.from({ length: count }, (_, i) => {
+    const slot = slots[i + 1] || {};
+    return {
+      name: slot._name || `Participant ${i + 2}`,
+      email: slot._email || booking.email,
+      phone: slot._phone || booking.phone_number,
+      slot,
+    };
+  });
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function GuideEventDetail() {
@@ -292,14 +353,23 @@ export default function GuideEventDetail() {
 
   const bookings = event.bookings || [];
   const confirmed = bookings.filter(b => !b.is_cancelled && !b.is_waitlisted && b.is_confirmed);
-  const attendedCount = confirmed.filter(b => b.attended).length;
+  const schemaProps = event.json_schema?.properties || {};
+  // Attendance is tracked per registration, so headcounts sum each registration's party size.
+  const headcount = (list) => list.reduce((n, b) => n + (b.quantity || 1), 0);
+  const confirmedCount = headcount(confirmed);
+  const attendedCount = headcount(confirmed.filter(b => b.attended));
 
   const q = query.trim().toLowerCase();
   const visible = q
     ? confirmed.filter(b =>
         `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
         (b.email || '').toLowerCase().includes(q) ||
-        (b.phone_number || '').includes(q)
+        (b.phone_number || '').includes(q) ||
+        getSubParticipants(b).some(sp =>
+          sp.name.toLowerCase().includes(q) ||
+          (sp.email || '').toLowerCase().includes(q) ||
+          (sp.phone || '').includes(q)
+        )
       )
     : confirmed;
 
@@ -316,7 +386,7 @@ export default function GuideEventDetail() {
 
       <StatsRow>
         <StatCard>
-          <StatNum $color="#15803d">{confirmed.length}</StatNum>
+          <StatNum $color="#15803d">{confirmedCount}</StatNum>
           <StatLabel>Confirmed</StatLabel>
         </StatCard>
         <StatCard>
@@ -324,7 +394,7 @@ export default function GuideEventDetail() {
           <StatLabel>Attended</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNum>{confirmed.length - attendedCount}</StatNum>
+          <StatNum>{confirmedCount - attendedCount}</StatNum>
           <StatLabel>Not yet marked</StatLabel>
         </StatCard>
       </StatsRow>
@@ -337,7 +407,12 @@ export default function GuideEventDetail() {
 
       <TableCard>
         <TableCardHeader>
-          Participants ({visible.length}{q ? ` of ${confirmed.length}` : ''})
+          Participants ({headcount(visible)}{q ? ` of ${confirmedCount}` : ''})
+          {confirmedCount !== confirmed.length && (
+            <span style={{ fontWeight: 400, color: '#6b7280' }}>
+              {' '}· {q ? visible.length : confirmed.length} registrations
+            </span>
+          )}
         </TableCardHeader>
         <TableScroll>
           <Table>
@@ -357,10 +432,25 @@ export default function GuideEventDetail() {
                   </Td>
                 </Tr>
               ) : visible.map(b => (
-                <Tr key={b.ep_id}>
+                <React.Fragment key={b.ep_id}>
+                <Tr>
                   <Td>
-                    <div style={{ fontWeight: 500 }}>{b.first_name} {b.last_name}</div>
+                    <div style={{ fontWeight: 500 }}>
+                      {b.first_name} {b.last_name}
+                      {b.quantity > 1 && (
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 400, marginLeft: '0.3rem' }}>
+                          +{b.quantity - 1}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{b.email}</div>
+                    <ExtraInfo
+                      slot={getSlots(b)[0]}
+                      schemaProps={schemaProps}
+                      extraItems={b.emergency_contact_name || b.emergency_contact_phone
+                        ? [['Emergency contact', `${b.emergency_contact_name || ''} ${b.emergency_contact_phone || ''}`.trim()]]
+                        : []}
+                    />
                   </Td>
                   <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                     {b.phone_number || '—'}
@@ -383,6 +473,30 @@ export default function GuideEventDetail() {
                     />
                   </Td>
                 </Tr>
+                {getSubParticipants(b).map((sp, i) => (
+                  <Tr $sub key={`${b.ep_id}_sub_${i}`}>
+                    <Td>
+                      <div style={{ paddingLeft: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>└</span>
+                        <span style={{ fontWeight: 500, fontSize: '0.84rem' }}>{sp.name}</span>
+                      </div>
+                      <div style={{ paddingLeft: '2.4rem' }}>
+                        {sp.email !== b.email && (
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{sp.email}</div>
+                        )}
+                        <ExtraInfo slot={sp.slot} schemaProps={schemaProps} />
+                      </div>
+                    </Td>
+                    <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', color: '#6b7280' }}>
+                      {sp.phone || '—'}
+                    </Td>
+                    <Td style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                      {b.attended ? '✓ with group' : ''}
+                    </Td>
+                    <Td></Td>
+                  </Tr>
+                ))}
+                </React.Fragment>
               ))}
             </tbody>
           </Table>
