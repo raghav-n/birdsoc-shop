@@ -56,6 +56,8 @@ from apps.api.views.console_events import (
     ConsoleVerifyGroupView,
     ConsoleRegistrationToggleView,
     ConsoleEventTagsView,
+    ConsoleEventGroupsView,
+    ConsoleEventGroupDetailView,
     EventImageView,
     GuideEventView,
     GuideToggleAttendanceView,
@@ -212,6 +214,16 @@ urlpatterns = [
         "console/event-tags",
         ConsoleEventTagsView.as_view(),
         name="console-event-tags",
+    ),
+    path(
+        "console/event-groups",
+        ConsoleEventGroupsView.as_view(),
+        name="console-event-groups",
+    ),
+    path(
+        "console/event-groups/<int:group_id>",
+        ConsoleEventGroupDetailView.as_view(),
+        name="console-event-group-detail",
     ),
     # Guide access (no auth — token-gated)
     path(

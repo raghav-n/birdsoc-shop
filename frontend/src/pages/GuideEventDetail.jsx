@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { guideService } from '../services/consoleEvents';
+import {
+  AttendBtn, NotesCell, ExtraInfo, getSlots, getSubParticipants,
+  emergencyContactItems, matchesQuery, headcount,
+} from '../components/ParticipantInfo';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -137,19 +141,6 @@ const Tr = styled.tr`
   &:last-child td { border-bottom: none; }
 `;
 
-const ExtraList = styled.div`
-  font-size: 0.75rem;
-  color: #4b5563;
-  margin-top: 0.25rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.15rem 0.75rem;
-`;
-
-const ExtraLabel = styled.span`
-  color: #9ca3af;
-`;
-
 const Badge = styled.span`
   font-size: 0.7rem;
   font-weight: 600;
@@ -167,19 +158,6 @@ const Badge = styled.span`
     '#374151'};
 `;
 
-const AttendBtn = styled.button`
-  padding: 0.25rem 0.6rem;
-  font-size: 0.78rem;
-  font-weight: 500;
-  border-radius: 5px;
-  cursor: pointer;
-  border: 1px solid ${p => p.$attended ? '#86efac' : '#d1d5db'};
-  background: ${p => p.$attended ? '#dcfce7' : '#f9fafb'};
-  color: ${p => p.$attended ? '#15803d' : '#374151'};
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &:hover:not(:disabled) { opacity: 0.8; }
-`;
-
 const LoadingText = styled.div`
   text-align: center;
   padding: 3rem;
@@ -192,55 +170,6 @@ const NotFoundBox = styled.div`
   color: #dc2626;
 `;
 
-// ─── Notes cell ───────────────────────────────────────────────────────────────
-
-function GuideNotesCell({ token, epId, initialNotes, onSaved }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(initialNotes || '');
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await guideService.updateNotes(token, epId, value);
-      onSaved(value);
-      setEditing(false);
-    } catch {
-      toast.error('Failed to save notes');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!editing) {
-    return (
-      <span
-        onClick={() => setEditing(true)}
-        style={{ cursor: 'text', color: value ? 'inherit' : '#9ca3af', fontSize: '0.8rem' }}
-        title="Click to edit notes"
-      >
-        {value || 'Add note…'}
-      </span>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-      <textarea
-        autoFocus
-        rows={2}
-        value={value}
-        onChange={e => setValue(e.target.value)}
-        style={{ fontSize: '0.8rem', padding: '0.3rem', border: '1px solid #d1d5db', borderRadius: '4px', resize: 'vertical', width: '100%', boxSizing: 'border-box', minWidth: 140 }}
-      />
-      <div style={{ display: 'flex', gap: '0.3rem' }}>
-        <AttendBtn $attended onClick={save} disabled={saving}>Save</AttendBtn>
-        <AttendBtn onClick={() => { setEditing(false); setValue(initialNotes || ''); }}>Cancel</AttendBtn>
-      </div>
-    </div>
-  );
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(s) {
@@ -248,54 +177,6 @@ function fmt(s) {
   return new Date(s).toLocaleDateString('en-SG', {
     weekday: 'short', day: 'numeric', month: 'short',
     year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-const unslugify = (s) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
-
-function fmtValue(v) {
-  if (v === true) return 'Yes';
-  if (v === false) return 'No';
-  if (Array.isArray(v)) return v.join(', ');
-  if (v && typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
-
-// Renders every non-internal field of one extra_json slot as "Label: value".
-function ExtraInfo({ slot, schemaProps, extraItems = [] }) {
-  const fields = Object.entries(slot || {})
-    .filter(([k, v]) => !k.startsWith('_') && v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => [unslugify(schemaProps?.[k]?.title || k), fmtValue(v)]);
-  const items = [...extraItems, ...fields];
-  if (items.length === 0) return null;
-  return (
-    <ExtraList>
-      {items.map(([label, value]) => (
-        <span key={label}><ExtraLabel>{label}:</ExtraLabel> {value}</span>
-      ))}
-    </ExtraList>
-  );
-}
-
-// extra_json is a list with one slot per person; slot 0 is the main registrant.
-function getSlots(booking) {
-  if (Array.isArray(booking.extra_json)) return booking.extra_json;
-  if (booking.extra_json && typeof booking.extra_json === 'object') return [booking.extra_json];
-  return [];
-}
-
-// Additional people in a multi-person registration (everyone after the main registrant).
-function getSubParticipants(booking) {
-  const slots = getSlots(booking);
-  const count = Math.max((booking.quantity || 1) - 1, 0);
-  return Array.from({ length: count }, (_, i) => {
-    const slot = slots[i + 1] || {};
-    return {
-      name: slot._name || `Participant ${i + 2}`,
-      email: slot._email || booking.email,
-      phone: slot._phone || booking.phone_number,
-      slot,
-    };
   });
 }
 
@@ -340,7 +221,8 @@ export default function GuideEventDetail() {
     }
   };
 
-  const handleNotesSaved = (epId, value) => {
+  const handleNotesSave = async (epId, value) => {
+    await guideService.updateNotes(token, epId, value);
     setEvent(prev => ({
       ...prev,
       bookings: prev.bookings.map(b => b.ep_id === epId ? { ...b, notes: value } : b),
@@ -354,24 +236,11 @@ export default function GuideEventDetail() {
   const bookings = event.bookings || [];
   const confirmed = bookings.filter(b => !b.is_cancelled && !b.is_waitlisted && b.is_confirmed);
   const schemaProps = event.json_schema?.properties || {};
-  // Attendance is tracked per registration, so headcounts sum each registration's party size.
-  const headcount = (list) => list.reduce((n, b) => n + (b.quantity || 1), 0);
   const confirmedCount = headcount(confirmed);
   const attendedCount = headcount(confirmed.filter(b => b.attended));
 
   const q = query.trim().toLowerCase();
-  const visible = q
-    ? confirmed.filter(b =>
-        `${b.first_name} ${b.last_name}`.toLowerCase().includes(q) ||
-        (b.email || '').toLowerCase().includes(q) ||
-        (b.phone_number || '').includes(q) ||
-        getSubParticipants(b).some(sp =>
-          sp.name.toLowerCase().includes(q) ||
-          (sp.email || '').toLowerCase().includes(q) ||
-          (sp.phone || '').includes(q)
-        )
-      )
-    : confirmed;
+  const visible = q ? confirmed.filter(b => matchesQuery(b, q)) : confirmed;
 
   return (
     <Page>
@@ -447,9 +316,7 @@ export default function GuideEventDetail() {
                     <ExtraInfo
                       slot={getSlots(b)[0]}
                       schemaProps={schemaProps}
-                      extraItems={b.emergency_contact_name || b.emergency_contact_phone
-                        ? [['Emergency contact', `${b.emergency_contact_name || ''} ${b.emergency_contact_phone || ''}`.trim()]]
-                        : []}
+                      extraItems={emergencyContactItems(b)}
                     />
                   </Td>
                   <Td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
@@ -465,11 +332,9 @@ export default function GuideEventDetail() {
                     </AttendBtn>
                   </Td>
                   <Td style={{ minWidth: 140 }}>
-                    <GuideNotesCell
-                      token={token}
-                      epId={b.ep_id}
+                    <NotesCell
                       initialNotes={b.notes}
-                      onSaved={v => handleNotesSaved(b.ep_id, v)}
+                      onSave={v => handleNotesSave(b.ep_id, v)}
                     />
                   </Td>
                 </Tr>

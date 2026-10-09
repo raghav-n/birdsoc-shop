@@ -42,6 +42,10 @@ export const consoleEventService = {
   verifyGroup: (groupId) =>
     api.post(`/console/event-registration-groups/${groupId}/verify`).then(r => r.data),
 
+  // Event groups
+  getGroup: (id) =>
+    api.get(`/console/event-groups/${id}`).then(r => r.data),
+
   // Global registration toggle
   getRegistrationStatus: () =>
     api.get('/console/registration-toggle').then(r => r.data),

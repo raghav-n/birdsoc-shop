@@ -553,3 +553,62 @@ class FollowupEmailTests(APITestCase):
         )
         self.assertEqual(r.status_code, 400)
         mock_send.assert_not_called()
+
+
+class ConsoleEventGroupTests(APITestCase):
+    def setUp(self):
+        EventGroup = get_model("event", "EventGroup")
+        EventAllocation = get_model("event", "EventAllocation")
+        self.group = EventGroup.objects.create(name="Big Day", slug="big-day")
+        self.event_a = create_event(title="Site A")
+        self.event_b = create_event(title="Site B")
+        self.ungrouped = create_event(title="Solo walk")
+        for e in (self.event_a, self.event_b):
+            e.group = self.group
+            e.save()
+        self.alloc = EventAllocation.objects.create(
+            group=self.group, code="vol", name="Volunteer", total_slots=3, price_incl_tax=Decimal("5.00"),
+            access_code="CODE",
+        )
+        for event, email, code in ((self.event_a, "a@x.com", "CODE"), (self.event_b, "b@x.com", None)):
+            payload = {"first_name": "F", "last_name": "L", "email": email, "quantity": 1}
+            if code:
+                payload["access_code"] = code
+            r = self.client.post(f"/api/v1/events/{event.id}/register", payload, format="json")
+            self.assertEqual(r.status_code, 201, r.data)
+
+    def test_anonymous_blocked(self):
+        r = self.client.get(f"/api/v1/console/event-groups/{self.group.id}")
+        self.assertIn(r.status_code, (401, 403))
+
+    def test_event_list_includes_group(self):
+        _events_staff_client(self.client)
+        r = self.client.get("/api/v1/console/events")
+        by_id = {e["id"]: e for e in r.data}
+        self.assertEqual(by_id[self.event_a.id]["group"]["id"], self.group.id)
+        self.assertIsNone(by_id[self.ungrouped.id]["group"])
+
+    def test_group_list(self):
+        _events_staff_client(self.client)
+        r = self.client.get("/api/v1/console/event-groups")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 1)
+        self.assertEqual([e["title"] for e in r.data[0]["events"]], ["Site A", "Site B"])
+        self.assertNotIn("bookings", r.data[0]["events"][0])
+
+    def test_group_detail_has_bookings_without_payment(self):
+        _events_staff_client(self.client)
+        r = self.client.get(f"/api/v1/console/event-groups/{self.group.id}")
+        self.assertEqual(r.status_code, 200)
+        events = {e["title"]: e for e in r.data["events"]}
+        a_booking = events["Site A"]["bookings"][0]
+        self.assertEqual(a_booking["email"], "a@x.com")
+        self.assertEqual(a_booking["allocation"], "Volunteer")
+        self.assertNotIn("payment", a_booking)
+        self.assertIsNone(events["Site B"]["bookings"][0]["allocation"])
+        self.assertEqual(r.data["allocations"][0]["remaining"], 2)
+
+    def test_group_detail_404(self):
+        _events_staff_client(self.client)
+        r = self.client.get("/api/v1/console/event-groups/9999")
+        self.assertEqual(r.status_code, 404)

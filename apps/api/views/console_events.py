@@ -69,6 +69,7 @@ Participant = get_model("event", "Participant")
 EventParticipant = get_model("event", "EventParticipant")
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
+EventGroup = get_model("event", "EventGroup")
 
 
 def _serialize_event(event, include_participants=False):
@@ -113,6 +114,10 @@ def _serialize_event(event, include_participants=False):
         "collect_prior_attendance": event.collect_prior_attendance,
         "collect_driving": event.collect_driving,
         "guide_token": str(event.guide_token),
+        "group": (
+            {"id": event.group.id, "name": event.group.name, "slug": event.group.slug}
+            if event.group_id else None
+        ),
         "stats": {
             "confirmed": event.participant_count,
             "pending": event.pending_count,
@@ -155,7 +160,7 @@ def _serialize_bookings(event):
 
     # Build a map: participant_id → registration info
     reg_map = {}
-    for reg in EventRegistration.objects.select_related("group").filter(event=event):
+    for reg in EventRegistration.objects.select_related("group", "allocation").filter(event=event):
         reg_map[reg.participant_id] = reg
 
     results = []
@@ -180,6 +185,7 @@ def _serialize_bookings(event):
                 "group_id": reg.group_id,
                 "group_reference": reg.group.reference if reg.group else None,
                 "group_status": reg.group.status if reg.group else None,
+                "allocation": reg.allocation.name if reg.allocation else None,
             }
 
         results.append({
@@ -213,7 +219,7 @@ class ConsoleEventsViewSet(ViewSet):
 
     def list(self, request):
         """List all events (including inactive/past) for management."""
-        qs = OrganizedEvent.objects.select_related("image").order_by("-start_date")
+        qs = OrganizedEvent.objects.select_related("image", "group").order_by("-start_date")
         q = request.query_params.get("q", "").strip()
         if q:
             qs = qs.filter(title__icontains=q)
@@ -780,6 +786,75 @@ class ConsoleEventsViewSet(ViewSet):
         event.guide_token = _uuid.uuid4()
         event.save(update_fields=["guide_token"])
         return Response({"guide_token": str(event.guide_token)})
+
+
+def _serialize_event_group(group, include_bookings=False):
+    events = list(group.events.select_related("image", "group").order_by("start_date", "title"))
+    data = {
+        "id": group.id,
+        "name": group.name,
+        "slug": group.slug,
+        "description": group.description,
+        "is_active": group.is_active,
+        "allocations": [
+            {
+                "id": a.id,
+                "name": a.name,
+                "total_slots": a.total_slots,
+                "remaining": a.remaining,
+                "is_active": a.is_active,
+            }
+            for a in group.allocations.all()
+        ],
+        "events": [],
+    }
+    for event in events:
+        ev = {
+            "id": event.id,
+            "title": event.title,
+            "start_date": event.start_date,
+            "end_date": event.end_date,
+            "location": event.location,
+            "max_participants": event.max_participants,
+            "is_active": event.is_active,
+            "json_schema": event.json_schema,
+            "stats": {
+                "confirmed": event.participant_count,
+                "pending": event.pending_count,
+            },
+        }
+        if include_bookings:
+            # Same shape as the guide view: participant details, no payment info.
+            ev["bookings"] = [
+                {
+                    **{k: v for k, v in b.items() if k != "payment"},
+                    "allocation": (b["payment"] or {}).get("allocation"),
+                }
+                for b in _serialize_bookings(event)
+            ]
+        data["events"].append(ev)
+    return data
+
+
+class ConsoleEventGroupsView(APIView):
+    """List event groups with per-event headline stats."""
+    permission_classes = [IsEventsStaff]
+
+    def get(self, request):
+        groups = EventGroup.objects.prefetch_related("allocations").order_by("name")
+        return Response([_serialize_event_group(g) for g in groups])
+
+
+class ConsoleEventGroupDetailView(APIView):
+    """One event group with every participant across all of its events."""
+    permission_classes = [IsEventsStaff]
+
+    def get(self, request, group_id: int):
+        try:
+            group = EventGroup.objects.prefetch_related("allocations").get(pk=group_id)
+        except EventGroup.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(_serialize_event_group(group, include_bookings=True))
 
 
 class GuideEventView(APIView):
