@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -15,6 +16,7 @@ from apps.api.tests.utils import auth_client, create_event, create_user
 
 OrganizedEvent = get_model("event", "OrganizedEvent")
 EventParticipant = get_model("event", "EventParticipant")
+Participant = get_model("event", "Participant")
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
 
@@ -612,3 +614,113 @@ class ConsoleEventGroupTests(APITestCase):
         _events_staff_client(self.client)
         r = self.client.get("/api/v1/console/event-groups/9999")
         self.assertEqual(r.status_code, 404)
+
+    # ── quick-edit fields, add participant, guide link ──────────────────────
+
+    def _set_quick_edit(self, keys):
+        return self.client.patch(
+            f"/api/v1/console/event-groups/{self.group.id}", {"quick_edit_fields": keys}, format="json"
+        )
+
+    def test_driving_is_always_a_field_option(self):
+        _events_staff_client(self.client)
+        r = self.client.get(f"/api/v1/console/event-groups/{self.group.id}")
+        driving = next(o for o in r.data["field_options"] if o["key"] == "driving")
+        self.assertEqual(driving["enum"], ["Yes", "No", "Unsure"])
+        self.assertEqual(r.data["quick_edit_fields"], [])
+        self.assertEqual(r.data["guide_token"], str(self.group.guide_token))
+
+    def test_set_quick_edit_fields(self):
+        _events_staff_client(self.client)
+        r = self._set_quick_edit(["driving", "driving"])
+        self.assertEqual(r.status_code, 200, r.data)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.quick_edit_fields, ["driving"])
+        self.assertEqual(self._set_quick_edit(["nope"]).status_code, 400)
+
+    def test_add_participant_with_name_and_phone_only(self):
+        _events_staff_client(self.client)
+        self._set_quick_edit(["driving"])
+        r = self.client.post(
+            f"/api/v1/console/event-groups/{self.group.id}/participants",
+            {"event_id": self.event_b.id, "name": "Tan Ah Kow", "phone_number": "91234567", "extra": {"driving": "Yes"}},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+        b = next(
+            b for e in r.data["events"] if e["id"] == self.event_b.id
+            for b in e["bookings"] if b["phone_number"] == "91234567"
+        )
+        self.assertEqual((b["first_name"], b["last_name"], b["email"]), ("Tan", "Ah Kow", ""))
+        self.assertTrue(b["is_confirmed"])
+        self.assertEqual(b["extra_json"][0]["driving"], "Yes")
+
+    def test_add_participant_validation(self):
+        _events_staff_client(self.client)
+        url = f"/api/v1/console/event-groups/{self.group.id}/participants"
+        base = {"event_id": self.event_a.id, "name": "X", "phone_number": "9"}
+        self.assertEqual(self.client.post(url, {**base, "name": ""}, format="json").status_code, 400)
+        self.assertEqual(self.client.post(url, {**base, "phone_number": ""}, format="json").status_code, 400)
+        self.assertEqual(self.client.post(url, {**base, "event_id": self.ungrouped.id}, format="json").status_code, 400)
+        self.assertEqual(self.client.post(url, {**base, "email": "bad"}, format="json").status_code, 400)
+
+    def test_set_extra_field(self):
+        _events_staff_client(self.client)
+        self._set_quick_edit(["driving"])
+        ep = EventParticipant.objects.get(event=self.event_a)
+        url = f"/api/v1/console/event-groups/{self.group.id}/participants/{ep.id}/extra"
+        r = self.client.patch(url, {"slot": 0, "key": "driving", "value": "No"}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        ep.refresh_from_db()
+        self.assertEqual(ep.extra_json[0]["driving"], "No")
+        self.assertEqual(self.client.patch(url, {"slot": 0, "key": "driving", "value": "Maybe"}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"slot": 1, "key": "driving", "value": "No"}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"slot": 0, "key": "attended_before", "value": True}, format="json").status_code, 400)
+        self.client.patch(url, {"slot": 0, "key": "driving", "value": None}, format="json")
+        ep.refresh_from_db()
+        self.assertNotIn("driving", ep.extra_json[0])
+
+    def test_guide_link(self):
+        self._set_quick_edit_direct(["driving"])
+        token = self.group.guide_token
+        r = self.client.get(f"/api/v1/guide/group/{token}")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn("guide_token", r.data)
+        self.assertNotIn("payment", r.data["events"][0]["bookings"][0])
+
+        ep = EventParticipant.objects.get(event=self.event_a)
+        url = f"/api/v1/guide/group/{token}/participants/{ep.id}"
+        self.assertTrue(self.client.post(url).data["attended"])
+        self.client.patch(url, {"notes": "late"}, format="json")
+        self.client.patch(url, {"slot": 0, "key": "driving", "value": "Unsure"}, format="json")
+        ep.refresh_from_db()
+        self.assertEqual(ep.notes, "late")
+        self.assertEqual(ep.extra_json[0]["driving"], "Unsure")
+
+        r = self.client.post(
+            f"/api/v1/guide/group/{token}/participants",
+            {"event_id": self.event_a.id, "name": "Walk In", "phone_number": "8"},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.data)
+
+    def test_guide_link_scoped_to_group(self):
+        other = create_event(title="Other")
+        p = Participant.objects.create(first_name="O", last_name="P", email="o@x.com")
+        ep = EventParticipant.objects.create(event=other, participant=p, is_confirmed=True)
+        url = f"/api/v1/guide/group/{self.group.guide_token}/participants/{ep.id}"
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/guide/group/{uuid.uuid4()}").status_code, 404)
+
+    def test_regenerate_group_guide_token(self):
+        _events_staff_client(self.client)
+        old = self.group.guide_token
+        r = self.client.post(f"/api/v1/console/event-groups/{self.group.id}/regenerate-guide-token")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotEqual(r.data["guide_token"], str(old))
+        self.client.logout()
+        self.assertEqual(self.client.get(f"/api/v1/guide/group/{old}").status_code, 404)
+
+    def _set_quick_edit_direct(self, keys):
+        self.group.quick_edit_fields = keys
+        self.group.save()

@@ -92,9 +92,10 @@ function fmtValue(v) {
 }
 
 // Renders every non-internal field of one extra_json slot as "Label: value".
-export function ExtraInfo({ slot, schemaProps, extraItems = [] }) {
+// Keys in `hideKeys` are skipped (e.g. ones shown as their own editable column).
+export function ExtraInfo({ slot, schemaProps, extraItems = [], hideKeys = [] }) {
   const fields = Object.entries(slot || {})
-    .filter(([k, v]) => !k.startsWith('_') && v !== undefined && v !== null && v !== '')
+    .filter(([k, v]) => !k.startsWith('_') && !hideKeys.includes(k) && v !== undefined && v !== null && v !== '')
     .map(([k, v]) => [unslugify(schemaProps?.[k]?.title || k), fmtValue(v)]);
   const items = [...extraItems, ...fields];
   if (items.length === 0) return null;

@@ -44,6 +44,22 @@ class EventGroup(models.Model):
         help_text=_("Free-form presentation data shared across the group."),
     )
     is_active = models.BooleanField(_("Active"), default=True)
+    quick_edit_fields = models.JSONField(
+        _("Quick-edit fields"),
+        blank=True,
+        default=list,
+        help_text=_(
+            "Extra-info keys (e.g. 'driving') shown as editable columns on the "
+            "group participant list and its guide link."
+        ),
+    )
+    guide_token = models.UUIDField(
+        _("Guide token"),
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        help_text=_("Token for no-login magic-link access to the group participant list."),
+    )
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
 

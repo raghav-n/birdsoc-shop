@@ -42,25 +42,29 @@ def _append_schema_prop(schema, key, prop):
     return merged
 
 
+# Console-toggled questions: key -> (OrganizedEvent flag, schema property).
+DYNAMIC_QUESTIONS = {
+    "attended_before": (
+        "collect_prior_attendance",
+        {"title": "I have attended this event before.", "type": "boolean"},
+    ),
+    "driving": (
+        "collect_driving",
+        {
+            "title": "Will you be driving?",
+            "type": "string",
+            "enum": ["Yes", "No", "Unsure"],
+        },
+    ),
+}
+
+
 def _inject_dynamic_questions(event):
     """Return json_schema with console-toggled questions appended when enabled."""
     schema = event.json_schema
-    if event.collect_prior_attendance:
-        schema = _append_schema_prop(
-            schema,
-            "attended_before",
-            {"title": "I have attended this event before.", "type": "boolean"},
-        )
-    if event.collect_driving:
-        schema = _append_schema_prop(
-            schema,
-            "driving",
-            {
-                "title": "Will you be driving?",
-                "type": "string",
-                "enum": ["Yes", "No", "Unsure"],
-            },
-        )
+    for key, (flag, prop) in DYNAMIC_QUESTIONS.items():
+        if getattr(event, flag):
+            schema = _append_schema_prop(schema, key, prop)
     return schema
 
 

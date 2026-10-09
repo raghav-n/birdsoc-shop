@@ -46,6 +46,18 @@ export const consoleEventService = {
   getGroup: (id) =>
     api.get(`/console/event-groups/${id}`).then(r => r.data),
 
+  setGroupQuickEditFields: (id, keys) =>
+    api.patch(`/console/event-groups/${id}`, { quick_edit_fields: keys }).then(r => r.data),
+
+  addGroupParticipant: (id, data) =>
+    api.post(`/console/event-groups/${id}/participants`, data).then(r => r.data),
+
+  setGroupExtraField: (id, epId, data) =>
+    api.patch(`/console/event-groups/${id}/participants/${epId}/extra`, data).then(r => r.data),
+
+  regenerateGroupGuideToken: (id) =>
+    api.post(`/console/event-groups/${id}/regenerate-guide-token`).then(r => r.data),
+
   // Global registration toggle
   getRegistrationStatus: () =>
     api.get('/console/registration-toggle').then(r => r.data),
@@ -104,4 +116,21 @@ export const guideService = {
 
   updateNotes: (token, epId, notes) =>
     api.patch(`/guide/${token}/participants/${epId}`, { notes }).then(r => r.data),
+};
+
+export const groupGuideService = {
+  getGroup: (token) =>
+    api.get(`/guide/group/${token}`).then(r => r.data),
+
+  toggleAttendance: (token, epId) =>
+    api.post(`/guide/group/${token}/participants/${epId}`).then(r => r.data),
+
+  updateNotes: (token, epId, notes) =>
+    api.patch(`/guide/group/${token}/participants/${epId}`, { notes }).then(r => r.data),
+
+  setExtraField: (token, epId, data) =>
+    api.patch(`/guide/group/${token}/participants/${epId}`, data).then(r => r.data),
+
+  addParticipant: (token, data) =>
+    api.post(`/guide/group/${token}/participants`, data).then(r => r.data),
 };

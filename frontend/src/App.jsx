@@ -36,6 +36,7 @@ import EventManagementDetail from './pages/EventManagementDetail';
 import EventManagementEdit from './pages/EventManagementEdit';
 import EventGroupDetail from './pages/EventGroupDetail';
 import GuideEventDetail from './pages/GuideEventDetail';
+import GuideEventGroupDetail from './pages/GuideEventGroupDetail';
 import Donate from './pages/Donate';
 import DonationSuccess from './pages/DonationSuccess';
 import { trackPageView } from './utils/analytics';
@@ -194,6 +195,7 @@ function App() {
                 <Route path="/console/events/:id/edit" element={<EventsGroupOnly><EventManagementEdit /></EventsGroupOnly>} />
                 <Route path="/console/event-groups/:id" element={<EventsGroupOnly><EventGroupDetail /></EventsGroupOnly>} />
                 <Route path="/event/:token" element={<GuideEventDetail />} />
+                <Route path="/event-group/:token" element={<GuideEventGroupDetail />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

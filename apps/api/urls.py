@@ -58,6 +58,12 @@ from apps.api.views.console_events import (
     ConsoleEventTagsView,
     ConsoleEventGroupsView,
     ConsoleEventGroupDetailView,
+    ConsoleEventGroupParticipantsView,
+    ConsoleEventGroupExtraFieldView,
+    ConsoleEventGroupGuideTokenView,
+    GuideEventGroupView,
+    GuideEventGroupParticipantsView,
+    GuideEventGroupParticipantView,
     EventImageView,
     GuideEventView,
     GuideToggleAttendanceView,
@@ -225,7 +231,37 @@ urlpatterns = [
         ConsoleEventGroupDetailView.as_view(),
         name="console-event-group-detail",
     ),
+    path(
+        "console/event-groups/<int:group_id>/participants",
+        ConsoleEventGroupParticipantsView.as_view(),
+        name="console-event-group-participants",
+    ),
+    path(
+        "console/event-groups/<int:group_id>/participants/<int:ep_id>/extra",
+        ConsoleEventGroupExtraFieldView.as_view(),
+        name="console-event-group-extra-field",
+    ),
+    path(
+        "console/event-groups/<int:group_id>/regenerate-guide-token",
+        ConsoleEventGroupGuideTokenView.as_view(),
+        name="console-event-group-guide-token",
+    ),
     # Guide access (no auth — token-gated)
+    path(
+        "guide/group/<uuid:token>",
+        GuideEventGroupView.as_view(),
+        name="guide-event-group",
+    ),
+    path(
+        "guide/group/<uuid:token>/participants",
+        GuideEventGroupParticipantsView.as_view(),
+        name="guide-event-group-participants",
+    ),
+    path(
+        "guide/group/<uuid:token>/participants/<int:ep_id>",
+        GuideEventGroupParticipantView.as_view(),
+        name="guide-event-group-participant",
+    ),
     path(
         "guide/<uuid:token>/event",
         GuideEventView.as_view(),

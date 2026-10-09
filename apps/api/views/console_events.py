@@ -6,7 +6,8 @@ import uuid as _uuid
 from urllib.parse import urlparse
 from datetime import datetime
 from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import EmailValidator, URLValidator
+from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.views import APIView
@@ -18,6 +19,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from oscar.core.loading import get_model
 
 from apps.api.permissions import IsEventsStaff
+from apps.api.views.events import DYNAMIC_QUESTIONS, _inject_dynamic_questions
 from apps.event.utils import get_global_registration_closed, set_global_registration_closed
 
 
@@ -788,7 +790,32 @@ class ConsoleEventsViewSet(ViewSet):
         return Response({"guide_token": str(event.guide_token)})
 
 
-def _serialize_event_group(group, include_bookings=False):
+def _group_field_options(events):
+    """
+    Extra-info fields that can be made quick-edit on a group: every property in
+    the group's event schemas plus the built-in console questions (so e.g.
+    driving can be collected at check-in even if it wasn't asked at signup).
+    """
+    options = {}
+    for event in events:
+        props = (_inject_dynamic_questions(event) or {}).get("properties") or {}
+        for key, prop in props.items():
+            options.setdefault(key, prop)
+    for key, (_flag, prop) in DYNAMIC_QUESTIONS.items():
+        options.setdefault(key, prop)
+    return [
+        {
+            "key": key,
+            "title": prop.get("title") or key,
+            "type": prop.get("type") or "string",
+            "enum": prop.get("enum"),
+        }
+        for key, prop in options.items()
+        if not key.startswith("_")
+    ]
+
+
+def _serialize_event_group(group, include_bookings=False, for_guide=False):
     events = list(group.events.select_related("image", "group").order_by("start_date", "title"))
     data = {
         "id": group.id,
@@ -796,6 +823,8 @@ def _serialize_event_group(group, include_bookings=False):
         "slug": group.slug,
         "description": group.description,
         "is_active": group.is_active,
+        "quick_edit_fields": group.quick_edit_fields or [],
+        "field_options": _group_field_options(events),
         "allocations": [
             {
                 "id": a.id,
@@ -808,6 +837,8 @@ def _serialize_event_group(group, include_bookings=False):
         ],
         "events": [],
     }
+    if not for_guide:
+        data["guide_token"] = str(group.guide_token)
     for event in events:
         ev = {
             "id": event.id,
@@ -817,7 +848,7 @@ def _serialize_event_group(group, include_bookings=False):
             "location": event.location,
             "max_participants": event.max_participants,
             "is_active": event.is_active,
-            "json_schema": event.json_schema,
+            "json_schema": _inject_dynamic_questions(event),
             "stats": {
                 "confirmed": event.participant_count,
                 "pending": event.pending_count,
@@ -836,6 +867,123 @@ def _serialize_event_group(group, include_bookings=False):
     return data
 
 
+def _clean_field_value(option, value):
+    """Validate a quick-edit value against its field option. Returns (value, error)."""
+    if value is None or value == "":
+        return None, None
+    if option.get("enum"):
+        if value not in option["enum"]:
+            return None, f"{option['key']} must be one of {', '.join(map(str, option['enum']))}"
+        return value, None
+    if option["type"] == "boolean":
+        if not isinstance(value, bool):
+            return None, f"{option['key']} must be true or false"
+        return value, None
+    if option["type"] in ("number", "integer"):
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            return None, f"{option['key']} must be a number"
+        return (int(num) if option["type"] == "integer" else num), None
+    if not isinstance(value, str):
+        return None, f"{option['key']} must be text"
+    return value.strip()[:500] or None, None
+
+
+def _quick_edit_options(group):
+    """Field options for the group's current quick-edit fields, keyed by field."""
+    events = list(group.events.all())
+    by_key = {o["key"]: o for o in _group_field_options(events)}
+    return {k: by_key[k] for k in (group.quick_edit_fields or []) if k in by_key}
+
+
+def _add_group_participant(group, data, source):
+    """
+    Add a walk-in / manual participant to one of the group's events. Only a
+    name and phone are required; quick-edit field values are optional. No
+    registration (payment) record is created and capacity isn't enforced —
+    whoever adds them is vouching for the seat.
+    """
+    try:
+        event = group.events.get(pk=data.get("event_id"))
+    except (OrganizedEvent.DoesNotExist, ValueError, TypeError):
+        return None, Response({"detail": "Choose an event in this group"}, status=status.HTTP_400_BAD_REQUEST)
+
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone_number") or "").strip()
+    email = (data.get("email") or "").strip()
+    if not name:
+        return None, Response({"detail": "Full name is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not phone:
+        return None, Response({"detail": "Contact number is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if len(phone) > 20:
+        return None, Response({"detail": "Contact number is too long"}, status=status.HTTP_400_BAD_REQUEST)
+    if email:
+        try:
+            EmailValidator()(email)
+        except ValidationError:
+            return None, Response({"detail": "Enter a valid email"}, status=status.HTTP_400_BAD_REQUEST)
+
+    slot = {"_added_via": source}
+    options = _quick_edit_options(group)
+    for key, value in (data.get("extra") or {}).items():
+        if key not in options:
+            continue
+        cleaned, err = _clean_field_value(options[key], value)
+        if err:
+            return None, Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
+        if cleaned is not None:
+            slot[key] = cleaned
+
+    first, _, last = name.partition(" ")
+    participant = Participant.objects.create(
+        first_name=first[:100], last_name=last.strip()[:100], email=email, phone_number=phone, quantity=1,
+    )
+    EventParticipant.objects.create(
+        event=event, participant=participant, is_confirmed=True, extra_json=[slot],
+    )
+    return event, None
+
+
+def _set_group_extra_field(group, ep, data):
+    """Set one quick-edit field on one person's extra_json slot."""
+    key = data.get("key")
+    options = _quick_edit_options(group)
+    if key not in options:
+        return Response({"detail": "Not a quick-edit field"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        slot_idx = int(data.get("slot", 0))
+    except (TypeError, ValueError):
+        slot_idx = -1
+    if slot_idx < 0 or slot_idx >= max(ep.participant.quantity, 1):
+        return Response({"detail": "Invalid slot"}, status=status.HTTP_400_BAD_REQUEST)
+    value, err = _clean_field_value(options[key], data.get("value"))
+    if err:
+        return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        ep = EventParticipant.objects.select_for_update().get(pk=ep.pk)
+        slots = ep.extra_json
+        if isinstance(slots, dict):
+            slots = [slots]
+        elif not isinstance(slots, list):
+            slots = []
+        slots = [dict(s) if isinstance(s, dict) else {} for s in slots]
+        while len(slots) <= slot_idx:
+            slots.append({})
+        if value is None:
+            slots[slot_idx].pop(key, None)
+        else:
+            slots[slot_idx][key] = value
+        ep.extra_json = slots
+        ep.save(update_fields=["extra_json"])
+    return Response({"ep_id": ep.id, "extra_json": ep.extra_json})
+
+
+def _get_group_ep(group, ep_id):
+    return EventParticipant.objects.select_related("participant").get(id=ep_id, event__group=group)
+
+
 class ConsoleEventGroupsView(APIView):
     """List event groups with per-event headline stats."""
     permission_classes = [IsEventsStaff]
@@ -849,12 +997,141 @@ class ConsoleEventGroupDetailView(APIView):
     """One event group with every participant across all of its events."""
     permission_classes = [IsEventsStaff]
 
+    def _get(self, group_id):
+        return EventGroup.objects.prefetch_related("allocations").get(pk=group_id)
+
     def get(self, request, group_id: int):
         try:
-            group = EventGroup.objects.prefetch_related("allocations").get(pk=group_id)
+            group = self._get(group_id)
         except EventGroup.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response(_serialize_event_group(group, include_bookings=True))
+
+    def patch(self, request, group_id: int):
+        """Update the group's quick-edit field selection."""
+        try:
+            group = self._get(group_id)
+        except EventGroup.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        if "quick_edit_fields" in request.data:
+            keys = request.data["quick_edit_fields"]
+            if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
+                return Response({"detail": "quick_edit_fields must be a list of field keys"}, status=status.HTTP_400_BAD_REQUEST)
+            valid = {o["key"] for o in _group_field_options(list(group.events.all()))}
+            unknown = [k for k in keys if k not in valid]
+            if unknown:
+                return Response({"detail": f"Unknown field(s): {', '.join(unknown)}"}, status=status.HTTP_400_BAD_REQUEST)
+            group.quick_edit_fields = list(dict.fromkeys(keys))
+            group.save(update_fields=["quick_edit_fields", "updated_at"])
+        return Response({"quick_edit_fields": group.quick_edit_fields})
+
+
+class ConsoleEventGroupParticipantsView(APIView):
+    """Add a participant to one of the group's events."""
+    permission_classes = [IsEventsStaff]
+
+    def post(self, request, group_id: int):
+        try:
+            group = EventGroup.objects.get(pk=group_id)
+        except EventGroup.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        _event, err = _add_group_participant(group, request.data, source="console")
+        if err:
+            return err
+        return Response(_serialize_event_group(group, include_bookings=True), status=status.HTTP_201_CREATED)
+
+
+class ConsoleEventGroupExtraFieldView(APIView):
+    permission_classes = [IsEventsStaff]
+
+    def patch(self, request, group_id: int, ep_id: int):
+        try:
+            group = EventGroup.objects.get(pk=group_id)
+            ep = _get_group_ep(group, ep_id)
+        except (EventGroup.DoesNotExist, EventParticipant.DoesNotExist):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return _set_group_extra_field(group, ep, request.data)
+
+
+class ConsoleEventGroupGuideTokenView(APIView):
+    permission_classes = [IsEventsStaff]
+
+    def post(self, request, group_id: int):
+        """Issue a new group guide token, invalidating the previous magic link."""
+        try:
+            group = EventGroup.objects.get(pk=group_id)
+        except EventGroup.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        group.guide_token = _uuid.uuid4()
+        group.save(update_fields=["guide_token"])
+        return Response({"guide_token": str(group.guide_token)})
+
+
+# ─── Group guide access (no auth — token-gated) ───────────────────────────────
+
+
+def _guide_group(token):
+    return EventGroup.objects.prefetch_related("allocations").get(guide_token=token)
+
+
+class GuideEventGroupView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        try:
+            group = _guide_group(token)
+        except (EventGroup.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(_serialize_event_group(group, include_bookings=True, for_guide=True))
+
+
+class GuideEventGroupParticipantsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, token):
+        try:
+            group = _guide_group(token)
+        except (EventGroup.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        _event, err = _add_group_participant(group, request.data, source="guide")
+        if err:
+            return err
+        return Response(
+            _serialize_event_group(group, include_bookings=True, for_guide=True),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class GuideEventGroupParticipantView(APIView):
+    """Attendance, notes and quick-edit fields for one participant in the group."""
+    permission_classes = [permissions.AllowAny]
+
+    def _lookup(self, token, ep_id):
+        group = _guide_group(token)
+        return group, _get_group_ep(group, ep_id)
+
+    def post(self, request, token, ep_id):
+        """Toggle attendance."""
+        try:
+            _group, ep = self._lookup(token, ep_id)
+        except (EventGroup.DoesNotExist, EventParticipant.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        ep.attended = not ep.attended
+        ep.save(update_fields=["attended"])
+        return Response({"ep_id": ep.id, "attended": ep.attended})
+
+    def patch(self, request, token, ep_id):
+        """Update notes, or one quick-edit field when ``key`` is given."""
+        try:
+            group, ep = self._lookup(token, ep_id)
+        except (EventGroup.DoesNotExist, EventParticipant.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        if "key" in request.data:
+            return _set_group_extra_field(group, ep, request.data)
+        if "notes" in request.data:
+            ep.notes = request.data["notes"]
+            ep.save(update_fields=["notes"])
+        return Response({"ep_id": ep.id, "notes": ep.notes})
 
 
 class GuideEventView(APIView):
