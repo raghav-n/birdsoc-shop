@@ -6,6 +6,7 @@ import { consoleEventService } from '../services/consoleEvents';
 import { Copy, RefreshCw, Mail } from 'lucide-react';
 import HelpModal from '../components/HelpModal';
 import RichTextEditor from '../components/RichTextEditor';
+import { checkpointMark, CheckpointButton, CheckpointStatus } from '../components/ParticipantInfo';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -477,7 +478,7 @@ function renderExtra(extra, schemaProps) {
 
 // ─── Sub-participant row ──────────────────────────────────────────────────────
 
-function SubParticipantRow({ index, slotData, mainEmail, mainPhone, schemaProps }) {
+function SubParticipantRow({ index, slotData, mainEmail, mainPhone, schemaProps, attendanceCell = null }) {
   const name = slotData?._name || `Participant ${index + 2}`;
   const email = slotData?._email || mainEmail;
   const phone = slotData?._phone || mainPhone;
@@ -499,7 +500,7 @@ function SubParticipantRow({ index, slotData, mainEmail, mainPhone, schemaProps 
       <Td $mobileHide></Td>
       <Td $mobileHide></Td>
       <Td $mobileHide></Td>
-      <Td></Td>
+      <Td>{attendanceCell}</Td>
       <Td $mobileHide></Td>
       <Td $mobileHide></Td>
     </Tr>
@@ -508,7 +509,7 @@ function SubParticipantRow({ index, slotData, mainEmail, mainPhone, schemaProps 
 
 // ─── Mobile booking modal ─────────────────────────────────────────────────────
 
-function BookingModal({ booking, eventId, schemaProps, onClose, onToggleAttendance, onVerify, onRemove, onNotesSaved, verifying, togglingAttendance, removing }) {
+function BookingModal({ booking, eventId, schemaProps, onClose, onToggleAttendance, onVerify, onRemove, onNotesSaved, verifying, togglingAttendance, removing, attendanceLabel = 'Attended', renderCheckpoint }) {
   const reg = booking.payment;
   const hasPendingPayment = reg?.status === 'pending';
   const isCancelled = booking.is_cancelled;
@@ -620,9 +621,9 @@ function BookingModal({ booking, eventId, schemaProps, onClose, onToggleAttendan
           <ModalDivider />
 
           <ModalRow>
-            <ModalLabel>Attended</ModalLabel>
+            <ModalLabel>{attendanceLabel}</ModalLabel>
             <ModalValue>
-              {!isCancelled ? (
+              {isCancelled ? '—' : renderCheckpoint ? renderCheckpoint(booking, 0) : (
                 <GreenBtn
                   style={!booking.attended ? { background: '#f9fafb', borderColor: '#d1d5db', color: '#374151' } : {}}
                   onClick={() => onToggleAttendance(booking)}
@@ -630,7 +631,7 @@ function BookingModal({ booking, eventId, schemaProps, onClose, onToggleAttendan
                 >
                   {togglingAttendance === booking.ep_id ? '…' : booking.attended ? '✓ Attended' : 'Mark attended'}
                 </GreenBtn>
-              ) : '—'}
+              )}
             </ModalValue>
           </ModalRow>
           <ModalRow>
@@ -911,6 +912,39 @@ export default function EventManagementDetail() {
     }
   };
 
+  // Grouped events: this page marks the group's second checkpoint, per person.
+  const handleToggleCheckpoint = async (booking, slot) => {
+    setTogglingAttendance(`${booking.ep_id}:${slot}`);
+    try {
+      const updated = await consoleEventService.toggleGroupCheckpoint(
+        event.group.id, booking.ep_id, { slot, checkpoint: 2 },
+      );
+      setEvent(prev => ({
+        ...prev,
+        bookings: prev.bookings.map(b =>
+          b.ep_id === booking.ep_id ? { ...b, checkpoints: updated.checkpoints, attended: updated.attended } : b
+        ),
+      }));
+    } catch {
+      toast.error('Failed to update attendance');
+    } finally {
+      setTogglingAttendance(null);
+    }
+  };
+
+  const checkpointLabels = event?.group?.checkpoint_labels;
+  // Group check-in shown read-only above this event's own mark.
+  const renderCheckpoint = checkpointLabels ? (booking, slot) => (
+    <div onClick={e => e.stopPropagation()}>
+      <CheckpointStatus label={checkpointLabels[0]} mark={checkpointMark(booking, slot, 1)} />
+      <CheckpointButton
+        mark={checkpointMark(booking, slot, 2)}
+        busy={togglingAttendance === `${booking.ep_id}:${slot}`}
+        onClick={() => handleToggleCheckpoint(booking, slot)}
+      />
+    </div>
+  ) : null;
+
   const handleVerify = async (booking) => {
     const reg = booking.payment;
     if (!reg) return;
@@ -1178,7 +1212,8 @@ export default function EventManagementDetail() {
             )}
           </Td>
           <Td>
-            {!isCancelled && (
+            {!isCancelled && renderCheckpoint && renderCheckpoint(booking, 0)}
+            {!isCancelled && !renderCheckpoint && (
               <GreenBtn
                 style={!booking.attended ? { background: '#f9fafb', borderColor: '#d1d5db', color: '#374151' } : {}}
                 onClick={e => { e.stopPropagation(); handleToggleAttendance(booking); }}
@@ -1218,6 +1253,7 @@ export default function EventManagementDetail() {
             mainEmail={booking.email}
             mainPhone={booking.phone_number}
             schemaProps={schemaProps}
+            attendanceCell={renderCheckpoint ? renderCheckpoint(booking, i + 1) : null}
           />
         ))}
       </React.Fragment>
@@ -1232,7 +1268,7 @@ export default function EventManagementDetail() {
       <Th $mobileHide>Status</Th>
       <Th $mobileHide>Amount</Th>
       <Th $mobileHide>Payment</Th>
-      <Th>Attended</Th>
+      <Th>{checkpointLabels ? checkpointLabels[1] : 'Attended'}</Th>
       <Th $mobileHide>Notes</Th>
       <Th $mobileHide></Th>
     </tr>
@@ -1676,6 +1712,8 @@ export default function EventManagementDetail() {
           verifying={verifying}
           togglingAttendance={togglingAttendance}
           removing={removing}
+          attendanceLabel={checkpointLabels ? checkpointLabels[1] : 'Attended'}
+          renderCheckpoint={renderCheckpoint}
         />
       )}
 

@@ -117,7 +117,12 @@ def _serialize_event(event, include_participants=False):
         "collect_driving": event.collect_driving,
         "guide_token": str(event.guide_token),
         "group": (
-            {"id": event.group.id, "name": event.group.name, "slug": event.group.slug}
+            {
+                "id": event.group.id,
+                "name": event.group.name,
+                "slug": event.group.slug,
+                "checkpoint_labels": event.group.checkpoint_labels,
+            }
             if event.group_id else None
         ),
         "stats": {
@@ -145,6 +150,10 @@ def _serialize_event_for_guide(event):
         "end_date": event.end_date,
         "location": event.location,
         "json_schema": event.json_schema,
+        "group": (
+            {"name": event.group.name, "checkpoint_labels": event.group.checkpoint_labels}
+            if event.group_id else None
+        ),
         "bookings": bookings,
     }
 
@@ -208,6 +217,7 @@ def _serialize_bookings(event):
             "is_lottery_lost": ep.is_lottery_lost,
             "is_main_contact": ep.is_main_contact,
             "attended": ep.attended,
+            "checkpoints": ep.checkpoints or [],
             "is_member": ep.is_member,
             "notes": ep.notes,
             "extra_json": ep.extra_json,
@@ -824,6 +834,7 @@ def _serialize_event_group(group, include_bookings=False, for_guide=False):
         "description": group.description,
         "is_active": group.is_active,
         "quick_edit_fields": group.quick_edit_fields or [],
+        "checkpoint_labels": group.checkpoint_labels,
         "field_options": _group_field_options(events),
         "allocations": [
             {
@@ -980,6 +991,41 @@ def _set_group_extra_field(group, ep, data):
     return Response({"ep_id": ep.id, "extra_json": ep.extra_json})
 
 
+def _toggle_checkpoint(ep, data, allowed):
+    """
+    Mark / unmark one person (``slot``) at checkpoint 1 or 2. Marks record when
+    they were made. ``attended`` mirrors whether anyone is in at checkpoint 1.
+    """
+    try:
+        checkpoint = int(data.get("checkpoint"))
+        slot_idx = int(data.get("slot", 0))
+    except (TypeError, ValueError):
+        return Response({"detail": "checkpoint and slot must be numbers"}, status=status.HTTP_400_BAD_REQUEST)
+    if checkpoint not in allowed:
+        return Response({"detail": "Checkpoint not editable here"}, status=status.HTTP_400_BAD_REQUEST)
+    if slot_idx < 0 or slot_idx >= max(ep.participant.quantity, 1):
+        return Response({"detail": "Invalid slot"}, status=status.HTTP_400_BAD_REQUEST)
+
+    key = str(checkpoint)
+    with transaction.atomic():
+        ep = EventParticipant.objects.select_for_update().select_related("participant").get(pk=ep.pk)
+        qty = max(ep.participant.quantity, 1)
+        marks = [dict(m) if isinstance(m, dict) else {} for m in (ep.checkpoints or [])]
+        if not marks and ep.attended:
+            # Marked attended before checkpoints existed: everyone counts as checked in.
+            marks = [{"1": True} for _ in range(qty)]
+        while len(marks) < qty:
+            marks.append({})
+        if marks[slot_idx].get(key):
+            marks[slot_idx].pop(key)
+        else:
+            marks[slot_idx][key] = timezone.now().isoformat()
+        ep.checkpoints = marks
+        ep.attended = any(m.get("1") for m in marks[:qty])
+        ep.save(update_fields=["checkpoints", "attended"])
+    return Response({"ep_id": ep.id, "checkpoints": ep.checkpoints, "attended": ep.attended})
+
+
 def _get_group_ep(group, ep_id):
     return EventParticipant.objects.select_related("participant").get(id=ep_id, event__group=group)
 
@@ -1008,7 +1054,7 @@ class ConsoleEventGroupDetailView(APIView):
         return Response(_serialize_event_group(group, include_bookings=True))
 
     def patch(self, request, group_id: int):
-        """Update the group's quick-edit field selection."""
+        """Update the group's quick-edit fields and checkpoint labels."""
         try:
             group = self._get(group_id)
         except EventGroup.DoesNotExist:
@@ -1023,7 +1069,19 @@ class ConsoleEventGroupDetailView(APIView):
                 return Response({"detail": f"Unknown field(s): {', '.join(unknown)}"}, status=status.HTTP_400_BAD_REQUEST)
             group.quick_edit_fields = list(dict.fromkeys(keys))
             group.save(update_fields=["quick_edit_fields", "updated_at"])
-        return Response({"quick_edit_fields": group.quick_edit_fields})
+        if "checkpoint_labels" in request.data:
+            labels = request.data["checkpoint_labels"]
+            if (
+                not isinstance(labels, list) or len(labels) != 2
+                or not all(isinstance(l, str) and l.strip() for l in labels)
+            ):
+                return Response({"detail": "checkpoint_labels must be two names"}, status=status.HTTP_400_BAD_REQUEST)
+            group.checkpoint_labels = [l.strip()[:40] for l in labels]
+            group.save(update_fields=["checkpoint_labels", "updated_at"])
+        return Response({
+            "quick_edit_fields": group.quick_edit_fields,
+            "checkpoint_labels": group.checkpoint_labels,
+        })
 
 
 class ConsoleEventGroupParticipantsView(APIView):
@@ -1051,6 +1109,19 @@ class ConsoleEventGroupExtraFieldView(APIView):
         except (EventGroup.DoesNotExist, EventParticipant.DoesNotExist):
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         return _set_group_extra_field(group, ep, request.data)
+
+
+class ConsoleEventGroupCheckpointView(APIView):
+    """Console can mark either checkpoint (group page uses 1, event pages use 2)."""
+    permission_classes = [IsEventsStaff]
+
+    def post(self, request, group_id: int, ep_id: int):
+        try:
+            group = EventGroup.objects.get(pk=group_id)
+            ep = _get_group_ep(group, ep_id)
+        except (EventGroup.DoesNotExist, EventParticipant.DoesNotExist):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return _toggle_checkpoint(ep, request.data, allowed=(1, 2))
 
 
 class ConsoleEventGroupGuideTokenView(APIView):
@@ -1103,7 +1174,7 @@ class GuideEventGroupParticipantsView(APIView):
 
 
 class GuideEventGroupParticipantView(APIView):
-    """Attendance, notes and quick-edit fields for one participant in the group."""
+    """Checkpoint 1, notes and quick-edit fields for one participant in the group."""
     permission_classes = [permissions.AllowAny]
 
     def _lookup(self, token, ep_id):
@@ -1111,14 +1182,12 @@ class GuideEventGroupParticipantView(APIView):
         return group, _get_group_ep(group, ep_id)
 
     def post(self, request, token, ep_id):
-        """Toggle attendance."""
+        """Mark / unmark one person at the group's first checkpoint."""
         try:
             _group, ep = self._lookup(token, ep_id)
         except (EventGroup.DoesNotExist, EventParticipant.DoesNotExist, ValueError):
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-        ep.attended = not ep.attended
-        ep.save(update_fields=["attended"])
-        return Response({"ep_id": ep.id, "attended": ep.attended})
+        return _toggle_checkpoint(ep, {**request.data, "checkpoint": 1}, allowed=(1,))
 
     def patch(self, request, token, ep_id):
         """Update notes, or one quick-edit field when ``key`` is given."""
@@ -1158,6 +1227,19 @@ class GuideToggleAttendanceView(APIView):
         ep.attended = not ep.attended
         ep.save(update_fields=["attended"])
         return Response({"ep_id": ep.id, "attended": ep.attended})
+
+
+class GuideCheckpointView(APIView):
+    """An event's guide link marks the group's second checkpoint (grouped events only)."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, token, ep_id):
+        try:
+            event = OrganizedEvent.objects.get(guide_token=token, group__isnull=False)
+            ep = EventParticipant.objects.select_related("participant").get(id=ep_id, event=event)
+        except (OrganizedEvent.DoesNotExist, EventParticipant.DoesNotExist, ValueError):
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return _toggle_checkpoint(ep, {**request.data, "checkpoint": 2}, allowed=(2,))
 
 
 class GuideUpdateNotesView(APIView):

@@ -61,6 +61,8 @@ from apps.api.views.console_events import (
     ConsoleEventGroupParticipantsView,
     ConsoleEventGroupExtraFieldView,
     ConsoleEventGroupGuideTokenView,
+    ConsoleEventGroupCheckpointView,
+    GuideCheckpointView,
     GuideEventGroupView,
     GuideEventGroupParticipantsView,
     GuideEventGroupParticipantView,
@@ -242,6 +244,11 @@ urlpatterns = [
         name="console-event-group-extra-field",
     ),
     path(
+        "console/event-groups/<int:group_id>/participants/<int:ep_id>/checkpoint",
+        ConsoleEventGroupCheckpointView.as_view(),
+        name="console-event-group-checkpoint",
+    ),
+    path(
         "console/event-groups/<int:group_id>/regenerate-guide-token",
         ConsoleEventGroupGuideTokenView.as_view(),
         name="console-event-group-guide-token",
@@ -271,6 +278,11 @@ urlpatterns = [
         "guide/<uuid:token>/participants/<int:ep_id>/toggle-attendance",
         GuideToggleAttendanceView.as_view(),
         name="guide-toggle-attendance",
+    ),
+    path(
+        "guide/<uuid:token>/participants/<int:ep_id>/checkpoint",
+        GuideCheckpointView.as_view(),
+        name="guide-checkpoint",
     ),
     path(
         "guide/<uuid:token>/participants/<int:ep_id>",

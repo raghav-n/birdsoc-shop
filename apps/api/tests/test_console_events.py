@@ -724,3 +724,62 @@ class ConsoleEventGroupTests(APITestCase):
     def _set_quick_edit_direct(self, keys):
         self.group.quick_edit_fields = keys
         self.group.save()
+
+    # ── checkpoints ─────────────────────────────────────────────────────────
+
+    def test_checkpoints_per_person(self):
+        _events_staff_client(self.client)
+        ep = EventParticipant.objects.select_related("participant").get(event=self.event_a)
+        ep.participant.quantity = 2
+        ep.participant.save()
+        url = f"/api/v1/console/event-groups/{self.group.id}/participants/{ep.id}/checkpoint"
+
+        r = self.client.post(url, {"slot": 1, "checkpoint": 1}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertTrue(r.data["attended"])
+        self.assertNotIn("1", r.data["checkpoints"][0])
+        self.assertIn("1", r.data["checkpoints"][1])
+
+        r = self.client.post(url, {"slot": 0, "checkpoint": 2}, format="json")
+        self.assertIn("2", r.data["checkpoints"][0])
+
+        r = self.client.post(url, {"slot": 1, "checkpoint": 1}, format="json")
+        self.assertFalse(r.data["attended"])
+        self.assertEqual(self.client.post(url, {"slot": 2, "checkpoint": 1}, format="json").status_code, 400)
+        self.assertEqual(self.client.post(url, {"slot": 0, "checkpoint": 3}, format="json").status_code, 400)
+
+    def test_legacy_attended_seeds_checkpoint_one(self):
+        _events_staff_client(self.client)
+        ep = EventParticipant.objects.get(event=self.event_a)
+        ep.attended = True
+        ep.save()
+        url = f"/api/v1/console/event-groups/{self.group.id}/participants/{ep.id}/checkpoint"
+        r = self.client.post(url, {"slot": 0, "checkpoint": 2}, format="json")
+        self.assertTrue(r.data["checkpoints"][0]["1"])
+        self.assertIn("2", r.data["checkpoints"][0])
+        self.assertTrue(r.data["attended"])
+
+    def test_event_guide_link_marks_checkpoint_two_only(self):
+        ep = EventParticipant.objects.get(event=self.event_a)
+        url = f"/api/v1/guide/{self.event_a.guide_token}/participants/{ep.id}/checkpoint"
+        r = self.client.post(url, {"slot": 0, "checkpoint": 1}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(list(r.data["checkpoints"][0]), ["2"])
+        self.assertFalse(r.data["attended"])
+
+        r = self.client.get(f"/api/v1/guide/{self.event_a.guide_token}/event")
+        self.assertEqual(r.data["group"]["checkpoint_labels"], ["Check-in", "At site"])
+        self.assertIn("2", r.data["bookings"][0]["checkpoints"][0])
+
+        p = Participant.objects.create(first_name="S", last_name="W", email="s@x.com")
+        solo_ep = EventParticipant.objects.create(event=self.ungrouped, participant=p, is_confirmed=True)
+        url = f"/api/v1/guide/{self.ungrouped.guide_token}/participants/{solo_ep.id}/checkpoint"
+        self.assertEqual(self.client.post(url, {}, format="json").status_code, 404)
+
+    def test_set_checkpoint_labels(self):
+        _events_staff_client(self.client)
+        url = f"/api/v1/console/event-groups/{self.group.id}"
+        r = self.client.patch(url, {"checkpoint_labels": ["Meeting point", " Bus "]}, format="json")
+        self.assertEqual(r.data["checkpoint_labels"], ["Meeting point", "Bus"])
+        self.assertEqual(self.client.patch(url, {"checkpoint_labels": ["Only one"]}, format="json").status_code, 400)
+        self.assertEqual(self.client.patch(url, {"checkpoint_labels": ["A", ""]}, format="json").status_code, 400)

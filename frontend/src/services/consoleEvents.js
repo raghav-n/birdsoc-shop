@@ -46,8 +46,11 @@ export const consoleEventService = {
   getGroup: (id) =>
     api.get(`/console/event-groups/${id}`).then(r => r.data),
 
-  setGroupQuickEditFields: (id, keys) =>
-    api.patch(`/console/event-groups/${id}`, { quick_edit_fields: keys }).then(r => r.data),
+  updateGroup: (id, data) =>
+    api.patch(`/console/event-groups/${id}`, data).then(r => r.data),
+
+  toggleGroupCheckpoint: (id, epId, data) =>
+    api.post(`/console/event-groups/${id}/participants/${epId}/checkpoint`, data).then(r => r.data),
 
   addGroupParticipant: (id, data) =>
     api.post(`/console/event-groups/${id}/participants`, data).then(r => r.data),
@@ -116,14 +119,19 @@ export const guideService = {
 
   updateNotes: (token, epId, notes) =>
     api.patch(`/guide/${token}/participants/${epId}`, { notes }).then(r => r.data),
+
+  // Grouped events only: marks the group's second checkpoint for one person.
+  toggleCheckpoint: (token, epId, slot) =>
+    api.post(`/guide/${token}/participants/${epId}/checkpoint`, { slot }).then(r => r.data),
 };
 
 export const groupGuideService = {
   getGroup: (token) =>
     api.get(`/guide/group/${token}`).then(r => r.data),
 
-  toggleAttendance: (token, epId) =>
-    api.post(`/guide/group/${token}/participants/${epId}`).then(r => r.data),
+  // Marks the group's first checkpoint for one person.
+  toggleCheckpoint: (token, epId, slot) =>
+    api.post(`/guide/group/${token}/participants/${epId}`, { slot }).then(r => r.data),
 
   updateNotes: (token, epId, notes) =>
     api.patch(`/guide/group/${token}/participants/${epId}`, { notes }).then(r => r.data),

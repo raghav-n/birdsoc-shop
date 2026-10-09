@@ -18,6 +18,10 @@ class EventImage(models.Model):
         ordering = ["-uploaded_at"]
 
 
+def default_checkpoint_labels():
+    return ["Check-in", "At site"]
+
+
 class EventGroup(models.Model):
     """
     A collection of related events that belong together as one campaign or
@@ -59,6 +63,14 @@ class EventGroup(models.Model):
         unique=True,
         editable=False,
         help_text=_("Token for no-login magic-link access to the group participant list."),
+    )
+    checkpoint_labels = models.JSONField(
+        _("Checkpoint labels"),
+        default=default_checkpoint_labels,
+        help_text=_(
+            "Names of the two attendance checkpoints. The first is marked on the "
+            "group page, the second on each event's own page."
+        ),
     )
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
@@ -693,6 +705,16 @@ class EventParticipant(models.Model):
         ),
     )
     attended = models.BooleanField(_("Attended"), default=False)
+    checkpoints = models.JSONField(
+        _("Checkpoints"),
+        blank=True,
+        default=list,
+        help_text=_(
+            "Per-person checkpoint marks for grouped events: one dict per person "
+            "(slot), mapping checkpoint number ('1'/'2') to when it was marked. "
+            "``attended`` mirrors whether anyone is marked at checkpoint 1."
+        ),
+    )
     is_member = models.BooleanField(_("BirdSoc member"), default=False)
     notes = models.TextField(_("Notes"), blank=True)
     extra_json = models.JSONField(_("Extra data"), blank=True, null=True)

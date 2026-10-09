@@ -7,7 +7,7 @@ export default function GuideEventGroupDetail() {
   const { token } = useParams();
   const api = useMemo(() => ({
     load: () => svc.getGroup(token),
-    toggleAttendance: (b) => svc.toggleAttendance(token, b.ep_id),
+    toggleCheckpoint: (b, slot) => svc.toggleCheckpoint(token, b.ep_id, slot),
     saveNotes: (b, notes) => svc.updateNotes(token, b.ep_id, notes),
     setExtraField: (b, data) => svc.setExtraField(token, b.ep_id, data),
     addParticipant: (data) => svc.addParticipant(token, data),

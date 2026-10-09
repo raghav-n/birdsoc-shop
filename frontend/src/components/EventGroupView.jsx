@@ -4,8 +4,9 @@ import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import { Copy, RefreshCw, Plus } from 'lucide-react';
 import {
-  AttendBtn, NotesCell, ExtraInfo, getSlots, getSubParticipants,
+  NotesCell, ExtraInfo, getSlots, getSubParticipants,
   emergencyContactItems, matchesQuery, headcount,
+  checkpointMark, checkpointCount, CheckpointButton,
 } from './ParticipantInfo';
 
 // Event group participant list, shared by the console page and the group guide link.
@@ -512,11 +513,11 @@ function AddParticipantForm({ events, defaultEventId, quickOptions, onSubmit, on
 /**
  * `api` shape:
  *   load() → group
- *   toggleAttendance(booking) → { attended }
+ *   toggleCheckpoint(booking, slot) → { checkpoints, attended }   (marks checkpoint 1)
  *   saveNotes(booking, value)
  *   setExtraField(booking, { slot, key, value }) → { extra_json }
  *   addParticipant(payload) → group
- *   setQuickEditFields?(keys) → { quick_edit_fields }   (console only)
+ *   updateGroup?(data) → { quick_edit_fields, checkpoint_labels }   (console only)
  *   regenerateGuideToken?() → { guide_token }            (console only)
  */
 export default function EventGroupView({ api, mode = 'console' }) {
@@ -555,13 +556,13 @@ export default function EventGroupView({ api, mode = 'console' }) {
     }));
   };
 
-  const handleToggleAttendance = async (b) => {
-    setToggling(b.ep_id);
+  const handleToggleCheckpoint = async (b, slot) => {
+    setToggling(`${b.ep_id}:${slot}`);
     try {
-      const updated = await api.toggleAttendance(b);
-      patchBooking(b.event.id, b.ep_id, { attended: updated.attended });
+      const updated = await api.toggleCheckpoint(b, slot);
+      patchBooking(b.event.id, b.ep_id, { checkpoints: updated.checkpoints, attended: updated.attended });
     } catch {
-      toast.error('Failed to update attendance');
+      toast.error('Failed to update check-in');
     } finally {
       setToggling(null);
     }
@@ -588,12 +589,24 @@ export default function EventGroupView({ api, mode = 'console' }) {
     const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key];
     setSavingFields(true);
     try {
-      const res = await api.setQuickEditFields(next);
+      const res = await api.updateGroup({ quick_edit_fields: next });
       setGroup(prev => ({ ...prev, quick_edit_fields: res.quick_edit_fields }));
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Failed to update quick-edit fields');
     } finally {
       setSavingFields(false);
+    }
+  };
+
+  const saveCheckpointLabel = async (index, value) => {
+    const labels = [...group.checkpoint_labels];
+    if (!value.trim() || value.trim() === labels[index]) return;
+    labels[index] = value.trim();
+    try {
+      const res = await api.updateGroup({ checkpoint_labels: labels });
+      setGroup(prev => ({ ...prev, checkpoint_labels: res.checkpoint_labels }));
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to rename checkpoint');
     }
   };
 
@@ -636,7 +649,8 @@ export default function EventGroupView({ api, mode = 'console' }) {
   const siteConfirmed = siteFilter ? allConfirmed.filter(b => b.event.id === siteFilter) : allConfirmed;
 
   const confirmedCount = headcount(siteConfirmed);
-  const attendedCount = headcount(siteConfirmed.filter(b => b.attended));
+  const [checkInLabel, siteLabel] = group.checkpoint_labels || ['Check-in', 'At site'];
+  const attendedCount = checkpointCount(siteConfirmed, 1);
 
   const q = query.trim().toLowerCase();
   const visible = (q ? siteConfirmed.filter(b => matchesQuery(b, q)) : siteConfirmed).slice();
@@ -700,6 +714,25 @@ export default function EventGroupView({ api, mode = 'console' }) {
         </Panel>
       )}
 
+      {!isGuide && (
+        <Panel>
+          <PanelLabel title="Checkpoint 1 is marked here; checkpoint 2 on each event's own page">Checkpoints</PanelLabel>
+          {[checkInLabel, siteLabel].map((label, i) => (
+            <label key={`${i}:${label}`} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: '#6b7280' }}>
+              {i + 1}.
+              <QuickInput
+                defaultValue={label}
+                aria-label={`Checkpoint ${i + 1} name`}
+                style={{ width: 130 }}
+                onBlur={e => saveCheckpointLabel(i, e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
+              {i === 0 ? <span>(this page)</span> : <span>(event pages)</span>}
+            </label>
+          ))}
+        </Panel>
+      )}
+
       <StatsRow>
         <StatCard>
           <StatNum $color="#15803d">{confirmedCount}</StatNum>
@@ -707,11 +740,15 @@ export default function EventGroupView({ api, mode = 'console' }) {
         </StatCard>
         <StatCard>
           <StatNum $color="#1d4ed8">{attendedCount}</StatNum>
-          <StatLabel>Attended</StatLabel>
+          <StatLabel>{checkInLabel}</StatLabel>
         </StatCard>
         <StatCard>
           <StatNum>{confirmedCount - attendedCount}</StatNum>
           <StatLabel>Not yet marked</StatLabel>
+        </StatCard>
+        <StatCard>
+          <StatNum $color="#0f766e">{checkpointCount(siteConfirmed, 2)}</StatNum>
+          <StatLabel>{siteLabel}</StatLabel>
         </StatCard>
         {(group.allocations || []).filter(a => a.is_active).map(a => (
           <StatCard key={a.id}>
@@ -782,7 +819,7 @@ export default function EventGroupView({ api, mode = 'console' }) {
                 <Th>Event</Th>
                 <Th>Phone</Th>
                 {quickOptions.map(opt => <Th key={opt.key} title={opt.title}>{fieldLabel(opt)}</Th>)}
-                <Th>Attended</Th>
+                <Th>{checkInLabel}</Th>
                 <Th style={{ minWidth: 140 }}>Notes</Th>
               </tr>
             </thead>
@@ -835,13 +872,11 @@ export default function EventGroupView({ api, mode = 'console' }) {
                         </Td>
                       ))}
                       <Td>
-                        <AttendBtn
-                          $attended={b.attended}
-                          onClick={() => handleToggleAttendance(b)}
-                          disabled={toggling === b.ep_id}
-                        >
-                          {toggling === b.ep_id ? '…' : b.attended ? '✓ Attended' : 'Mark'}
-                        </AttendBtn>
+                        <CheckpointButton
+                          mark={checkpointMark(b, 0, 1)}
+                          busy={toggling === `${b.ep_id}:0`}
+                          onClick={() => handleToggleCheckpoint(b, 0)}
+                        />
                       </Td>
                       <Td style={{ minWidth: 140 }}>
                         <NotesCell initialNotes={b.notes} onSave={v => handleNotesSave(b, v)} />
@@ -876,8 +911,12 @@ export default function EventGroupView({ api, mode = 'console' }) {
                             />
                           </Td>
                         ))}
-                        <Td style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                          {b.attended ? '✓ with group' : ''}
+                        <Td>
+                          <CheckpointButton
+                            mark={checkpointMark(b, i + 1, 1)}
+                            busy={toggling === `${b.ep_id}:${i + 1}`}
+                            onClick={() => handleToggleCheckpoint(b, i + 1)}
+                          />
                         </Td>
                         <Td></Td>
                       </Tr>

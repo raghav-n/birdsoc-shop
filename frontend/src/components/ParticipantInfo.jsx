@@ -149,3 +149,40 @@ export function matchesQuery(booking, q) {
 
 // Attendance is tracked per registration, so headcounts sum each registration's party size.
 export const headcount = (list) => list.reduce((n, b) => n + (b.quantity || 1), 0);
+
+// ─── Checkpoints (grouped events) ────────────────────────────────────────────
+
+// A person's mark at checkpoint `n`: an ISO time, `true` (marked, time unknown) or null.
+// Registrations marked attended before checkpoints existed count as checkpoint 1.
+export function checkpointMark(booking, slot, n) {
+  const marks = booking.checkpoints || [];
+  if (marks.length === 0) return n === 1 && booking.attended ? true : null;
+  return marks[slot]?.[String(n)] || null;
+}
+
+// People (not registrations) marked at checkpoint `n`.
+export const checkpointCount = (list, n) => list.reduce((count, b) => {
+  for (let i = 0; i < (b.quantity || 1); i++) if (checkpointMark(b, i, n)) count++;
+  return count;
+}, 0);
+
+const markTime = (mark) => (typeof mark === 'string'
+  ? new Date(mark).toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
+  : '');
+
+export function CheckpointButton({ mark, busy, onClick }) {
+  return (
+    <AttendBtn $attended={!!mark} disabled={busy} onClick={onClick} style={{ whiteSpace: 'nowrap' }}>
+      {busy ? '…' : mark ? `✓ ${markTime(mark)}`.trim() : 'Mark'}
+    </AttendBtn>
+  );
+}
+
+// Read-only view of another checkpoint, e.g. group check-in shown on a site's page.
+export function CheckpointStatus({ label, mark }) {
+  return (
+    <div style={{ fontSize: '0.72rem', whiteSpace: 'nowrap', marginBottom: '0.25rem', color: mark ? '#15803d' : '#9ca3af' }}>
+      {mark ? `✓ ${label}${markTime(mark) ? ` ${markTime(mark)}` : ''}` : `Not at ${label.toLowerCase()}`}
+    </div>
+  );
+}

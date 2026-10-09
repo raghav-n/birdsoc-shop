@@ -7,11 +7,11 @@ export default function EventGroupDetail() {
   const { id } = useParams();
   const api = useMemo(() => ({
     load: () => svc.getGroup(id),
-    toggleAttendance: (b) => svc.toggleAttendance(b.event.id, b.ep_id),
+    toggleCheckpoint: (b, slot) => svc.toggleGroupCheckpoint(id, b.ep_id, { slot, checkpoint: 1 }),
     saveNotes: (b, notes) => svc.updateParticipant(b.event.id, b.ep_id, { notes }),
     setExtraField: (b, data) => svc.setGroupExtraField(id, b.ep_id, data),
     addParticipant: (data) => svc.addGroupParticipant(id, data),
-    setQuickEditFields: (keys) => svc.setGroupQuickEditFields(id, keys),
+    updateGroup: (data) => svc.updateGroup(id, data),
     regenerateGuideToken: () => svc.regenerateGroupGuideToken(id),
   }), [id]);
   return <EventGroupView api={api} mode="console" />;

@@ -6,6 +6,7 @@ import { guideService } from '../services/consoleEvents';
 import {
   AttendBtn, NotesCell, ExtraInfo, getSlots, getSubParticipants,
   emergencyContactItems, matchesQuery, headcount,
+  checkpointMark, checkpointCount, CheckpointButton, CheckpointStatus,
 } from '../components/ParticipantInfo';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -221,6 +222,24 @@ export default function GuideEventDetail() {
     }
   };
 
+  // Grouped events: this page marks the group's second checkpoint, per person.
+  const handleToggleCheckpoint = async (booking, slot) => {
+    setToggling(`${booking.ep_id}:${slot}`);
+    try {
+      const updated = await guideService.toggleCheckpoint(token, booking.ep_id, slot);
+      setEvent(prev => ({
+        ...prev,
+        bookings: prev.bookings.map(b =>
+          b.ep_id === booking.ep_id ? { ...b, checkpoints: updated.checkpoints, attended: updated.attended } : b
+        ),
+      }));
+    } catch {
+      toast.error('Failed to update attendance');
+    } finally {
+      setToggling(null);
+    }
+  };
+
   const handleNotesSave = async (epId, value) => {
     await guideService.updateNotes(token, epId, value);
     setEvent(prev => ({
@@ -237,7 +256,20 @@ export default function GuideEventDetail() {
   const confirmed = bookings.filter(b => !b.is_cancelled && !b.is_waitlisted && b.is_confirmed);
   const schemaProps = event.json_schema?.properties || {};
   const confirmedCount = headcount(confirmed);
-  const attendedCount = headcount(confirmed.filter(b => b.attended));
+  const labels = event.group?.checkpoint_labels;
+  const attendedCount = labels ? checkpointCount(confirmed, 2) : headcount(confirmed.filter(b => b.attended));
+
+  // Grouped events show group check-in read-only above this site's own mark.
+  const checkpointCell = (b, slot) => (
+    <>
+      <CheckpointStatus label={labels[0]} mark={checkpointMark(b, slot, 1)} />
+      <CheckpointButton
+        mark={checkpointMark(b, slot, 2)}
+        busy={toggling === `${b.ep_id}:${slot}`}
+        onClick={() => handleToggleCheckpoint(b, slot)}
+      />
+    </>
+  );
 
   const q = query.trim().toLowerCase();
   const visible = q ? confirmed.filter(b => matchesQuery(b, q)) : confirmed;
@@ -258,9 +290,15 @@ export default function GuideEventDetail() {
           <StatNum $color="#15803d">{confirmedCount}</StatNum>
           <StatLabel>Confirmed</StatLabel>
         </StatCard>
+        {labels && (
+          <StatCard>
+            <StatNum $color="#1d4ed8">{checkpointCount(confirmed, 1)}</StatNum>
+            <StatLabel>{labels[0]}</StatLabel>
+          </StatCard>
+        )}
         <StatCard>
-          <StatNum $color="#1d4ed8">{attendedCount}</StatNum>
-          <StatLabel>Attended</StatLabel>
+          <StatNum $color={labels ? '#0f766e' : '#1d4ed8'}>{attendedCount}</StatNum>
+          <StatLabel>{labels ? labels[1] : 'Attended'}</StatLabel>
         </StatCard>
         <StatCard>
           <StatNum>{confirmedCount - attendedCount}</StatNum>
@@ -289,7 +327,7 @@ export default function GuideEventDetail() {
               <tr>
                 <Th>Name</Th>
                 <Th>Phone</Th>
-                <Th>Attended</Th>
+                <Th>{labels ? labels[1] : 'Attended'}</Th>
                 <Th style={{ minWidth: 140 }}>Notes</Th>
               </tr>
             </thead>
@@ -323,13 +361,13 @@ export default function GuideEventDetail() {
                     {b.phone_number || '—'}
                   </Td>
                   <Td>
-                    <AttendBtn
+                    {labels ? checkpointCell(b, 0) : <AttendBtn
                       $attended={b.attended}
                       onClick={() => handleToggleAttendance(b)}
                       disabled={toggling === b.ep_id}
                     >
                       {toggling === b.ep_id ? '…' : b.attended ? '✓ Attended' : 'Mark'}
-                    </AttendBtn>
+                    </AttendBtn>}
                   </Td>
                   <Td style={{ minWidth: 140 }}>
                     <NotesCell
@@ -356,7 +394,7 @@ export default function GuideEventDetail() {
                       {sp.phone || '—'}
                     </Td>
                     <Td style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                      {b.attended ? '✓ with group' : ''}
+                      {labels ? checkpointCell(b, i + 1) : b.attended ? '✓ with group' : ''}
                     </Td>
                     <Td></Td>
                   </Tr>

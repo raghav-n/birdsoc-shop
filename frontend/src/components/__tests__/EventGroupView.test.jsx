@@ -8,6 +8,7 @@ const group = (overrides = {}) => ({
   is_active: true,
   guide_token: 'tok',
   quick_edit_fields: ['driving'],
+  checkpoint_labels: ['Check-in', 'At site'],
   field_options: [
     { key: 'driving', title: 'Will you be driving?', type: 'string', enum: ['Yes', 'No', 'Unsure'] },
     { key: 'attended_before', title: 'I have attended this event before.', type: 'boolean', enum: null },
@@ -22,7 +23,7 @@ const group = (overrides = {}) => ({
     bookings: [{
       ep_id: 100, first_name: 'Tan', last_name: 'Ah Kow', email: '', phone_number: '9123',
       quantity: 1, is_confirmed: true, is_cancelled: false, is_waitlisted: false,
-      attended: false, notes: '', extra_json: [{ driving: 'Yes' }],
+      attended: false, notes: '', extra_json: [{ driving: 'Yes' }], checkpoints: [],
     }],
   }],
   ...overrides,
@@ -30,11 +31,11 @@ const group = (overrides = {}) => ({
 
 const makeApi = (g) => ({
   load: vi.fn().mockResolvedValue(g),
-  toggleAttendance: vi.fn(),
+  toggleCheckpoint: vi.fn().mockResolvedValue({ checkpoints: [{ 1: '2026-10-11T07:42:00+08:00' }], attended: true }),
   saveNotes: vi.fn(),
   setExtraField: vi.fn().mockResolvedValue({ extra_json: [{ driving: 'No' }] }),
   addParticipant: vi.fn().mockResolvedValue(g),
-  setQuickEditFields: vi.fn().mockResolvedValue({ quick_edit_fields: [] }),
+  updateGroup: vi.fn().mockResolvedValue({ quick_edit_fields: [], checkpoint_labels: ['Check-in', 'At site'] }),
   regenerateGuideToken: vi.fn(),
 });
 
@@ -73,5 +74,14 @@ describe('EventGroupView', () => {
     expect(screen.queryByText('Quick-edit fields')).not.toBeInTheDocument();
     expect(screen.queryByText('Guide link')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add participant/i })).toBeInTheDocument();
+  });
+
+  it('marks checkpoint 1 per person on the group page', async () => {
+    const api = makeApi(group());
+    renderView(api, 'guide');
+    expect(await screen.findByRole('columnheader', { name: 'Check-in' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mark' }));
+    await waitFor(() => expect(api.toggleCheckpoint).toHaveBeenCalledWith(expect.objectContaining({ ep_id: 100 }), 0));
+    expect(await screen.findByRole('button', { name: /✓/ })).toBeInTheDocument();
   });
 });
