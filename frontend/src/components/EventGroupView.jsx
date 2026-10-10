@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
-import { Copy, RefreshCw, Plus } from 'lucide-react';
+import { Copy, RefreshCw, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   NotesCell, ExtraInfo, getSlots, getSubParticipants,
   emergencyContactItems, matchesQuery, headcount,
@@ -331,6 +331,22 @@ const QuickSelect = styled.select`
   &:disabled { opacity: 0.5; }
 `;
 
+const AccordionToggle = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  border: none;
+  background: #fafafa;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  &:hover { background: #f3f4f6; }
+`;
+
 const LoadingText = styled.div`
   text-align: center;
   padding: 3rem;
@@ -422,6 +438,82 @@ function QuickEditControl({ option, value, onSave }) {
       onBlur={commit}
       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
     />
+  );
+}
+
+// ─── Driving summary ─────────────────────────────────────────────────────────
+
+// Counts answers to the driving question per site. A party registering together
+// counts once, using the lead registrant's (slot 0) answer.
+function DrivingSummary({ option, events, bookings }) {
+  const [open, setOpen] = useState(false);
+  const answers = option.enum || ['Yes', 'No', 'Unsure'];
+  const tally = (list) => {
+    const counts = Object.fromEntries(answers.map(a => [a, 0]));
+    let unanswered = 0;
+    list.forEach(b => {
+      const v = getSlots(b)[0]?.[option.key];
+      if (!isEmpty(v) && v in counts) counts[v]++;
+      else unanswered++;
+    });
+    return { counts, unanswered };
+  };
+  const rows = events.map(ev => {
+    const list = bookings.filter(b => b.event.id === ev.id);
+    const drivers = list.filter(b => getSlots(b)[0]?.[option.key] === 'Yes').map(fullName);
+    return { ev, ...tally(list), drivers };
+  });
+  const total = tally(bookings);
+
+  return (
+    <TableCard>
+      <AccordionToggle type="button" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+        {option.title || 'Driving'}
+        {answers.includes('Yes') && (
+          <span style={{ fontWeight: 400, color: '#6b7280' }}>
+            · {total.counts.Yes} driving across {bookings.length} {bookings.length === 1 ? 'registration' : 'registrations'}
+          </span>
+        )}
+      </AccordionToggle>
+      {open && (
+        <TableScroll style={{ borderTop: '1px solid #e5e7eb' }}>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Event</Th>
+                {answers.map(a => <Th key={a}>{a}</Th>)}
+                <Th>No answer</Th>
+                {answers.includes('Yes') && <Th>Driving</Th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ ev, counts, unanswered, drivers }) => (
+                <Tr key={ev.id}>
+                  <Td style={{ whiteSpace: 'nowrap' }}>{ev.title}</Td>
+                  {answers.map(a => <Td key={a}>{counts[a]}</Td>)}
+                  <Td style={{ color: unanswered ? '#b45309' : undefined }}>{unanswered}</Td>
+                  {answers.includes('Yes') && (
+                    <Td style={{ fontSize: '0.8rem', color: '#4b5563' }}>{drivers.join(', ') || '—'}</Td>
+                  )}
+                </Tr>
+              ))}
+              {rows.length > 1 && (
+                <Tr $sub>
+                  <Td style={{ fontWeight: 600 }}>Total</Td>
+                  {answers.map(a => <Td key={a} style={{ fontWeight: 600 }}>{total.counts[a]}</Td>)}
+                  <Td style={{ fontWeight: 600 }}>{total.unanswered}</Td>
+                  {answers.includes('Yes') && <Td></Td>}
+                </Tr>
+              )}
+            </tbody>
+          </Table>
+          <div style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#6b7280', borderTop: '1px solid #f3f4f6' }}>
+            Counted per registration; parties use the lead registrant's answer.
+          </div>
+        </TableScroll>
+      )}
+    </TableCard>
   );
 }
 
@@ -640,6 +732,7 @@ export default function EventGroupView({ api, mode = 'console' }) {
     .map(k => fieldOptions.find(o => o.key === k))
     .filter(Boolean);
   const quickKeys = quickOptions.map(o => o.key);
+  const drivingOption = fieldOptions.find(o => o.key === 'driving');
   const colCount = 5 + quickOptions.length;
 
   // One flat list across every site; each booking remembers which event it belongs to.
@@ -757,6 +850,10 @@ export default function EventGroupView({ api, mode = 'console' }) {
           </StatCard>
         ))}
       </StatsRow>
+
+      {drivingOption && allConfirmed.length > 0 && (
+        <DrivingSummary option={drivingOption} events={events} bookings={allConfirmed} />
+      )}
 
       <SiteFilterRow>
         <SiteFilterBtn $active={!siteFilter} onClick={() => setSiteFilter(null)}>

@@ -84,4 +84,29 @@ describe('EventGroupView', () => {
     await waitFor(() => expect(api.toggleCheckpoint).toHaveBeenCalledWith(expect.objectContaining({ ep_id: 100 }), 0));
     expect(await screen.findByRole('button', { name: /✓/ })).toBeInTheDocument();
   });
+
+  it('summarizes driving answers per site using the lead registrant of a party', async () => {
+    const booking = (ep_id, name, quantity, extra_json) => ({
+      ep_id, first_name: name, last_name: '', email: '', phone_number: '1', quantity,
+      is_confirmed: true, is_cancelled: false, is_waitlisted: false,
+      attended: false, notes: '', extra_json, checkpoints: [],
+    });
+    const g = group({
+      quick_edit_fields: [],
+      events: [
+        { ...group().events[0], bookings: [
+          booking(1, 'Lead', 3, [{ driving: 'Yes' }, { driving: 'No' }, { driving: 'No' }]),
+          booking(2, 'Solo', 1, [{}]),
+        ] },
+        { ...group().events[0], id: 11, title: 'Site B', bookings: [booking(3, 'Bee', 1, [{ driving: 'No' }])] },
+      ],
+    });
+    renderView(makeApi(g), 'console');
+    fireEvent.click(await screen.findByRole('button', { name: /will you be driving\?/i, expanded: false }));
+    const siteA = screen.getAllByRole('row').find(r => r.textContent.startsWith('Site A'));
+    // Site A: Yes 1, No 0, Unsure 0, No answer 1, drivers "Lead"
+    expect([...siteA.querySelectorAll('td')].map(td => td.textContent)).toEqual(['Site A', '1', '0', '0', '1', 'Lead']);
+    const total = screen.getAllByRole('row').find(r => r.textContent.startsWith('Total'));
+    expect([...total.querySelectorAll('td')].map(td => td.textContent).slice(0, 5)).toEqual(['Total', '1', '1', '0', '1']);
+  });
 });
