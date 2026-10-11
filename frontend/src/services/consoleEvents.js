@@ -66,6 +66,10 @@ export const consoleEventService = {
   sendGroupFollowupEmail: (id, data) =>
     api.post(`/console/event-groups/${id}/send-followup-email`, data).then(r => r.data),
 
+  // Every follow-up email sent to the group, with its logged recipients.
+  listGroupFollowupEmails: (id) =>
+    api.get(`/console/event-groups/${id}/followup-emails`).then(r => r.data),
+
   // Global registration toggle
   getRegistrationStatus: () =>
     api.get('/console/registration-toggle').then(r => r.data),

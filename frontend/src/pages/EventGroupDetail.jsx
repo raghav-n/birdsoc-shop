@@ -14,6 +14,7 @@ export default function EventGroupDetail() {
     updateGroup: (data) => svc.updateGroup(id, data),
     regenerateGuideToken: () => svc.regenerateGroupGuideToken(id),
     sendFollowupEmail: (data) => svc.sendGroupFollowupEmail(id, data),
+    listFollowupEmails: () => svc.listGroupFollowupEmails(id),
   }), [id]);
   return <EventGroupView api={api} mode="console" />;
 }

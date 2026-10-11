@@ -232,6 +232,45 @@ const PanelLabel = styled.span`
   flex-shrink: 0;
 `;
 
+const SentList = styled.ul`
+  flex-basis: 100%;
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  font-size: 0.82rem;
+  li + li { margin-top: 0.4rem; }
+`;
+
+const SentRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.75rem;
+  color: #6b7280;
+`;
+
+const SentToggle = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  text-align: left;
+`;
+
+const SentRecipients = styled.ul`
+  margin: 0.35rem 0 0 1.4rem;
+  padding: 0;
+  columns: 2 220px;
+  font-size: 0.78rem;
+  color: #374151;
+  li + li { margin-top: 0; }
+`;
+
 const GuideLinkUrl = styled.span`
   flex: 1;
   font-size: 0.8rem;
@@ -613,6 +652,7 @@ function AddParticipantForm({ events, defaultEventId, quickOptions, onSubmit, on
  *   updateGroup?(data) → { quick_edit_fields, checkpoint_labels }   (console only)
  *   regenerateGuideToken?() → { guide_token }            (console only)
  *   sendFollowupEmail?(data) → see GroupFollowupEmailModal   (console only)
+ *   listFollowupEmails?() → [followup email with recipients]   (console only)
  */
 export default function EventGroupView({ api, mode = 'console' }) {
   const isGuide = mode === 'guide';
@@ -626,7 +666,10 @@ export default function EventGroupView({ api, mode = 'console' }) {
   const [adding, setAdding] = useState(false);
   const [savingFields, setSavingFields] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  // false, or { resume } where resume is a saved follow-up email (or null for a new one).
   const [emailing, setEmailing] = useState(false);
+  const [sentEmails, setSentEmails] = useState([]);
+  const [openSent, setOpenSent] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -640,6 +683,17 @@ export default function EventGroupView({ api, mode = 'console' }) {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadSentEmails = useCallback(async () => {
+    if (!api.listFollowupEmails) return;
+    try {
+      setSentEmails(await api.listFollowupEmails());
+    } catch {
+      toast.error('Failed to load sent emails');
+    }
+  }, [api]);
+
+  useEffect(() => { loadSentEmails(); }, [loadSentEmails]);
 
   const patchBooking = (eventId, epId, changes) => {
     setGroup(prev => ({
@@ -812,9 +866,41 @@ export default function EventGroupView({ api, mode = 'console' }) {
           <span style={{ flex: 1, fontSize: '0.85rem', color: '#6b7280' }}>
             Send a reminder or update to participants across every site.
           </span>
-          <SmallBtn onClick={() => setEmailing(true)}>
+          <SmallBtn onClick={() => setEmailing({ resume: null })}>
             <Mail size={13} /> Email participants
           </SmallBtn>
+          {sentEmails.length > 0 && (
+            <SentList>
+              {sentEmails.map(f => (
+                <li key={f.id}>
+                  <SentRow>
+                    <SentToggle
+                      type="button"
+                      aria-expanded={openSent === f.id}
+                      onClick={() => setOpenSent(openSent === f.id ? null : f.id)}
+                    >
+                      {openSent === f.id ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      <strong>{f.subject}</strong>
+                    </SentToggle>
+                    <span>
+                      sent to {f.sent_count} · {new Date(f.created_at).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                      {f.created_by ? ` · ${f.created_by}` : ''}
+                    </span>
+                    <SmallBtn onClick={() => setEmailing({ resume: f })} title="Send this email to anyone it hasn't reached yet">
+                      Continue sending
+                    </SmallBtn>
+                  </SentRow>
+                  {openSent === f.id && (
+                    <SentRecipients>
+                      {f.recipients.map(r => (
+                        <li key={r.email}>{r.email}{r.event_title ? ` (${r.event_title})` : ''}</li>
+                      ))}
+                    </SentRecipients>
+                  )}
+                </li>
+              ))}
+            </SentList>
+          )}
         </Panel>
       )}
 
@@ -823,6 +909,8 @@ export default function EventGroupView({ api, mode = 'console' }) {
           group={group}
           send={api.sendFollowupEmail}
           checkInLabel={checkInLabel}
+          resume={emailing.resume}
+          onSent={loadSentEmails}
           onClose={() => setEmailing(false)}
         />
       )}

@@ -1,13 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
 import RichTextEditor from './RichTextEditor';
 
 // Compose and send a one-off email to an event group's participants. Each
 // person's copy is rendered against their own event, so {{event_title}} is
-// their site. Sends go out in batches so a big group never hits a request timeout.
+// their site. Sends go out in small batches (one Gmail call per email, and the
+// server kills requests after 30s); the server logs every copy as it goes, so
+// the remaining list always comes from the server and nobody is emailed twice.
 
-const BATCH_SIZE = 25;
+const BATCH_SIZE = 5;
 
 const DEFAULT_SUBJECT = 'Update about {{group_name}}';
 const DEFAULT_BODY = `<p>Hi {{first_name}},</p>
@@ -187,33 +189,85 @@ const Progress = styled.span`
   color: var(--text-secondary);
 `;
 
+const SkipBox = styled.textarea`
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 70px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  margin-top: 0.4rem;
+`;
+
+const LinkBtn = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--link-text);
+  cursor: pointer;
+  &:hover { text-decoration: underline; }
+`;
+
+const Preview = styled.div`
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.6rem 0.875rem;
+  font-size: 0.88rem;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fafafa;
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #d1d5db; padding: 0.2em 0.5em; }
+  p { margin: 0 0 0.4em; }
+`;
+
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-export default function GroupFollowupEmailModal({ group, send, checkInLabel, onClose }) {
+/**
+ * `resume` is a saved follow-up email (from the group's send history): its
+ * subject and body are fixed and only people it hasn't reached are offered.
+ */
+export default function GroupFollowupEmailModal({ group, send, checkInLabel, resume = null, onClose, onSent }) {
   const events = group.events || [];
-  const [subject, setSubject] = useState(DEFAULT_SUBJECT);
-  const [body, setBody] = useState(DEFAULT_BODY);
+  const [subject, setSubject] = useState(resume?.subject ?? DEFAULT_SUBJECT);
+  const [body, setBody] = useState(resume?.body ?? DEFAULT_BODY);
+  const [followupId, setFollowupId] = useState(resume?.id ?? null);
   const [eventIds, setEventIds] = useState(() => events.map(ev => ev.id));
   const [attendedOnly, setAttendedOnly] = useState(false);
-  const [recipients, setRecipients] = useState(null);
+  const [skipText, setSkipText] = useState('');
+  const [showSkip, setShowSkip] = useState(false);
+  const [audience, setAudience] = useState(null);
+  const [reload, setReload] = useState(0);
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [progress, setProgress] = useState(null);
-  // Bookings already emailed in this session, so a retry after an error picks up where it stopped.
-  const done = useRef(new Set());
+
+  const filters = {
+    event_ids: eventIds,
+    attended_only: attendedOnly,
+    ...(skipText.trim() ? { skip_emails: skipText } : {}),
+    ...(followupId ? { followup_id: followupId } : {}),
+  };
+  const filtersKey = JSON.stringify(filters);
 
   useEffect(() => {
     let stale = false;
-    setRecipients(null);
-    if (eventIds.length === 0) { setRecipients([]); return undefined; }
-    send({ dry_run: true, event_ids: eventIds, attended_only: attendedOnly })
-      .then(res => { if (!stale) setRecipients(res.recipients); })
-      .catch(() => { if (!stale) toast.error('Failed to load recipients'); });
-    return () => { stale = true; };
-  }, [send, eventIds, attendedOnly]);
+    setAudience(null);
+    if (eventIds.length === 0) { setAudience({ recipients: [], already_sent: 0, skipped: 0 }); return undefined; }
+    // Debounced so typing in the skip box doesn't fire a request per keystroke.
+    const timer = setTimeout(() => {
+      send({ dry_run: true, ...JSON.parse(filtersKey) })
+        .then(res => { if (!stale) setAudience(res); })
+        .catch(() => { if (!stale) toast.error('Failed to load recipients'); });
+    }, skipText ? 400 : 0);
+    return () => { stale = true; clearTimeout(timer); };
+  }, [send, filtersKey, reload]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sending = progress !== null;
-  const pending = (recipients || []).filter(r => !done.current.has(r.ep_id));
+  const pending = audience?.recipients || [];
   const bodyIsEmpty = !body || body.replace(/<[^>]*>/g, '').trim() === '';
 
   const toggleEvent = (id) => setEventIds(prev =>
@@ -232,7 +286,7 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
     if (!validate()) return;
     setSendingTest(true);
     try {
-      const res = await send({ subject, body, test_email: email, event_ids: eventIds, attended_only: attendedOnly });
+      const res = await send({ ...filters, subject, body, test_email: email });
       toast.success(res?.detail || `Test email sent to ${email}`);
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Failed to send test email');
@@ -247,15 +301,17 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
     if (!window.confirm(`Send this email to ${plural(pending.length, 'participant')}? This cannot be undone.`)) return;
     const total = pending.length;
     let sent = 0;
+    let id = followupId;
     const failed = [];
     setProgress({ sent, total });
     try {
       for (let i = 0; i < pending.length; i += BATCH_SIZE) {
         const batch = pending.slice(i, i + BATCH_SIZE).map(r => r.ep_id);
         const res = await send({
-          subject, body, ep_ids: batch, event_ids: eventIds, attended_only: attendedOnly,
+          ...filters, ...(id ? { followup_id: id } : {}), subject, body, ep_ids: batch,
         });
-        res.sent_ep_ids.forEach(id => done.current.add(id));
+        id = res.followup_id;
+        setFollowupId(id);
         sent += res.sent;
         failed.push(...res.failed);
         setProgress({ sent, total });
@@ -264,18 +320,23 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
         toast.error(`Sent ${sent}. Could not send to ${failed.length}: ${failed.join(', ')}`);
       } else {
         toast.success(`Email sent to ${plural(sent, 'participant')}`);
+        onSent?.();
         onClose();
+        return;
       }
     } catch (err) {
-      toast.error(err?.response?.data?.detail || `Stopped after ${sent} sent. Send again to continue with the rest.`);
+      toast.error(err?.response?.data?.detail || 'Sending stopped. Send again to continue with the people not yet emailed.');
     } finally {
       setProgress(null);
     }
+    // Whatever happened, the server's log says who is still waiting.
+    onSent?.();
+    setReload(n => n + 1);
   };
 
   const sendLabel = sending
     ? 'Sending…'
-    : recipients === null
+    : audience === null
       ? 'Loading recipients…'
       : `Send to ${plural(pending.length, 'participant')}`;
 
@@ -284,7 +345,7 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
       <Dialog role="dialog" aria-label="Email participants">
         <Header>
           <div>
-            <Title>Email participants</Title>
+            <Title>{followupId && resume ? 'Continue sending' : 'Email participants'}</Title>
             <Subtitle>{group.name}</Subtitle>
           </div>
           <CloseBtn onClick={onClose} disabled={sending} aria-label="Close">×</CloseBtn>
@@ -317,11 +378,40 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
             </CheckRow>
             <Hint>
               Confirmed bookings only, one email per address.
-              {recipients !== null && ` ${plural(recipients.length, 'recipient')}.`}
-              {recipients !== null && pending.length < recipients.length && ` ${recipients.length - pending.length} already sent.`}
+              {audience && ` ${plural(pending.length, 'person')} to email.`}
+              {audience?.already_sent > 0 && ` ${audience.already_sent} already got this email.`}
+              {audience?.skipped > 0 && ` Skipping ${audience.skipped} from your list.`}
             </Hint>
+            <div style={{ marginTop: '0.5rem' }}>
+              {showSkip || skipText ? (
+                <>
+                  <Label htmlFor="group-followup-skip">Skip these addresses (e.g. pasted from Gmail's Sent folder)</Label>
+                  <SkipBox
+                    id="group-followup-skip"
+                    value={skipText}
+                    disabled={sending}
+                    onChange={e => setSkipText(e.target.value)}
+                    placeholder="a@example.com, Name <b@example.com>, …"
+                  />
+                </>
+              ) : (
+                <LinkBtn type="button" onClick={() => setShowSkip(true)}>
+                  Already emailed some people another way? Skip them
+                </LinkBtn>
+              )}
+            </div>
           </div>
 
+          {resume ? (
+            <div>
+              <Label as="div">Subject</Label>
+              <div style={{ fontSize: '0.9rem', marginBottom: '0.6rem' }}>{subject}</div>
+              <Label as="div">Message</Label>
+              {/* Staff-written HTML from our own console. */}
+              <Preview dangerouslySetInnerHTML={{ __html: body }} />
+              <Hint>The saved message is sent as-is so everyone gets the same email.</Hint>
+            </div>
+          ) : (<>
           <div>
             <Label htmlFor="group-followup-subject">Subject</Label>
             <Input
@@ -341,6 +431,7 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
               <code>{'{{event_location}}'}</code>. Event details are each person's own site.
             </Hint>
           </div>
+          </>)}
 
           <TestRow>
             <div style={{ flex: 1, minWidth: 180 }}>
@@ -360,7 +451,7 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
         </Body>
 
         <Footer>
-          <PrimaryBtn onClick={handleSend} disabled={sending || recipients === null || pending.length === 0}>
+          <PrimaryBtn onClick={handleSend} disabled={sending || audience === null || pending.length === 0}>
             {sendLabel}
           </PrimaryBtn>
           {sending && <Progress>{progress.sent} of {progress.total} sent</Progress>}

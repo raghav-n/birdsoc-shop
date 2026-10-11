@@ -990,3 +990,45 @@ class EventAllocation(models.Model):
             .filter(access_code__iexact=code)
             .first()
         )
+
+
+class FollowupEmail(models.Model):
+    """
+    A one-off email composed in the console for an event group. Each
+    recipient is logged the moment their copy is sent, so a send that is cut
+    off part way can be seen and resumed without emailing anyone twice.
+    """
+
+    group = models.ForeignKey(
+        EventGroup, on_delete=models.CASCADE, related_name="followup_emails"
+    )
+    subject = models.CharField(_("Subject"), max_length=255)
+    body = models.TextField(_("Body"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.subject} ({self.group})"
+
+
+class FollowupEmailRecipient(models.Model):
+    followup = models.ForeignKey(
+        FollowupEmail, on_delete=models.CASCADE, related_name="recipients"
+    )
+    event_participant = models.ForeignKey(
+        EventParticipant, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    # Lower-cased; one copy per address per email.
+    email = models.EmailField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sent_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["followup", "email"], name="unique_followup_recipient"),
+        ]

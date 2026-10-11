@@ -855,7 +855,61 @@ class EventGroupFollowupEmailTests(APITestCase):
         a = self._add(self.event_a, "a@x.com")
         r = self.client.post(self.url, {"subject": "S", "body": "<p>B</p>", "ep_ids": [a.id]}, format="json")
         self.assertEqual(r.status_code, 200, r.data)
-        self.assertEqual(r.data, {"sent": 0, "sent_ep_ids": [], "failed": ["a@x.com"]})
+        self.assertEqual(r.data["sent"], 0)
+        self.assertEqual(r.data["failed"], ["a@x.com"])
+        # A failed copy isn't logged, so it's still pending.
+        r = self.client.post(self.url, {"dry_run": True, "followup_id": r.data["followup_id"]}, format="json")
+        self.assertEqual([x["email"] for x in r.data["recipients"]], ["a@x.com"])
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_logs_each_copy_and_never_resends_it(self, mock_send):
+        _events_staff_client(self.client)
+        a = self._add(self.event_a, "a@x.com")
+        b = self._add(self.event_b, "B@x.com")
+        r = self.client.post(self.url, {"subject": "S", "body": "<p>B</p>", "ep_ids": [a.id]}, format="json")
+        fid = r.data["followup_id"]
+        # Retrying a batch whose response was lost: a@ is skipped, b@ goes out once.
+        r = self.client.post(
+            self.url, {"subject": "ignored", "body": "x", "followup_id": fid, "ep_ids": [a.id, b.id]}, format="json"
+        )
+        self.assertEqual(r.data["followup_id"], fid)
+        self.assertEqual(r.data["sent_ep_ids"], [b.id])
+        self.assertEqual([c.args[1].email for c in mock_send.call_args_list], ["a@x.com", "B@x.com"])
+        # The saved subject is used when resuming, not whatever the client sent.
+        self.assertEqual(mock_send.call_args.args[2], "S")
+        r = self.client.post(self.url, {"dry_run": True, "followup_id": fid}, format="json")
+        self.assertEqual((r.data["recipients"], r.data["already_sent"]), ([], 2))
+
+        r = self.client.get(f"/api/v1/console/event-groups/{self.group.id}/followup-emails")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.data), 1)
+        self.assertEqual(r.data[0]["sent_count"], 2)
+        self.assertEqual(
+            [(x["email"], x["event_title"]) for x in r.data[0]["recipients"]],
+            [("a@x.com", "Site A"), ("b@x.com", "Site B")],
+        )
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_skip_emails_from_a_pasted_list(self, mock_send):
+        _events_staff_client(self.client)
+        a = self._add(self.event_a, "a@x.com")
+        b = self._add(self.event_b, "b@x.com")
+        c = self._add(self.event_b, "c@x.com")
+        pasted = "Ann <A@x.com>, b@x.com\nsomeone@else.com"
+        r = self.client.post(self.url, {"dry_run": True, "skip_emails": pasted}, format="json")
+        self.assertEqual([x["email"] for x in r.data["recipients"]], ["c@x.com"])
+        self.assertEqual(r.data["skipped"], 2)
+        r = self.client.post(
+            self.url,
+            {"subject": "S", "body": "<p>B</p>", "skip_emails": pasted, "ep_ids": [a.id, b.id, c.id]},
+            format="json",
+        )
+        self.assertEqual(r.data["sent_ep_ids"], [c.id])
+
+    def test_unknown_followup_id(self):
+        _events_staff_client(self.client)
+        r = self.client.post(self.url, {"dry_run": True, "followup_id": 999}, format="json")
+        self.assertEqual(r.status_code, 404)
 
     @patch("apps.event.utils.send_followup_email")
     def test_test_email_goes_only_to_tester(self, mock_send):

@@ -124,4 +124,26 @@ describe('EventGroupView', () => {
     await screen.findAllByText('Big Day');
     expect(screen.getAllByRole('button', { name: /email participants/i })).toHaveLength(1);
   });
+
+  it('lists sent emails with their recipients and can continue one', async () => {
+    const sent = [{
+      id: 7, subject: 'Update about Big Day', body: '<p>Hi</p>', created_at: '2026-10-11T23:48:00+08:00',
+      created_by: 'tech@birdsociety.sg', sent_count: 1,
+      recipients: [{ email: 'a@x.com', event_title: 'Site A', sent_at: '2026-10-11T23:48:00+08:00' }],
+    }];
+    const api = {
+      ...makeApi(group()),
+      sendFollowupEmail: vi.fn().mockResolvedValue({ recipients: [], already_sent: 1, skipped: 0 }),
+      listFollowupEmails: vi.fn().mockResolvedValue(sent),
+    };
+    renderView(api, 'console');
+    fireEvent.click(await screen.findByRole('button', { name: /Update about Big Day/ }));
+    expect(screen.getByText('a@x.com (Site A)')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue sending' }));
+    expect(await screen.findByRole('dialog', { name: 'Email participants' })).toBeInTheDocument();
+    await waitFor(() => expect(api.sendFollowupEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ dry_run: true, followup_id: 7 })
+    ));
+  });
 });
+
