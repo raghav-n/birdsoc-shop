@@ -69,6 +69,7 @@ from apps.api.views.console_events import (
     ConsoleEventGroupExtraFieldView,
     ConsoleEventGroupGuideTokenView,
     ConsoleEventGroupCheckpointView,
+    ConsoleEventGroupFollowupEmailView,
     GuideCheckpointView,
     GuideEventGroupView,
     GuideEventGroupParticipantsView,
@@ -259,6 +260,11 @@ urlpatterns = [
         "console/event-groups/<int:group_id>/regenerate-guide-token",
         ConsoleEventGroupGuideTokenView.as_view(),
         name="console-event-group-guide-token",
+    ),
+    path(
+        "console/event-groups/<int:group_id>/send-followup-email",
+        ConsoleEventGroupFollowupEmailView.as_view(),
+        name="console-event-group-followup-email",
     ),
     # Console: forms (feedback builder, responses, invites)
     path("console/forms", ConsoleFormsView.as_view(), name="console-forms"),

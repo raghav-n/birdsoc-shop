@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
-import { Copy, RefreshCw, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Copy, RefreshCw, Plus, ChevronDown, ChevronRight, Mail } from 'lucide-react';
 import {
   NotesCell, ExtraInfo, getSlots, getSubParticipants,
   emergencyContactItems, matchesQuery, headcount,
   checkpointMark, checkpointCount, CheckpointButton,
 } from './ParticipantInfo';
+import GroupFollowupEmailModal from './GroupFollowupEmailModal';
 
 // Event group participant list, shared by the console page and the group guide link.
 // `api` adapts the data calls to either backend; console-only actions are optional on it.
@@ -611,6 +612,7 @@ function AddParticipantForm({ events, defaultEventId, quickOptions, onSubmit, on
  *   addParticipant(payload) → group
  *   updateGroup?(data) → { quick_edit_fields, checkpoint_labels }   (console only)
  *   regenerateGuideToken?() → { guide_token }            (console only)
+ *   sendFollowupEmail?(data) → see GroupFollowupEmailModal   (console only)
  */
 export default function EventGroupView({ api, mode = 'console' }) {
   const isGuide = mode === 'guide';
@@ -624,6 +626,7 @@ export default function EventGroupView({ api, mode = 'console' }) {
   const [adding, setAdding] = useState(false);
   const [savingFields, setSavingFields] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [emailing, setEmailing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -801,6 +804,27 @@ export default function EventGroupView({ api, mode = 'console' }) {
             )}
           </div>
         </Panel>
+      )}
+
+      {!isGuide && api.sendFollowupEmail && (
+        <Panel>
+          <PanelLabel>Email</PanelLabel>
+          <span style={{ flex: 1, fontSize: '0.85rem', color: '#6b7280' }}>
+            Send a reminder or update to participants across every site.
+          </span>
+          <SmallBtn onClick={() => setEmailing(true)}>
+            <Mail size={13} /> Email participants
+          </SmallBtn>
+        </Panel>
+      )}
+
+      {emailing && (
+        <GroupFollowupEmailModal
+          group={group}
+          send={api.sendFollowupEmail}
+          checkInLabel={checkInLabel}
+          onClose={() => setEmailing(false)}
+        />
       )}
 
       {!isGuide && fieldOptions.length > 0 && (

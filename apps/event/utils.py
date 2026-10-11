@@ -941,6 +941,7 @@ def _followup_email_context(event, participant):
         "event_title": event.title,
         "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
         "event_location": event.location or "",
+        "group_name": event.group.name if event.group_id else "",
         "event": event,
         "participant": participant,
     }

@@ -1139,6 +1139,132 @@ class ConsoleEventGroupGuideTokenView(APIView):
         return Response({"guide_token": str(group.guide_token)})
 
 
+FOLLOWUP_BATCH_LIMIT = 25
+
+
+def _group_followup_recipients(group, event_ids=None, attended_only=False):
+    """
+    Confirmed bookings across the group that a follow-up email goes to, one per
+    email address (someone booked into two sites hears about the first only).
+    """
+    qs = (
+        EventParticipant.objects.filter(
+            event__group=group,
+            is_confirmed=True,
+            is_cancelled=False,
+            is_waitlisted=False,
+            is_lottery_pending=False,
+            is_lottery_lost=False,
+        )
+        .exclude(participant__email="")
+        .select_related("participant", "event__group")
+        .order_by("event__start_date", "event__title", "registered_at", "id")
+    )
+    if event_ids:
+        qs = qs.filter(event_id__in=event_ids)
+    if attended_only:
+        qs = qs.filter(attended=True)
+    seen, out = set(), []
+    for ep in qs:
+        email = (ep.participant.email or "").strip().lower()
+        if email and email not in seen:
+            seen.add(email)
+            out.append(ep)
+    return out
+
+
+class ConsoleEventGroupFollowupEmailView(APIView):
+    """
+    Ad-hoc follow-up email to a group's participants, each rendered against
+    their own event (so ``{{event_title}}`` is their site).
+
+    Body: ``{"event_ids": [int]?, "attended_only": bool?}`` plus one of
+      - ``"dry_run": true`` → the recipient list, nothing sent;
+      - ``"test_email"`` → one sample to that address;
+      - ``"ep_ids": [int]`` → send to those recipients (at most
+        FOLLOWUP_BATCH_LIMIT per call; the console loops through the list so
+        a big send never has to fit in one request).
+    """
+    permission_classes = [IsEventsStaff]
+
+    def post(self, request, group_id: int):
+        try:
+            group = EventGroup.objects.get(pk=group_id)
+        except EventGroup.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        event_ids = request.data.get("event_ids") or None
+        if event_ids is not None and (
+            not isinstance(event_ids, list) or not all(isinstance(i, int) for i in event_ids)
+        ):
+            return Response({"detail": "event_ids must be a list of event ids"}, status=status.HTTP_400_BAD_REQUEST)
+        recipients = _group_followup_recipients(
+            group, event_ids, attended_only=bool(request.data.get("attended_only"))
+        )
+
+        if request.data.get("dry_run"):
+            return Response({
+                "recipients": [
+                    {
+                        "ep_id": ep.id,
+                        "name": f"{ep.participant.first_name} {ep.participant.last_name}".strip(),
+                        "email": ep.participant.email,
+                        "event_id": ep.event_id,
+                        "event_title": ep.event.title,
+                    }
+                    for ep in recipients
+                ],
+            })
+
+        subject = (request.data.get("subject") or "").strip()
+        body = (request.data.get("body") or "").strip()
+        if not subject:
+            return Response({"detail": "A subject is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not body:
+            return Response({"detail": "An email body is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.event.utils import send_followup_email
+
+        test_email = (request.data.get("test_email") or "").strip()
+        if test_email:
+            try:
+                EmailValidator()(test_email)
+            except ValidationError:
+                return Response({"detail": "Please enter a valid email address."}, status=status.HTTP_400_BAD_REQUEST)
+            if recipients:
+                event, participant = recipients[0].event, recipients[0].participant
+            else:
+                event = group.events.order_by("start_date", "title").first()
+                if event is None:
+                    return Response({"detail": "This group has no events."}, status=status.HTTP_400_BAD_REQUEST)
+                participant = Participant(first_name="Sample", last_name="Participant", email=test_email, quantity=1)
+            try:
+                send_followup_email(event, participant, subject, body, to_email=test_email)
+            except Exception as exc:
+                return Response({"detail": f"Failed to send test email: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({"detail": f"Sent a test follow-up email to {test_email}."})
+
+        ep_ids = request.data.get("ep_ids")
+        if not isinstance(ep_ids, list) or not ep_ids or not all(isinstance(i, int) for i in ep_ids):
+            return Response({"detail": "ep_ids must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
+        if len(ep_ids) > FOLLOWUP_BATCH_LIMIT:
+            return Response(
+                {"detail": f"Send at most {FOLLOWUP_BATCH_LIMIT} at a time"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        wanted = set(ep_ids)
+        sent, failed = [], []
+        for ep in recipients:
+            if ep.id not in wanted:
+                continue
+            try:
+                send_followup_email(ep.event, ep.participant, subject, body)
+                sent.append(ep.id)
+            except Exception:
+                # logged inside the helper; keep going for the rest
+                failed.append(ep.participant.email)
+        return Response({"sent": len(sent), "sent_ep_ids": sent, "failed": failed})
+
+
 # ─── Group guide access (no auth — token-gated) ───────────────────────────────
 
 

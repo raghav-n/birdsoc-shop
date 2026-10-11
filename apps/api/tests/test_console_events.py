@@ -783,3 +783,111 @@ class ConsoleEventGroupTests(APITestCase):
         self.assertEqual(r.data["checkpoint_labels"], ["Meeting point", "Bus"])
         self.assertEqual(self.client.patch(url, {"checkpoint_labels": ["Only one"]}, format="json").status_code, 400)
         self.assertEqual(self.client.patch(url, {"checkpoint_labels": ["A", ""]}, format="json").status_code, 400)
+
+
+class EventGroupFollowupEmailTests(APITestCase):
+    """Follow-up email across every event in a group, sent in batches."""
+
+    def setUp(self):
+        EventGroup = get_model("event", "EventGroup")
+        self.group = EventGroup.objects.create(name="Big Day", slug="big-day")
+        self.event_a = create_event(title="Site A")
+        self.event_b = create_event(title="Site B")
+        self.ungrouped = create_event(title="Solo walk")
+        for e in (self.event_a, self.event_b):
+            e.group = self.group
+            e.save()
+        self.url = f"/api/v1/console/event-groups/{self.group.id}/send-followup-email"
+
+    def _add(self, event, email, *, attended=False, **flags):
+        p = Participant._default_manager.create(first_name="F", last_name="L", email=email, quantity=1)
+        return EventParticipant.objects.create(
+            event=event, participant=p, is_confirmed=flags.pop("is_confirmed", True), attended=attended, **flags
+        )
+
+    def _recipients(self, **data):
+        r = self.client.post(self.url, {"dry_run": True, **data}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        return r.data["recipients"]
+
+    def test_staff_only(self):
+        r = self.client.post(self.url, {"dry_run": True}, format="json")
+        self.assertIn(r.status_code, (401, 403))
+
+    def test_dry_run_lists_confirmed_across_group_deduped(self):
+        _events_staff_client(self.client)
+        self._add(self.event_a, "a@x.com")
+        self._add(self.event_b, "b@x.com")
+        self._add(self.event_b, "A@x.com")  # same person at a second site
+        self._add(self.event_b, "cancelled@x.com", is_cancelled=True)
+        self._add(self.event_b, "waitlisted@x.com", is_confirmed=False, is_waitlisted=True)
+        self._add(self.event_b, "")
+        self._add(self.ungrouped, "solo@x.com")
+        emails = sorted(r["email"].lower() for r in self._recipients())
+        self.assertEqual(emails, ["a@x.com", "b@x.com"])
+
+    def test_dry_run_filters_by_event_and_attendance(self):
+        _events_staff_client(self.client)
+        self._add(self.event_a, "a@x.com", attended=True)
+        self._add(self.event_b, "b@x.com", attended=True)
+        self._add(self.event_b, "c@x.com")
+        self.assertEqual([r["email"] for r in self._recipients(event_ids=[self.event_b.id])], ["b@x.com", "c@x.com"])
+        self.assertEqual(sorted(r["email"] for r in self._recipients(attended_only=True)), ["a@x.com", "b@x.com"])
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_sends_only_requested_recipients_with_their_own_event(self, mock_send):
+        _events_staff_client(self.client)
+        a = self._add(self.event_a, "a@x.com")
+        b = self._add(self.event_b, "b@x.com")
+        solo = self._add(self.ungrouped, "solo@x.com")
+        r = self.client.post(
+            self.url, {"subject": "S", "body": "<p>B</p>", "ep_ids": [a.id, b.id, solo.id]}, format="json"
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["sent"], 2)
+        self.assertEqual(sorted(r.data["sent_ep_ids"]), sorted([a.id, b.id]))
+        sent = {c.args[1].email: c.args[0].id for c in mock_send.call_args_list}
+        self.assertEqual(sent, {"a@x.com": self.event_a.id, "b@x.com": self.event_b.id})
+
+    @patch("apps.event.utils.send_followup_email", side_effect=RuntimeError("smtp down"))
+    def test_failures_reported_not_raised(self, mock_send):
+        _events_staff_client(self.client)
+        a = self._add(self.event_a, "a@x.com")
+        r = self.client.post(self.url, {"subject": "S", "body": "<p>B</p>", "ep_ids": [a.id]}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data, {"sent": 0, "sent_ep_ids": [], "failed": ["a@x.com"]})
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_test_email_goes_only_to_tester(self, mock_send):
+        _events_staff_client(self.client)
+        self._add(self.event_a, "a@x.com")
+        r = self.client.post(
+            self.url, {"subject": "S", "body": "<p>B</p>", "test_email": "me@x.com"}, format="json"
+        )
+        self.assertEqual(r.status_code, 200, r.data)
+        mock_send.assert_called_once()
+        self.assertEqual(mock_send.call_args.kwargs["to_email"], "me@x.com")
+
+    @patch("apps.event.utils.send_followup_email")
+    def test_validation(self, mock_send):
+        _events_staff_client(self.client)
+        a = self._add(self.event_a, "a@x.com")
+        bad = [
+            {"subject": "", "body": "<p>B</p>", "ep_ids": [a.id]},
+            {"subject": "S", "body": "", "ep_ids": [a.id]},
+            {"subject": "S", "body": "<p>B</p>"},
+            {"subject": "S", "body": "<p>B</p>", "ep_ids": list(range(1, 100))},
+            {"subject": "S", "body": "<p>B</p>", "test_email": "nope"},
+            {"dry_run": True, "event_ids": "1"},
+        ]
+        for payload in bad:
+            r = self.client.post(self.url, payload, format="json")
+            self.assertEqual(r.status_code, 400, payload)
+        mock_send.assert_not_called()
+
+    @patch("apps.event.utils.EmailMultiAlternatives")
+    def test_group_name_placeholder_renders(self, mock_email):
+        from apps.event.utils import send_followup_email
+        p = Participant._default_manager.create(first_name="Ann", last_name="L", email="a@x.com", quantity=1)
+        send_followup_email(self.event_a, p, "{{group_name}}: {{event_title}}", "<p>Hi {{first_name}}</p>")
+        self.assertEqual(mock_email.call_args.kwargs["subject"], "Big Day: Site A")

@@ -61,6 +61,11 @@ export const consoleEventService = {
   regenerateGroupGuideToken: (id) =>
     api.post(`/console/event-groups/${id}/regenerate-guide-token`).then(r => r.data),
 
+  // Group follow-up email: `{ dry_run: true }` lists recipients, `{ test_email }`
+  // sends one sample, `{ ep_ids }` sends to that batch (max 25 per call).
+  sendGroupFollowupEmail: (id, data) =>
+    api.post(`/console/event-groups/${id}/send-followup-email`, data).then(r => r.data),
+
   // Global registration toggle
   getRegistrationStatus: () =>
     api.get('/console/registration-toggle').then(r => r.data),

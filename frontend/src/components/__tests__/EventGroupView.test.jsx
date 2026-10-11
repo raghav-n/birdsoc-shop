@@ -109,4 +109,19 @@ describe('EventGroupView', () => {
     const total = screen.getAllByRole('row').find(r => r.textContent.startsWith('Total'));
     expect([...total.querySelectorAll('td')].map(td => td.textContent).slice(0, 5)).toEqual(['Total', '1', '1', '0', '1']);
   });
+
+  it('opens the email composer from the console but not on the guide link', async () => {
+    const api = { ...makeApi(group()), sendFollowupEmail: vi.fn().mockResolvedValue({ recipients: [] }) };
+    renderView(api, 'console');
+    fireEvent.click(await screen.findByRole('button', { name: /email participants/i }));
+    expect(screen.getByRole('dialog', { name: 'Email participants' })).toBeInTheDocument();
+    await waitFor(() => expect(api.sendFollowupEmail).toHaveBeenCalledWith(
+      { dry_run: true, event_ids: [10], attended_only: false }
+    ));
+
+    const guideApi = { ...makeApi(group()), sendFollowupEmail: vi.fn() };
+    renderView(guideApi, 'guide');
+    await screen.findAllByText('Big Day');
+    expect(screen.getAllByRole('button', { name: /email participants/i })).toHaveLength(1);
+  });
 });
