@@ -809,7 +809,7 @@ function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
 
           <div>
             <FollowupLabel>Message</FollowupLabel>
-            <RichTextEditor value={body} onChange={setBody} />
+            <RichTextEditor value={body} onChange={setBody} tables />
             <FollowupHint>
               Sent to all confirmed participants. You can insert these variables in the subject or body:{' '}
               <code>{'{{first_name}}'}</code>, <code>{'{{last_name}}'}</code>, <code>{'{{event_title}}'}</code>,{' '}

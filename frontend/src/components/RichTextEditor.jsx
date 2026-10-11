@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { TableKit } from '@tiptap/extension-table';
 import { useEffect } from 'react';
 import styled from 'styled-components';
 
@@ -65,6 +66,22 @@ const Content = styled.div`
   .ProseMirror em { font-style: italic; }
   .ProseMirror s { text-decoration: line-through; }
   .ProseMirror hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75em 0; }
+  .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; overflow: hidden; }
+  .ProseMirror th, .ProseMirror td {
+    border: 1px solid #d1d5db;
+    padding: 0.3em 0.55em;
+    vertical-align: top;
+    position: relative;
+    min-width: 2em;
+  }
+  .ProseMirror th { background: #f3f4f6; font-weight: 600; text-align: left; }
+  .ProseMirror .selectedCell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(59, 130, 246, 0.15);
+    pointer-events: none;
+  }
   .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     color: #9ca3af;
@@ -89,10 +106,14 @@ function Btn({ editor, label, title, active, cmd, $bold, $italic }) {
   );
 }
 
-export default function RichTextEditor({ value, onChange, placeholder }) {
+// `tables` adds table editing; only turn it on where the HTML is styled for it
+// (follow-up emails inline table styles when sending).
+export default function RichTextEditor({ value, onChange, placeholder, tables = false }) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: tables ? [StarterKit, TableKit.configure({ table: { resizable: false } })] : [StarterKit],
     content: value || '',
+    // Re-render on cursor moves so active states and the table controls follow the selection.
+    shouldRerenderOnTransaction: true,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   });
 
@@ -121,6 +142,28 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
         <Btn editor={editor} label="1. List" title="Numbered list" active={editor.isActive('orderedList')} cmd={() => run('toggleOrderedList')} />
         <Sep />
         <Btn editor={editor} label="—" title="Horizontal rule" active={false} cmd={() => run('setHorizontalRule')} />
+        {tables && (
+          <>
+            <Sep />
+            <Btn
+              editor={editor}
+              label="Table"
+              title="Insert table"
+              active={editor.isActive('table')}
+              cmd={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            />
+            {editor.isActive('table') && (
+              <>
+                <Btn editor={editor} label="+ Row" title="Add row below" active={false} cmd={() => run('addRowAfter')} />
+                <Btn editor={editor} label="+ Col" title="Add column to the right" active={false} cmd={() => run('addColumnAfter')} />
+                <Btn editor={editor} label="− Row" title="Delete row" active={false} cmd={() => run('deleteRow')} />
+                <Btn editor={editor} label="− Col" title="Delete column" active={false} cmd={() => run('deleteColumn')} />
+                <Btn editor={editor} label="Header" title="Toggle header row" active={false} cmd={() => run('toggleHeaderRow')} />
+                <Btn editor={editor} label="Delete table" title="Delete table" active={false} cmd={() => run('deleteTable')} />
+              </>
+            )}
+          </>
+        )}
       </Toolbar>
       <Content>
         <EditorContent editor={editor} />

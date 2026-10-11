@@ -891,3 +891,36 @@ class EventGroupFollowupEmailTests(APITestCase):
         p = Participant._default_manager.create(first_name="Ann", last_name="L", email="a@x.com", quantity=1)
         send_followup_email(self.event_a, p, "{{group_name}}: {{event_title}}", "<p>Hi {{first_name}}</p>")
         self.assertEqual(mock_email.call_args.kwargs["subject"], "Big Day: Site A")
+
+
+class FollowupEmailTableTests(APITestCase):
+    """Tables from the console editor reach the inbox with inline styles."""
+
+    TIPTAP_TABLE = (
+        '<p>Before</p><table style="min-width: 50px"><colgroup><col style="min-width: 25px"></colgroup>'
+        '<tbody><tr><th colspan="1" rowspan="1"><p>Site</p></th><th colspan="1" rowspan="1"><p>Time</p></th></tr>'
+        '<tr><td colspan="1" rowspan="1"><p>{{event_title}}</p></td><td colspan="1" rowspan="1"><p>7am</p></td></tr>'
+        "</tbody></table><p>After</p>"
+    )
+
+    def test_inlines_styles_only_inside_tables(self):
+        from apps.event.utils import inline_email_table_styles
+        html = inline_email_table_styles(self.TIPTAP_TABLE)
+        self.assertTrue(html.startswith("<p>Before</p>"))
+        self.assertTrue(html.endswith("<p>After</p>"))
+        self.assertIn('<table style="border-collapse:collapse;', html)
+        self.assertNotIn("min-width: 50px", html)
+        self.assertIn('<th colspan="1" rowspan="1" style="border:1px solid #d1d5db;', html)
+        self.assertIn('<td colspan="1" rowspan="1" style="border:1px solid #d1d5db;', html)
+        self.assertIn('<p style="margin:0;">Site</p>', html)
+        self.assertEqual(html.count("style="), 1 + 4 + 4 + 1)  # table, cells, cell paragraphs, col
+
+    @patch("apps.event.utils.EmailMultiAlternatives")
+    def test_followup_email_sends_styled_table(self, mock_email):
+        from apps.event.utils import send_followup_email
+        event = create_event(title="Site A")
+        p = Participant._default_manager.create(first_name="Ann", last_name="L", email="a@x.com", quantity=1)
+        send_followup_email(event, p, "S", self.TIPTAP_TABLE)
+        html = mock_email.return_value.attach_alternative.call_args.args[0]
+        self.assertIn('<p style="margin:0;">Site A</p>', html)
+        self.assertIn("border-collapse:collapse", html)

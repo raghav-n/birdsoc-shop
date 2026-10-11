@@ -1,4 +1,5 @@
 import os
+import re
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -930,6 +931,30 @@ def send_group_payment_confirmation_emails(event_registration_group):
         # Don't raise the exception to avoid blocking the payment verification process
 
 
+# Email clients ignore <style> blocks, so tables from the console editor get
+# their borders and spacing inlined before sending.
+_EMAIL_TABLE_STYLES = {
+    "table": "border-collapse:collapse;margin:12px 0;",
+    "th": "border:1px solid #d1d5db;padding:6px 10px;background:#f3f4f6;font-weight:600;text-align:left;vertical-align:top;",
+    "td": "border:1px solid #d1d5db;padding:6px 10px;text-align:left;vertical-align:top;",
+    # The editor wraps cell text in <p>; default paragraph margins make cells tall.
+    "p": "margin:0;",
+}
+_TABLE_BLOCK_RE = re.compile(r"<table\b.*?</table>", re.IGNORECASE | re.DOTALL)
+_TABLE_TAG_RE = re.compile(r"<(table|th|td|p)\b([^>]*)>", re.IGNORECASE)
+_STYLE_ATTR_RE = re.compile(r"""\sstyle=("[^"]*"|'[^']*')""", re.IGNORECASE)
+
+
+def inline_email_table_styles(html):
+    """Give every table, cell and in-cell paragraph inline email-safe styles."""
+    def style_tag(m):
+        name = m.group(1).lower()
+        attrs = _STYLE_ATTR_RE.sub("", m.group(2))
+        return f'<{name}{attrs} style="{_EMAIL_TABLE_STYLES[name]}">'
+
+    return _TABLE_BLOCK_RE.sub(lambda block: _TABLE_TAG_RE.sub(style_tag, block.group(0)), html)
+
+
 def _followup_email_context(event, participant):
     """Template context for an ad-hoc follow-up email to a participant."""
     return {
@@ -962,7 +987,7 @@ def send_followup_email(event, participant, subject, body, to_email=None):
 
     ctx = Context(_followup_email_context(event, participant))
     rendered_subject = Template(subject).render(ctx).strip() or event.title
-    html_content = Template(body).render(ctx)
+    html_content = inline_email_table_styles(Template(body).render(ctx))
 
     msg = EmailMultiAlternatives(
         subject=rendered_subject,

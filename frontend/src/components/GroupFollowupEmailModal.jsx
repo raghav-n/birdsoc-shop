@@ -334,7 +334,7 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, onC
 
           <div>
             <Label as="div">Message</Label>
-            <RichTextEditor value={body} onChange={setBody} />
+            <RichTextEditor value={body} onChange={setBody} tables />
             <Hint>
               Variables for the subject or body: <code>{'{{first_name}}'}</code>, <code>{'{{last_name}}'}</code>,{' '}
               <code>{'{{group_name}}'}</code>, <code>{'{{event_title}}'}</code>, <code>{'{{event_date}}'}</code>,{' '}
