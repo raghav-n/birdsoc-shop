@@ -177,8 +177,9 @@ def render_invite_email(invite):
 def send_invite_email(invite):
     """Send one invite email. Returns True on success and stamps ``emailed_at``."""
     subject, text, html = render_invite_email(invite)
-    from_email = getattr(settings, "OSCAR_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
-    reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
+    # Strip: a stray newline in the env var would make the From header invalid.
+    from_email = (getattr(settings, "OSCAR_FROM_EMAIL", None) or settings.DEFAULT_FROM_EMAIL or "").strip()
+    reply_to_email = (getattr(settings, "REPLY_TO_EMAIL", None) or "").strip()
     to = invite.event_participant.participant.email
     try:
         msg = EmailMultiAlternatives(
