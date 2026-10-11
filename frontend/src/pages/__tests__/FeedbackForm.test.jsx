@@ -61,6 +61,8 @@ describe('FeedbackForm', () => {
 
     expect(await screen.findByText('October Big Day feedback')).toBeInTheDocument();
     expect(mocks.getForm).toHaveBeenCalledWith('obd-feedback', undefined);
+    // Only optional questions are marked.
+    expect(screen.getAllByText('(optional)')).toHaveLength(3);
 
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
     expect(await screen.findByText('Please answer this question.')).toBeInTheDocument();

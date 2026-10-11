@@ -209,7 +209,11 @@ class ConsoleFormTests(FeedbackFormBase):
     def test_obd_feedback_form_migration(self):
         form = Form.objects.get(slug="obd-2026-feedback")
         fields = list(form.fields.all())
-        self.assertEqual(fields[0].key, "site")
+        self.assertEqual(
+            [f.key for f in fields],
+            ["site", "overall", "activities", "lunch", "talks", "walk", "recommend", "highlight", "improve"],
+        )
+        self.assertTrue(all(f.field_type == "rating" for f in fields[2:6]))
         self.assertEqual([f.key for f in fields if f.required], ["site"])
         self.assertTrue(len(fields[0].choices_list()) > 0)
         self.assertEqual(form.invites.count(), 0)

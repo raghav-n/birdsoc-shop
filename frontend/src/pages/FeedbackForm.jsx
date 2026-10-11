@@ -68,9 +68,10 @@ const QLabel = styled.div`
   font-size: 1rem;
 `;
 
-const Required = styled.span`
-  color: var(--bs-danger);
-  margin-left: 0.2rem;
+const Optional = styled.span`
+  font-weight: 400;
+  color: var(--bs-text-mute);
+  margin-left: 0.3rem;
 `;
 
 const Help = styled.div`
@@ -420,7 +421,7 @@ export default function FeedbackForm() {
               <Question key={f.key} id={`q-${f.key}`} role="group" aria-labelledby={`l-${f.key}`}>
                 <QLabel id={`l-${f.key}`}>
                   {f.label}
-                  {f.required && <Required aria-hidden="true">*</Required>}
+                  {!f.required && <Optional>(optional)</Optional>}
                 </QLabel>
                 {f.help_text && <Help>{f.help_text}</Help>}
                 <FieldInput
