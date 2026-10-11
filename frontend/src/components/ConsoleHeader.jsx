@@ -204,9 +204,14 @@ const ConsoleHeader = () => {
             </>
           )}
           {canEvents && (
-            <NavLink to="/console/events" $active={isActive('/console/events')}>
-              Events
-            </NavLink>
+            <>
+              <NavLink to="/console/events" $active={isActive('/console/events')}>
+                Events
+              </NavLink>
+              <NavLink to="/console/forms" $active={isActive('/console/forms')}>
+                Forms
+              </NavLink>
+            </>
           )}
           {user?.is_superuser && (
             <NavLink to="/console/users" $active={isActive('/console/users')}>

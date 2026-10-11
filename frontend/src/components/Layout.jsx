@@ -61,7 +61,8 @@ const Layout = ({ children }) => {
   const isDonationPage = location.pathname.startsWith('/donate');
   const isConsolePage = location.pathname === '/console' || location.pathname.startsWith('/console/');
   const isEventsPage = location.pathname === '/events' || location.pathname.startsWith('/events/');
-  const hideBanners = isDonationPage || isConsolePage;
+  const isFormPage = location.pathname.startsWith('/forms/');
+  const hideBanners = isDonationPage || isConsolePage || isFormPage;
   // Event registrations don't go through the shop basket, so the "shop closed"
   // notice is irrelevant (and misleading) on event pages.
   const hideClosedBanner = hideBanners || isEventsPage;

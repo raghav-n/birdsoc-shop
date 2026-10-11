@@ -43,6 +43,13 @@ from apps.api.views.checkout import (
 )
 from apps.api.views.payments import PayNowGmailCheckView, PayNowGmailTestEmailView
 from apps.api.views.forms import FormSubmissionView, FormSchemaView
+from apps.api.views.console_forms import (
+    ConsoleFormsView,
+    ConsoleFormDetailView,
+    ConsoleFormResponsesView,
+    ConsoleFormResponsesCsvView,
+    ConsoleFormInvitesView,
+)
 from apps.api.views.banners import BannerListView, TextBannerView
 from apps.api.views.bundles import BundleListView
 from apps.api.views.analytics import AnalyticsDashboardView, SalesPeriodsListView
@@ -252,6 +259,24 @@ urlpatterns = [
         "console/event-groups/<int:group_id>/regenerate-guide-token",
         ConsoleEventGroupGuideTokenView.as_view(),
         name="console-event-group-guide-token",
+    ),
+    # Console: forms (feedback builder, responses, invites)
+    path("console/forms", ConsoleFormsView.as_view(), name="console-forms"),
+    path("console/forms/<int:form_id>", ConsoleFormDetailView.as_view(), name="console-form-detail"),
+    path(
+        "console/forms/<int:form_id>/responses",
+        ConsoleFormResponsesView.as_view(),
+        name="console-form-responses",
+    ),
+    path(
+        "console/forms/<int:form_id>/responses.csv",
+        ConsoleFormResponsesCsvView.as_view(),
+        name="console-form-responses-csv",
+    ),
+    path(
+        "console/forms/<int:form_id>/invites",
+        ConsoleFormInvitesView.as_view(),
+        name="console-form-invites",
     ),
     # Guide access (no auth — token-gated)
     path(

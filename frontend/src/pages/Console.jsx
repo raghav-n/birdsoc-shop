@@ -103,6 +103,7 @@ const Console = () => {
         <h3>Events tools</h3>
         <ul>
           <li><strong>Event Management</strong> — create and manage events, verify payments, and track attendance.</li>
+          <li><strong>Forms</strong> — build feedback forms, email participants a personal link, and review responses.</li>
         </ul>
         <h3>Admin</h3>
         <ul>
@@ -147,6 +148,10 @@ const Console = () => {
             <Card to="/console/events">
               <CardTitle>Event management</CardTitle>
               <CardDescription>Create events, manage registrations and attendance</CardDescription>
+            </Card>
+            <Card to="/console/forms">
+              <CardTitle>Forms</CardTitle>
+              <CardDescription>Build feedback forms, send them to participants and see results</CardDescription>
             </Card>
           </CardGrid>
         </Section>

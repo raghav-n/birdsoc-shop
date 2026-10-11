@@ -37,6 +37,10 @@ import EventManagementEdit from './pages/EventManagementEdit';
 import EventGroupDetail from './pages/EventGroupDetail';
 import GuideEventDetail from './pages/GuideEventDetail';
 import GuideEventGroupDetail from './pages/GuideEventGroupDetail';
+import FeedbackForm from './pages/FeedbackForm';
+import FormManagement from './pages/FormManagement';
+import FormBuilder from './pages/FormBuilder';
+import FormResponses from './pages/FormResponses';
 import Donate from './pages/Donate';
 import DonationSuccess from './pages/DonationSuccess';
 import { trackPageView } from './utils/analytics';
@@ -194,6 +198,12 @@ function App() {
                 <Route path="/console/events/:id" element={<EventsGroupOnly><EventManagementDetail /></EventsGroupOnly>} />
                 <Route path="/console/events/:id/edit" element={<EventsGroupOnly><EventManagementEdit /></EventsGroupOnly>} />
                 <Route path="/console/event-groups/:id" element={<EventsGroupOnly><EventGroupDetail /></EventsGroupOnly>} />
+                <Route path="/console/forms" element={<EventsGroupOnly><FormManagement /></EventsGroupOnly>} />
+                <Route path="/console/forms/new" element={<EventsGroupOnly><FormBuilder /></EventsGroupOnly>} />
+                <Route path="/console/forms/:id" element={<EventsGroupOnly><FormResponses /></EventsGroupOnly>} />
+                <Route path="/console/forms/:id/edit" element={<EventsGroupOnly><FormBuilder /></EventsGroupOnly>} />
+                <Route path="/forms/:slug" element={<FeedbackForm />} />
+                <Route path="/forms/:slug/:token" element={<FeedbackForm />} />
                 <Route path="/event/:token" element={<GuideEventDetail />} />
                 <Route path="/event-group/:token" element={<GuideEventGroupDetail />} />
                 <Route path="*" element={<NotFound />} />

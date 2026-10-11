@@ -850,6 +850,7 @@ def _serialize_event_group(group, include_bookings=False, for_guide=False):
     }
     if not for_guide:
         data["guide_token"] = str(group.guide_token)
+        data["forms"] = [{"id": f.id, "name": f.name} for f in group.forms.all()]
     for event in events:
         ev = {
             "id": event.id,

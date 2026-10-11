@@ -789,6 +789,20 @@ export default function EventGroupView({ api, mode = 'console' }) {
         </Panel>
       )}
 
+      {!isGuide && group.forms && (
+        <Panel>
+          <PanelLabel>Feedback</PanelLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem 1rem', flex: 1, fontSize: '0.85rem' }}>
+            {group.forms.map(f => (
+              <Link key={f.id} to={`/console/forms/${f.id}`}>{f.name}</Link>
+            ))}
+            {group.forms.length === 0 && (
+              <Link to={`/console/forms/new?group=${group.id}`}>Create a feedback form</Link>
+            )}
+          </div>
+        </Panel>
+      )}
+
       {!isGuide && fieldOptions.length > 0 && (
         <Panel>
           <PanelLabel title="Shown as editable columns here and on the guide link">Quick-edit fields</PanelLabel>

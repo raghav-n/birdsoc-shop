@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -14,6 +16,27 @@ class Form(models.Model):
     )
     success_message = models.CharField(
         _("Success message"), max_length=255, blank=True, default="Thanks for your response!"
+    )
+    # Feedback forms hang off an event group: its participants get personal
+    # invite links, and responses are attributed to their booking and site.
+    event_group = models.ForeignKey(
+        "event.EventGroup",
+        on_delete=models.SET_NULL,
+        related_name="forms",
+        null=True,
+        blank=True,
+        verbose_name=_("Event group"),
+    )
+    allow_anonymous = models.BooleanField(
+        _("Allow anonymous responses"),
+        default=True,
+        help_text=_("Accept responses on the public link without a personal invite token."),
+    )
+    email_subject = models.CharField(_("Invite email subject"), max_length=255, blank=True)
+    email_body = models.TextField(
+        _("Invite email body"),
+        blank=True,
+        help_text=_("Plain text. Placeholders: {first_name}, {event}, {link}."),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -42,6 +65,8 @@ class FormField(models.Model):
         SELECT = "select", _("Select")
         MULTISELECT = "multiselect", _("Multi-select")
         CHECKBOX = "checkbox", _("Checkbox")
+        RATING = "rating", _("Rating (1-5)")
+        SCALE = "scale", _("Scale (0-10)")
 
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="fields"
@@ -76,11 +101,39 @@ class FormField(models.Model):
         return [c.strip() for c in self.choices.splitlines() if c.strip()]
 
 
+class FormInvite(models.Model):
+    """A personal link to a form for one event booking (its main contact)."""
+
+    form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name="invites")
+    event_participant = models.ForeignKey(
+        "event.EventParticipant", on_delete=models.CASCADE, related_name="form_invites"
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    emailed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("form", "event_participant")
+        ordering = ["created_at", "id"]
+
+    def __str__(self) -> str:
+        return f"Invite to {self.form.name} for EP {self.event_participant_id}"
+
+
 class FormSubmission(models.Model):
     form = models.ForeignKey(
         Form, on_delete=models.CASCADE, related_name="submissions"
     )
     submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+    # Set when submitted through a personal link; resubmitting edits this row.
+    invite = models.OneToOneField(
+        FormInvite,
+        on_delete=models.SET_NULL,
+        related_name="submission",
+        null=True,
+        blank=True,
+    )
     user = models.ForeignKey(
         get_user_model(), on_delete=models.SET_NULL, null=True, blank=True
     )
