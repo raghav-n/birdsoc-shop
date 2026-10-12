@@ -135,6 +135,14 @@ class OrganizedEvent(models.Model):
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
     is_active = models.BooleanField(_("Active"), default=True)
+    is_listed = models.BooleanField(
+        _("Listed"),
+        default=True,
+        help_text=_(
+            "Show on the public events page. When off, an active event is "
+            "link-only: reachable and bookable via its URL but not listed."
+        ),
+    )
     price_incl_tax = models.DecimalField(
         _("Price (incl tax)"), max_digits=12, decimal_places=2, default=0
     )

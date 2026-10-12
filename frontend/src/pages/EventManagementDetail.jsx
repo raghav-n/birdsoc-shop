@@ -1310,8 +1310,8 @@ export default function EventManagementDetail() {
             {parseFloat(event.price_incl_tax) > 0 && (
               <span>{event.currency} {parseFloat(event.price_incl_tax).toFixed(2)}</span>
             )}
-            <Badge $v={event.is_active ? 'green' : 'red'}>
-              {event.is_active ? 'Active' : 'Inactive'}
+            <Badge $v={!event.is_active ? 'red' : event.is_listed === false ? 'yellow' : 'green'}>
+              {!event.is_active ? 'Inactive' : event.is_listed === false ? 'Link-only' : 'Active'}
             </Badge>
             {event.registration_required && (
               <Badge $v={event.is_registration_open ? 'blue' : 'yellow'}>

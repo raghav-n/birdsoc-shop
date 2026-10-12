@@ -101,7 +101,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 start_date__lt=now, start_date__gte=six_months_ago
             ).order_by("-start_date")
             if not show_drafts:
-                qs = qs.filter(is_active=True)
+                qs = qs.filter(is_active=True, is_listed=True)
             data = [
                 {
                     "id": e.id,
@@ -117,6 +117,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                     "tags": e.tags or [],
                     "blog_url": e.blog_url,
                     "is_active": e.is_active,
+                    "is_listed": e.is_listed,
                 }
                 for e in qs
             ]
@@ -126,7 +127,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
             start_date__gte=now
         ).order_by("start_date")
         if not show_drafts:
-            qs = qs.filter(is_active=True)
+            qs = qs.filter(is_active=True, is_listed=True)
         closed = get_global_registration_closed()
         data = [
             {
@@ -162,6 +163,7 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
                 "lottery_drawn_at": e.lottery_drawn_at,
                 "lottery_entry_count": e.lottery_entry_count if e.is_lottery else 0,
                 "is_active": e.is_active,
+                "is_listed": e.is_listed,
             }
             for e in qs
         ]

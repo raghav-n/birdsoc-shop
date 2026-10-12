@@ -881,6 +881,7 @@ const EMPTY_FORM = {
   max_participants: '',
   max_qty: 5,
   is_active: true,
+  is_listed: true,
   registration_open: true,
   registration_start: '',
   registration_end: '',
@@ -943,6 +944,7 @@ export default function EventManagementEdit() {
           max_participants: event.max_participants ?? '',
           max_qty: event.max_qty ?? 5,
           is_active: event.is_active,
+          is_listed: event.is_listed ?? true,
           registration_open: event.registration_open ?? true,
           registration_start: toLocalDatetimeInput(event.registration_start),
           registration_end: toLocalDatetimeInput(event.registration_end),
@@ -1026,6 +1028,7 @@ export default function EventManagementEdit() {
       max_participants: form.max_participants !== '' ? Number(form.max_participants) : null,
       max_qty: form.max_qty !== '' ? Number(form.max_qty) : 5,
       is_active: form.is_active,
+      is_listed: form.is_listed,
       registration_open: form.registration_open,
       registration_start: form.registration_start || null,
       registration_end: form.registration_end || null,
@@ -1286,10 +1289,19 @@ export default function EventManagementEdit() {
 
           <Row>
             <Field>
-              <CheckboxRow>
-                <input type="checkbox" checked={form.is_active} onChange={set('is_active')} />
-                Active (visible on the events page)
-              </CheckboxRow>
+              <Label>Visibility</Label>
+              <Select
+                value={!form.is_active ? 'inactive' : form.is_listed ? 'active' : 'link_only'}
+                onChange={e => {
+                  const v = e.target.value;
+                  setForm(prev => ({ ...prev, is_active: v !== 'inactive', is_listed: v === 'active' }));
+                }}
+              >
+                <option value="active">Active</option>
+                <option value="link_only">Active (link-only)</option>
+                <option value="inactive">Inactive</option>
+              </Select>
+              <Hint>Active events appear on the events page. Link-only events are hidden from the list but can be opened and booked via their URL. Inactive events are visible only to staff.</Hint>
             </Field>
           </Row>
 

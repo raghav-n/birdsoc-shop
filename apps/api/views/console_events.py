@@ -88,6 +88,7 @@ def _serialize_event(event, include_participants=False):
         "max_participants": event.max_participants,
         "max_qty": event.max_qty,
         "is_active": event.is_active,
+        "is_listed": event.is_listed,
         "registration_open": event.registration_open,
         "is_registration_open": event.is_registration_open,
         "registration_start": event.registration_start,
@@ -298,6 +299,7 @@ class ConsoleEventsViewSet(ViewSet):
                 max_participants=data.get("max_participants") or None,
                 max_qty=int(data.get("max_qty") or 5),
                 is_active=bool(data.get("is_active", True)),
+                is_listed=bool(data.get("is_listed", True)),
                 registration_open=bool(data.get("registration_open", True)),
                 registration_start=registration_start,
                 registration_end=registration_end,
@@ -335,7 +337,7 @@ class ConsoleEventsViewSet(ViewSet):
         data = request.data
         updatable = [
             "title", "description", "start_date", "end_date", "location",
-            "max_participants", "max_qty", "is_active", "registration_open",
+            "max_participants", "max_qty", "is_active", "is_listed", "registration_open",
             "registration_start", "registration_end",
             "waitlist_enabled", "signup_mode",
             "price_incl_tax", "currency", "json_schema", "price_tiers",

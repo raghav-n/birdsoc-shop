@@ -404,8 +404,8 @@ export default function EventManagement() {
           <Badges>
             {isPast(event)
               ? <Badge $variant="yellow">Past</Badge>
-              : <Badge $variant={event.is_active ? 'green' : 'red'}>
-                  {event.is_active ? 'Active' : 'Inactive'}
+              : <Badge $variant={!event.is_active ? 'red' : event.is_listed === false ? 'yellow' : 'green'}>
+                  {!event.is_active ? 'Inactive' : event.is_listed === false ? 'Link-only' : 'Active'}
                 </Badge>
             }
             {event.price_tiers && <Badge>Price tiers</Badge>}

@@ -71,6 +71,15 @@ class EventsExtraTests(APITestCase):
         self.assertIn(active.id, ids)
         self.assertNotIn(inactive.id, ids)
 
+    def test_link_only_hidden_from_list_but_retrievable(self):
+        e = create_event()
+        e.is_listed = False
+        e.save(update_fields=["is_listed"])
+        r = self.client.get("/api/v1/events")
+        self.assertNotIn(e.id, [i["id"] for i in r.data])
+        r = self.client.get(f"/api/v1/events/{e.id}")
+        self.assertEqual(r.status_code, 200)
+
     def test_retrieve_inactive_returns_404_for_public(self):
         draft = create_event(is_active=False)
         r = self.client.get(f"/api/v1/events/{draft.id}")
