@@ -12,10 +12,12 @@ from oscar.core.loading import get_model
 from rest_framework.test import APITestCase
 
 from apps.api.tests.utils import auth_client, create_event, create_user
+from apps.api.views.console_events import FOLLOWUP_BATCH_LIMIT
 
 
 OrganizedEvent = get_model("event", "OrganizedEvent")
 EventParticipant = get_model("event", "EventParticipant")
+FollowupEmail = get_model("event", "FollowupEmail")
 Participant = get_model("event", "Participant")
 EventRegistration = get_model("event", "EventRegistration")
 EventRegistrationGroup = get_model("event", "EventRegistrationGroup")
@@ -478,35 +480,78 @@ class FollowupEmailTests(APITestCase):
             is_confirmed=is_confirmed, is_cancelled=is_cancelled, is_waitlisted=is_waitlisted,
         )
 
+    def _url(self):
+        return f"/api/v1/console/events/{self.event.id}/send-followup-email"
+
+    def _dry_run(self, **extra):
+        r = self.client.post(self._url(), {"dry_run": True, **extra}, format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        return r.data
+
     @patch("apps.event.utils.send_followup_email")
-    def test_sends_only_to_confirmed_participants(self, mock_send):
-        self._add_participant("confirmed1@example.com")
-        self._add_participant("confirmed2@example.com")
+    def test_dry_run_lists_only_confirmed_deduped(self, mock_send):
+        a = self._add_participant("confirmed1@example.com")
+        b = self._add_participant("confirmed2@example.com")
+        self._add_participant("CONFIRMED1@example.com")
         self._add_participant("cancelled@example.com", is_confirmed=False, is_cancelled=True)
         self._add_participant("waitlisted@example.com", is_confirmed=False, is_waitlisted=True)
+        data = self._dry_run()
+        self.assertEqual([r["ep_id"] for r in data["recipients"]], [a.id, b.id])
+        mock_send.assert_not_called()
 
+    @patch("apps.event.utils.send_followup_email")
+    def test_batches_are_logged_and_never_resent(self, mock_send):
+        a = self._add_participant("a@example.com")
+        b = self._add_participant("b@example.com")
+        c = self._add_participant("c@example.com")
         r = self.client.post(
-            f"/api/v1/console/events/{self.event.id}/send-followup-email",
-            {"subject": "Hi {{first_name}}", "body": "<p>See you at {{event_title}}</p>"},
+            self._url(),
+            {"subject": "Hi {{first_name}}", "body": "<p>{{event_title}}</p>", "ep_ids": [a.id, b.id]},
             format="json",
         )
         self.assertEqual(r.status_code, 200, r.data)
         self.assertEqual(r.data["sent"], 2)
-        self.assertEqual(mock_send.call_count, 2)
-        emailed = {c.args[1].email for c in mock_send.call_args_list}
-        self.assertEqual(emailed, {"confirmed1@example.com", "confirmed2@example.com"})
+        fid = r.data["followup_id"]
+        followup = FollowupEmail.objects.get(pk=fid)
+        self.assertEqual(followup.event_id, self.event.id)
+        self.assertIsNone(followup.group_id)
+
+        # Retrying the same batch sends nothing; the dry run shows only c left.
+        r = self.client.post(self._url(), {"followup_id": fid, "ep_ids": [a.id, b.id]}, format="json")
+        self.assertEqual(r.data["sent"], 0)
+        data = self._dry_run(followup_id=fid)
+        self.assertEqual([x["ep_id"] for x in data["recipients"]], [c.id])
+        self.assertEqual(data["already_sent"], 2)
+
+        r = self.client.post(self._url(), {"followup_id": fid, "ep_ids": [c.id]}, format="json")
+        self.assertEqual(r.data["sent"], 1)
+        self.assertEqual(mock_send.call_count, 3)
+        self.assertEqual(followup.recipients.count(), 3)
 
     @patch("apps.event.utils.send_followup_email")
-    def test_dedupes_by_email(self, mock_send):
-        self._add_participant("dup@example.com")
-        self._add_participant("dup@example.com")
+    def test_batch_limit_and_ep_ids_required(self, mock_send):
+        eps = [self._add_participant(f"p{i}@example.com") for i in range(FOLLOWUP_BATCH_LIMIT + 1)]
         r = self.client.post(
-            f"/api/v1/console/events/{self.event.id}/send-followup-email",
-            {"subject": "S", "body": "<p>B</p>"},
-            format="json",
+            self._url(), {"subject": "S", "body": "<p>B</p>", "ep_ids": [ep.id for ep in eps]}, format="json"
         )
-        self.assertEqual(r.status_code, 200, r.data)
-        self.assertEqual(r.data["sent"], 1)
+        self.assertEqual(r.status_code, 400)
+        r = self.client.post(self._url(), {"subject": "S", "body": "<p>B</p>"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        mock_send.assert_not_called()
+
+    @patch("apps.event.utils.send_followup_email", side_effect=RuntimeError("smtp down"))
+    def test_failed_sends_are_not_logged(self, mock_send):
+        a = self._add_participant("a@example.com")
+        r = self.client.post(self._url(), {"subject": "S", "body": "<p>B</p>", "ep_ids": [a.id]}, format="json")
+        self.assertEqual(r.data["failed"], ["a@example.com"])
+        data = self._dry_run(followup_id=r.data["followup_id"])
+        self.assertEqual([x["ep_id"] for x in data["recipients"]], [a.id])
+
+    def test_followup_id_from_another_event_rejected(self):
+        other = create_event(title="Other", max_participants=5)
+        f = FollowupEmail.objects.create(event=other, subject="S", body="B")
+        r = self.client.post(self._url(), {"dry_run": True, "followup_id": f.id}, format="json")
+        self.assertEqual(r.status_code, 404)
 
     @patch("apps.event.utils.send_followup_email")
     def test_test_email_sends_single_to_address_only(self, mock_send):
@@ -541,16 +586,6 @@ class FollowupEmailTests(APITestCase):
         r = self.client.post(
             f"/api/v1/console/events/{self.event.id}/send-followup-email",
             {"subject": "S", "body": "<p>B</p>", "test_email": "not-an-email"},
-            format="json",
-        )
-        self.assertEqual(r.status_code, 400)
-        mock_send.assert_not_called()
-
-    @patch("apps.event.utils.send_followup_email")
-    def test_no_confirmed_participants_returns_400(self, mock_send):
-        r = self.client.post(
-            f"/api/v1/console/events/{self.event.id}/send-followup-email",
-            {"subject": "S", "body": "<p>B</p>"},
             format="json",
         )
         self.assertEqual(r.status_code, 400)

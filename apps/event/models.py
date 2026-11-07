@@ -1002,13 +1002,19 @@ class EventAllocation(models.Model):
 
 class FollowupEmail(models.Model):
     """
-    A one-off email composed in the console for an event group. Each
-    recipient is logged the moment their copy is sent, so a send that is cut
-    off part way can be seen and resumed without emailing anyone twice.
+    A one-off email composed in the console for an event group or a single
+    event (exactly one of ``group`` / ``event`` is set). Each recipient is
+    logged the moment their copy is sent, so a send that is cut off part way
+    can be seen and resumed without emailing anyone twice.
     """
 
     group = models.ForeignKey(
-        EventGroup, on_delete=models.CASCADE, related_name="followup_emails"
+        EventGroup, on_delete=models.CASCADE, related_name="followup_emails",
+        null=True, blank=True,
+    )
+    event = models.ForeignKey(
+        OrganizedEvent, on_delete=models.CASCADE, related_name="followup_emails",
+        null=True, blank=True,
     )
     subject = models.CharField(_("Subject"), max_length=255)
     body = models.TextField(_("Body"))
@@ -1021,7 +1027,7 @@ class FollowupEmail(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.subject} ({self.group})"
+        return f"{self.subject} ({self.group or self.event})"
 
 
 class FollowupEmailRecipient(models.Model):

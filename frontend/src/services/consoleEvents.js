@@ -110,13 +110,10 @@ export const consoleEventService = {
   sendTestLotteryEmails: (id, email) =>
     api.post(`${BASE}/${id}/send-test-lottery-emails`, { email }).then(r => r.data),
 
-  // Follow-up email — send to all confirmed participants, or to a test address
-  sendFollowupEmail: (id, { subject, body, test_email } = {}) =>
-    api.post(`${BASE}/${id}/send-followup-email`, {
-      subject,
-      body,
-      ...(test_email ? { test_email } : {}),
-    }).then(r => r.data),
+  // Follow-up email: `{ dry_run: true }` lists recipients, `{ test_email }`
+  // sends one sample, `{ ep_ids }` sends a batch (server caps the size).
+  sendFollowupEmail: (id, data) =>
+    api.post(`${BASE}/${id}/send-followup-email`, data).then(r => r.data),
 };
 
 export const guideService = {

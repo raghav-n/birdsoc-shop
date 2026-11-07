@@ -742,12 +742,39 @@ const TestRow = styled.div`
   border-radius: 8px;
 `;
 
+// Must match FOLLOWUP_BATCH_LIMIT on the server: each request has to finish
+// well inside gunicorn's 30s worker timeout.
+const FOLLOWUP_BATCH_SIZE = 5;
+
 function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
   const [subject, setSubject] = useState(DEFAULT_FOLLOWUP_SUBJECT);
   const [body, setBody] = useState(DEFAULT_FOLLOWUP_BODY);
   const [testEmail, setTestEmail] = useState('');
-  const [sending, setSending] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  // Recipients not yet emailed (null while loading), per the server's log.
+  const [pending, setPending] = useState(null);
+  const [alreadySent, setAlreadySent] = useState(0);
+  // Set once the first batch goes out; later batches and retries reuse it so
+  // nobody is emailed twice.
+  const [followupId, setFollowupId] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [reload, setReload] = useState(0);
+  const sending = progress !== null;
+
+  useEffect(() => {
+    let cancelled = false;
+    consoleEventService
+      .sendFollowupEmail(eventId, { dry_run: true, ...(followupId ? { followup_id: followupId } : {}) })
+      .then(res => {
+        if (cancelled) return;
+        setPending(res.recipients);
+        setAlreadySent(res.already_sent);
+      })
+      .catch(() => { if (!cancelled) toast.error('Failed to load recipients'); });
+    return () => { cancelled = true; };
+    // followupId is read only for the reload after a send.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, reload]);
 
   const bodyIsEmpty = !body || body.replace(/<[^>]*>/g, '').trim() === '';
 
@@ -770,22 +797,50 @@ function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
   const handleSend = async () => {
     if (!subject.trim()) { toast.error('Enter a subject'); return; }
     if (bodyIsEmpty) { toast.error('Write an email body first'); return; }
-    if (confirmedCount === 0) { toast.error('There are no confirmed participants to email'); return; }
-    if (!window.confirm(`Send this follow-up email to ${confirmedCount} confirmed participant(s)? This cannot be undone.`)) return;
-    setSending(true);
+    if (!pending || pending.length === 0) { toast.error('There is nobody left to email'); return; }
+    if (!window.confirm(`Send this follow-up email to ${pending.length} participant(s)? This cannot be undone.`)) return;
+    const total = pending.length;
+    let sent = 0;
+    let id = followupId;
+    const failed = [];
+    setProgress({ sent, total });
     try {
-      const data = await consoleEventService.sendFollowupEmail(eventId, { subject, body });
-      toast.success(data?.detail || 'Follow-up email sent');
-      onClose();
+      for (let i = 0; i < pending.length; i += FOLLOWUP_BATCH_SIZE) {
+        const batch = pending.slice(i, i + FOLLOWUP_BATCH_SIZE).map(r => r.ep_id);
+        const res = await consoleEventService.sendFollowupEmail(eventId, {
+          ...(id ? { followup_id: id } : {}), subject, body, ep_ids: batch,
+        });
+        id = res.followup_id;
+        setFollowupId(id);
+        sent += res.sent;
+        failed.push(...res.failed);
+        setProgress({ sent, total });
+      }
+      if (failed.length) {
+        toast.error(`Sent ${sent}. Could not send to ${failed.length}: ${failed.join(', ')}`);
+      } else {
+        toast.success(`Follow-up email sent to ${sent} participant${sent === 1 ? '' : 's'}`);
+        onClose();
+        return;
+      }
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to send follow-up email');
+      toast.error(err?.response?.data?.detail || 'Sending stopped. Send again to continue with the people not yet emailed.');
     } finally {
-      setSending(false);
+      setProgress(null);
     }
+    // Whatever happened, the server's log says who is still waiting.
+    setReload(n => n + 1);
   };
 
+  const pendingCount = pending ? pending.length : 0;
+  const sendLabel = sending
+    ? `Sending… ${progress.sent}/${progress.total}`
+    : pending === null
+      ? 'Loading recipients…'
+      : `Send to ${pendingCount} participant${pendingCount === 1 ? '' : 's'}`;
+
   return (
-    <ModalOverlay onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <ModalOverlay onClick={e => { if (e.target === e.currentTarget && !sending) onClose(); }}>
       <FollowupDialog>
         <ModalHeader>
           <div>
@@ -794,14 +849,21 @@ function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
               {eventTitle} · {confirmedCount} confirmed participant{confirmedCount === 1 ? '' : 's'}
             </ModalSubtitle>
           </div>
-          <CloseBtn onClick={onClose} aria-label="Close">×</CloseBtn>
+          <CloseBtn onClick={onClose} disabled={sending} aria-label="Close">×</CloseBtn>
         </ModalHeader>
 
         <ModalBody>
+          {followupId && (
+            <FollowupHint>
+              Already sent to {alreadySent}. Sending again continues with the {pendingCount} not yet emailed,
+              using the subject and message already sent.
+            </FollowupHint>
+          )}
           <div>
             <FollowupLabel>Subject</FollowupLabel>
             <FollowupInput
               value={subject}
+              disabled={!!followupId}
               onChange={e => setSubject(e.target.value)}
               placeholder={DEFAULT_FOLLOWUP_SUBJECT}
             />
@@ -840,10 +902,10 @@ function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
         <ModalFooter>
           <PrimaryBtn
             onClick={handleSend}
-            disabled={sending}
+            disabled={sending || pending === null}
             style={{ padding: '0.5rem 1rem', fontSize: '0.84rem' }}
           >
-            {sending ? 'Sending…' : `Send to ${confirmedCount} participant${confirmedCount === 1 ? '' : 's'}`}
+            {sendLabel}
           </PrimaryBtn>
           <SecondaryBtn
             onClick={onClose}

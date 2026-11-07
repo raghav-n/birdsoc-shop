@@ -703,20 +703,52 @@ class ConsoleEventsViewSet(ViewSet):
 
     @action(detail=True, methods=["post"], url_path="send-followup-email")
     def send_followup_email(self, request, pk=None):
-        """Send an ad-hoc follow-up email to all confirmed participants.
+        """Ad-hoc follow-up email to this event's confirmed participants.
 
-        Body: ``{"subject": str, "body": str, "test_email": str?}``.
-        When ``test_email`` is provided the message is sent only to that
-        address (using a sample/first participant for placeholder values) and
-        no real participant is contacted.
+        Body: ``{"followup_id": int?}`` plus one of
+          - ``"dry_run": true`` → who would get it, nothing sent;
+          - ``"subject", "body", "test_email"`` → one sample to that address;
+          - ``"subject", "body", "ep_ids": [int]`` → send to those recipients
+            (at most FOLLOWUP_BATCH_LIMIT per call; the console loops).
+
+        Works like the group follow-up: the first batch creates a
+        FollowupEmail, later batches pass back its id, and every copy is
+        logged so a retry never emails anyone twice.
         """
         try:
             event = OrganizedEvent.objects.get(pk=pk)
         except OrganizedEvent.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        subject = (request.data.get("subject") or "").strip()
-        body = (request.data.get("body") or "").strip()
+        followup = None
+        if request.data.get("followup_id") is not None:
+            try:
+                followup = event.followup_emails.get(pk=request.data["followup_id"])
+            except (FollowupEmail.DoesNotExist, ValueError, TypeError):
+                return Response({"detail": "Follow-up email not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        eligible = _event_followup_recipients(event)
+        already_sent = set(followup.recipients.values_list("email", flat=True)) if followup else set()
+        recipients = [ep for ep in eligible if ep.participant.email.strip().lower() not in already_sent]
+
+        if request.data.get("dry_run"):
+            return Response({
+                "recipients": [
+                    {
+                        "ep_id": ep.id,
+                        "name": f"{ep.participant.first_name} {ep.participant.last_name}".strip(),
+                        "email": ep.participant.email,
+                    }
+                    for ep in recipients
+                ],
+                "already_sent": len(eligible) - len(recipients),
+            })
+
+        if followup:
+            subject, body = followup.subject, followup.body
+        else:
+            subject = (request.data.get("subject") or "").strip()
+            body = (request.data.get("body") or "").strip()
         if not subject:
             return Response(
                 {"detail": "A subject is required."},
@@ -760,38 +792,14 @@ class ConsoleEventsViewSet(ViewSet):
                 )
             return Response({"detail": f"Sent a test follow-up email to {test_email}."})
 
-        # Real send: every confirmed, non-cancelled participant (deduped by email).
-        confirmed = (
-            EventParticipant.objects.select_related("participant")
-            .filter(event=event, is_confirmed=True, is_cancelled=False, is_waitlisted=False)
-            .order_by("registered_at")
-        )
-        seen = set()
-        sent = 0
-        failed = 0
-        for ep in confirmed:
-            p = ep.participant
-            email = (p.email or "").strip().lower()
-            if not email or email in seen:
-                continue
-            seen.add(email)
-            try:
-                send_followup_email(event, p, subject, body)
-                sent += 1
-            except Exception as exc:
-                failed += 1
-                # logged inside the helper; keep going for the rest
-                pass
-
-        if sent == 0 and failed == 0:
-            return Response(
-                {"detail": "No confirmed participants to email."},
-                status=status.HTTP_400_BAD_REQUEST,
+        ep_ids, error = _parse_followup_batch(request.data.get("ep_ids"))
+        if error:
+            return error
+        if followup is None:
+            followup = FollowupEmail.objects.create(
+                event=event, subject=subject, body=body, created_by=request.user
             )
-        detail = f"Follow-up email sent to {sent} participant(s)."
-        if failed:
-            detail += f" {failed} failed to send."
-        return Response({"detail": detail, "sent": sent, "failed": failed})
+        return Response(_send_followup_batch(followup, recipients, ep_ids, subject, body))
 
     @action(detail=True, methods=["post"], url_path="regenerate-guide-token")
     def regenerate_guide_token(self, request, pk=None):
@@ -1192,6 +1200,62 @@ def _group_followup_recipients(group, event_ids=None, attended_only=False):
     return out
 
 
+def _event_followup_recipients(event):
+    """Confirmed bookings for one event, one per email address, in sign-up order."""
+    qs = (
+        EventParticipant.objects.filter(
+            event=event, is_confirmed=True, is_cancelled=False, is_waitlisted=False
+        )
+        .exclude(participant__email="")
+        .select_related("participant", "event__group")
+        .order_by("registered_at", "id")
+    )
+    seen, out = set(), []
+    for ep in qs:
+        email = (ep.participant.email or "").strip().lower()
+        if email and email not in seen:
+            seen.add(email)
+            out.append(ep)
+    return out
+
+
+def _parse_followup_batch(ep_ids):
+    """Validate a batch of ep_ids; returns (ep_ids, None) or (None, error Response)."""
+    if not isinstance(ep_ids, list) or not ep_ids or not all(isinstance(i, int) for i in ep_ids):
+        return None, Response({"detail": "ep_ids must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
+    if len(ep_ids) > FOLLOWUP_BATCH_LIMIT:
+        return None, Response(
+            {"detail": f"Send at most {FOLLOWUP_BATCH_LIMIT} at a time"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    return ep_ids, None
+
+
+def _send_followup_batch(followup, recipients, ep_ids, subject, body):
+    """Send to the recipients named in ep_ids, logging each copy as it goes out."""
+    from apps.event.utils import send_followup_email
+
+    wanted = set(ep_ids)
+    sent, failed = [], []
+    for ep in recipients:
+        if ep.id not in wanted:
+            continue
+        email = ep.participant.email.strip().lower()
+        if followup.recipients.filter(email=email).exists():
+            continue
+        try:
+            send_followup_email(ep.event, ep.participant, subject, body)
+        except Exception:
+            # logged inside the helper; keep going for the rest
+            failed.append(ep.participant.email)
+            continue
+        try:
+            FollowupEmailRecipient.objects.create(followup=followup, event_participant=ep, email=email)
+        except IntegrityError:
+            pass
+        sent.append(ep.id)
+    return {"followup_id": followup.id, "sent": len(sent), "sent_ep_ids": sent, "failed": failed}
+
+
 def _serialize_followup(followup):
     recipients = list(followup.recipients.select_related("event_participant__event"))
     return {
@@ -1323,38 +1387,14 @@ class ConsoleEventGroupFollowupEmailView(APIView):
                 return Response({"detail": f"Failed to send test email: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
             return Response({"detail": f"Sent a test follow-up email to {test_email}."})
 
-        ep_ids = request.data.get("ep_ids")
-        if not isinstance(ep_ids, list) or not ep_ids or not all(isinstance(i, int) for i in ep_ids):
-            return Response({"detail": "ep_ids must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
-        if len(ep_ids) > FOLLOWUP_BATCH_LIMIT:
-            return Response(
-                {"detail": f"Send at most {FOLLOWUP_BATCH_LIMIT} at a time"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
+        ep_ids, error = _parse_followup_batch(request.data.get("ep_ids"))
+        if error:
+            return error
         if followup is None:
             followup = FollowupEmail.objects.create(
                 group=group, subject=subject, body=body, created_by=request.user
             )
-        wanted = set(ep_ids)
-        sent, failed = [], []
-        for ep in recipients:
-            if ep.id not in wanted:
-                continue
-            email = ep.participant.email.strip().lower()
-            if followup.recipients.filter(email=email).exists():
-                continue
-            try:
-                send_followup_email(ep.event, ep.participant, subject, body)
-            except Exception:
-                # logged inside the helper; keep going for the rest
-                failed.append(ep.participant.email)
-                continue
-            try:
-                FollowupEmailRecipient.objects.create(followup=followup, event_participant=ep, email=email)
-            except IntegrityError:
-                pass
-            sent.append(ep.id)
-        return Response({"followup_id": followup.id, "sent": len(sent), "sent_ep_ids": sent, "failed": failed})
+        return Response(_send_followup_batch(followup, recipients, ep_ids, subject, body))
 
 
 # ─── Group guide access (no auth — token-gated) ───────────────────────────────
