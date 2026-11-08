@@ -128,12 +128,27 @@ if SESSION_ENVIRONMENT_PRODUCTION and not TESTING:
     sentry_sdk.init(
         dsn=os.environ.get("SENTRY_DSN"),
         integrations=[RedisIntegration(), DjangoIntegration()],
-        send_default_pii=True,
+        # Explicit form of the deprecated send_default_pii=True (SDK 2.74's own
+        # mapping of it), so exactly the same data is collected.
+        data_collection={
+            "user_info": True,
+            "cookies": {"mode": "denylist", "terms": []},
+            "http_headers": {"request": {"mode": "denylist", "terms": []}},
+            "http_bodies": ["incoming_request", "outgoing_request", "outgoing_response"],
+            "url_query_params": {"mode": "denylist", "terms": []},
+            "database_query_data": True,
+            "queues": True,
+            "stack_frame_variables": True,
+            "frame_context_lines": 5,
+        },
         before_send=before_send,
         release="birdsoc-public@1.0",
         environment="production" if SESSION_ENVIRONMENT_PRODUCTION else "development",
         traces_sampler=traces_sampler,
-        profiles_sample_rate=0.05,
+        # Continuous profiling tied to sampled transactions (replaces the
+        # deprecated transaction-based profiles_sample_rate).
+        profile_session_sample_rate=0.05,
+        profile_lifecycle="trace",
     )
     DEBUG = False
 
