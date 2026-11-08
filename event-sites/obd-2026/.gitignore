@@ -1,0 +1,8 @@
+*.zip
+*.pdf
+docs/*
+.env
+.DS_Store
+/node_modules
+/assets/img/processed/
+slide-*

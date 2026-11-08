@@ -24,6 +24,7 @@ apps/               # Django apps
   offer/            # Promotions and offers
   customer/         # User management
   event/            # Event management
+event-sites/        # Standalone static event microsites (e.g. obd-2026), deployed separately
   dashboard/        # Admin dashboard
   api/              # REST API
   communication/    # Email and notifications

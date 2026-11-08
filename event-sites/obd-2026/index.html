@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-49LNESP0V4"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-49LNESP0V4');
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>October Big Day 2026 — Bird Society of Singapore</title>
+<meta name="description" content="October Big Day 2026 — Saturday 10 October. Lunch and talks at Fort Canning Centre, then a late-afternoon bioblitz across six parks. Every checklist counts towards eBird's global October Big Day.">
+<link rel="shortcut icon" href="https://shop.birdsociety.sg/static/img/favicon/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --canvas: #FBF7F0; --surface: #F4EEE3; --surface-blur: rgba(24,36,54,0.92); --surface-hi: #DDE6EC;
+    --rule: #D6CBBA; --rule-soft: #E6DDCF;
+    --ink: #182436; --ink-dim: #4A5568; --ink-mute: #77716A;
+    --amber: #C8611E; --amber-hi: #DB7530; --amber-dim: #8F4212; --amber-soft: #F5DCC7; --amber-tint: rgba(200,97,30,0.10); --on-amber: #FFF6EE;
+    --sage: #2E7D4F; --sage-soft: #D3E8D6; --pill-sage-fg: #1D5A38;
+    --sky: #2E6E8E; --sky-soft: #CFE3EE; --pill-sky-fg: #1E4B63;
+    --coral: #7A3A22; --coral-soft: #E9D3C6; --pill-amber-fg: #7A3A12;
+    --shadow-color: rgba(24,36,54,0.12);
+    --radius-md: 8px; --radius-xl: 12px; --radius-pill: 999px;
+    --font-body: "Hanken Grotesk", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font-family: "Source Serif 4", Georgia, serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: var(--amber-dim); text-decoration: none; }
+  a:hover { color: var(--amber); }
+  p { margin: 0; }
+  h1, h2, h3, h4 { margin: 0; font-family: "Hanken Grotesk", system-ui, sans-serif; font-weight: 700; letter-spacing: -0.025em; }
+  section { scroll-margin-top: 72px; }
+  img { max-width: 100%; }
+  /* <picture> is only a source-selection wrapper here; display:contents removes
+     its box so the inner <img> keeps its flex/absolute/transform layout intact. */
+  picture { display: contents; }
+  ::selection { background: var(--amber-soft); color: var(--ink); }
+  ::-moz-selection { background: var(--amber-soft); color: var(--ink); }
+
+  /* Reveal-on-scroll */
+  html[data-reveal] [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  html[data-reveal] [data-reveal].in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { html[data-reveal] [data-reveal] { opacity: 1; transform: none; transition: none; } }
+
+  /* Hero date/time chip */
+  .date-chip { position: relative; display: inline-flex; align-items: center; gap: clamp(9px,1.5vw,13px); font-family: 'Hanken Grotesk', system-ui, sans-serif; font-weight: 700; font-size: clamp(15px,2.5vw,21px); letter-spacing: -0.012em; color: var(--amber-dim); padding: clamp(8px,1vw,11px) clamp(15px,1.9vw,22px); border-radius: var(--radius-pill); background: linear-gradient(180deg, rgba(245,220,199,0.42), var(--amber-tint)); }
+  .date-chip-time { color: var(--amber); }
+  .date-chip-sep { width: 1px; align-self: stretch; margin: 3px 0; background: var(--amber-soft); }
+  @media (max-width: 400px) { .date-chip { flex-wrap: wrap; justify-content: center; row-gap: 1px; } .date-chip-sep { display: none; } }
+
+  /* Buttons (design-system: Button) */
+  .btn { border-radius: var(--radius-md); font-family: var(--font-body); font-weight: 600; letter-spacing: -0.1px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; white-space: nowrap; transition: background 0.12s, border-color 0.12s, opacity 0.12s; border: 1px solid transparent; }
+  .btn-sm { height: 28px; font-size: 11.5px; padding: 0 10px; }
+  .btn-md { height: 36px; font-size: 12.5px; padding: 0 14px; }
+  .btn-lg { height: 44px; font-size: 14px; padding: 0 18px; }
+  .btn-primary { background: var(--amber); color: var(--on-amber); }
+  .btn-primary:hover { background: var(--amber-hi); color: var(--on-amber); }
+  .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--rule); }
+  .btn-secondary:hover { border-color: var(--amber); color: var(--ink); }
+  .btn-ghost { background: transparent; color: var(--ink-dim); }
+  .btn[aria-disabled="true"], .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+  /* Pills (design-system: Pill) */
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: var(--radius-pill); font-size: 10.5px; font-family: var(--font-body); font-weight: 600; letter-spacing: 0.3px; white-space: nowrap; }
+  .pill-neutral { background: var(--surface-hi); color: var(--ink-dim); }
+  .pill-amber { background: var(--amber-soft); color: var(--pill-amber-fg); }
+  .pill-sage { background: var(--sage-soft); color: var(--pill-sage-fg); }
+  .pill-sky { background: var(--sky-soft); color: var(--pill-sky-fg); }
+
+  .nav-link { color: rgba(255,255,255,0.72); padding: 6px 0; font-family: var(--font-body); font-weight: 600; }
+  .nav-link:hover { color: #fff; }
+
+  .faq-q:hover { color: var(--amber-dim) !important; }
+
+  /* Wordmark filled with the bird illustrations — the letters are a single window onto the
+     watercolour (one background box across both lines, so the birds never repeat).
+     Pitta (green) sits over the left of the wordmark, thrush (slate) over the right. */
+  .wc-title {
+    background-color: #223040; /* thrush slate — fallback under the texture */
+    background-repeat: no-repeat, repeat;
+    /* Zoomed-in crop of the thrush watercolour = abstract feather texture, with a faint cool tint on top */
+    background-image:
+      linear-gradient(rgba(0,212,255,0.15), rgba(0,212,255,0.15)),
+      url("assets/img/thrush-sharp.png");
+    background-size: 100% 100%, 50%;
+    background-position: center, 25% 25%;
+    background-blend-mode: saturation, normal;
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .wc-title { -webkit-background-clip: text; background-clip: text; }
+    .wc-title .wc-clip { color: transparent; -webkit-text-fill-color: transparent; }
+    /* Restore a solid fill on selection — otherwise the clipped (transparent) glyphs vanish under the highlight */
+    .wc-title .wc-clip::selection { color: var(--ink); -webkit-text-fill-color: var(--ink); background: var(--amber-soft); }
+    .wc-title .wc-clip::-moz-selection { color: var(--ink); -webkit-text-fill-color: var(--ink); background: var(--amber-soft); }
+  }
+
+  /* Contact inputs (design-system: Input) */
+  .field { font-family: var(--font-body); font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-md); padding: 0 12px; height: 38px; width: 100%; outline: none; transition: border-color 0.12s, box-shadow 0.12s; }
+  .field:focus { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-tint); }
+  textarea.field { height: auto; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+  .reg-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--rule-soft); }
+
+  /* Sponsor logos — each sits in an equal-sized box so logos of different aspect ratios
+     (near-square NParks, wide A Rocha wordmark, Mandai) read as the same visual size. */
+  .spon-logos { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; justify-content: center; }
+  .spon-cell { display: flex; align-items: center; justify-content: center; height: 52px; width: 132px; }
+  .spon-cell img { max-height: 100%; max-width: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+  /* Vertical rule between the three labelled groups; hidden once the strip stacks. */
+  .spon-sep { align-self: stretch; width: 1px; background: rgba(24,36,54,0.18); }
+  @media (max-width: 620px) {
+    .spon-logos { gap: 16px 20px; }
+    .spon-cell { height: 44px; width: 108px; }
+  }
+  @media (max-width: 860px) { .spon-sep { display: none; } }
+
+  /* Hero trio takes flight on scroll. Each .hero-bird holds the perched
+     illustration (.perch-bird) and, overlaid in register, its in-motion pose
+     (.move-bird, hidden at rest). As the hero scrolls away initFlock() slides
+     each bird straight off the left edge (all face left) while crossfading
+     perched -> moving, so the sitting birds become the flying/running versions
+     and leave. Staggered left-to-right: pitta first, thrush last (data-delay).
+     transform/opacity are JS-set. */
+  .hero-bird { will-change: transform, opacity; transform-origin: 50% 100%; }
+  .move-bird { position: absolute; bottom: 0; left: 50%; opacity: 0; pointer-events: none; max-width: none; }
+  .hero-bird-shadow { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .move-bird { display: none; } }
+
+  /* The same take-flight-on-scroll effect for the two decorative birds further
+     down the page (turnstone in Why, thrush in Register). Each .flight-bird is
+     an absolutely-positioned container that shrink-wraps its perched image
+     (.perch-bird); its in-motion pose (.move-bird) is overlaid in register with
+     the exact size/vertical offset the hero uses for that species. As the bird
+     scrolls up through the viewport initFlightBirds() slides it off the edge it
+     faces (data-dir) while crossfading perched -> moving. The .move-flip wrapper
+     mirrors a left-facing move pose so a right-facing bird (data-dir="right")
+     leaves toward the right. transform/opacity are JS-set. */
+  .flight-bird { will-change: transform, opacity; transform-origin: 50% 100%; }
+  .flight-bird .perch-bird { height: 100%; width: auto; display: block; }
+  .move-flip { position: absolute; inset: 0; transform: scaleX(-1); }
+
+  @media (max-width: 768px) { .nav-links { display: none !important; } }
+  @media (max-width: 620px) { .hero-inner { padding-left: 10px !important; padding-right: 10px !important; } }
+  @media (max-width: 620px) {
+    .prog-row { grid-template-columns: 1fr !important; gap: 6px 0 !important; align-items: start !important; }
+    .prog-row > :last-child { justify-self: start; }
+  }
+  @media (max-width: 620px) {
+    /* Footer: keep the pitta perched bottom-right; shift the credits to its left to clear it */
+    .foot-bird { height: 122px; right: 6px; bottom: -18px; }
+    /* The bird (~85px wide) overlaps the far right here, so replace the full-width
+       top border with a line that stops ~96px short of the right edge — otherwise
+       the divider cuts across the pitta's neck. */
+    .foot-copy {
+      justify-content: flex-start !important;
+      padding-right: 108px;
+      border-top: none !important;
+      background: linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)) top left / calc(100% - 96px) 1px no-repeat;
+    }
+  }
+  @media (max-width: 700px) {
+    /* Why: grid collapses to one column, so drop the heading's reserved space (that gap was
+       for the turnstone in the desktop left column) and give the section room at the bottom
+       so the bird sits below the text instead of overlapping "Community". */
+    .why-head { padding-bottom: 0 !important; }
+    .why-grid { padding-bottom: 150px !important; }
+    .why-bird { height: 128px !important; }
+    /* Register: same collapse — drop the reserved gap under the intro and give the section
+       room at the bottom so the thrush sits below the card instead of leaving a big gap. */
+    .reg-intro { padding-bottom: 0 !important; }
+    .reg-grid { padding-bottom: 170px !important; }
+    .reg-bird { height: 150px !important; }
+  }
+</style>
+</head>
+<body>
+<div style="min-height:100vh;display:flex;flex-direction:column;position:relative">
+
+  <header style="position:sticky;top:0;z-index:50;background:var(--ink);box-shadow:0 2px 8px var(--shadow-color)">
+    <div style="max-width:1240px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+      <a href="#top" style="display:flex;align-items:center;gap:12px">
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/birdsoc-logo-400w.webp 400w, assets/img/processed/birdsoc-logo-800w.webp 800w, assets/img/processed/birdsoc-logo-1200w.webp 1200w" sizes="72px">
+          <img src="assets/img/processed/birdsoc-logo-400w.png" srcset="assets/img/processed/birdsoc-logo-400w.png 400w, assets/img/processed/birdsoc-logo-800w.png 800w, assets/img/processed/birdsoc-logo-1200w.png 1200w" sizes="72px" alt="Bird Society of Singapore" style="height:32px;width:auto;display:block;background:#fff;border-radius:6px;padding:2px 6px">
+        </picture>
+        <span style="width:1px;height:26px;background:rgba(255,255,255,0.25)"></span>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/obd-mark-400w.webp">
+          <img src="assets/img/processed/obd-mark-400w.png" alt="October Big Day" style="height:30px;width:auto;display:block;filter:brightness(0) invert(1)">
+        </picture>
+      </a>
+      <nav style="display:flex;align-items:center;gap:22px;font-size:14px;flex-wrap:nowrap;white-space:nowrap;justify-content:flex-end">
+        <span class="nav-links" style="display:flex;align-items:center;gap:22px">
+          <a href="#about" class="nav-link">About</a>
+          <a href="#programme" class="nav-link">Programme</a>
+          <a href="#sites" class="nav-link">Sites</a>
+          <a href="#ebird" class="nav-link">eBird</a>
+          <a href="#faq" class="nav-link">FAQ</a>
+          <a href="#contact" class="nav-link">Contact</a>
+        </span>
+        <a id="navCta" href="#register" class="btn btn-primary btn-sm">Register</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section id="top" style="position:relative;overflow:hidden;background:var(--canvas);border-bottom:1px solid var(--rule)">
+    <div style="min-height:calc(100svh - 60px);display:flex;flex-direction:column">
+    <div class="hero-inner" style="flex:1;width:100%;max-width:1240px;margin:0 auto;padding:32px 24px;position:relative;display:flex;align-items:center;justify-content:center">
+      <div style="width:100%;max-width:820px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:clamp(18px,2.4vw,30px);min-width:0">
+        <div class="date-chip"><span>Saturday, 10 October 2026</span><span class="date-chip-sep" aria-hidden="true"></span><span class="date-chip-time">1&ndash;6 pm</span></div>
+        <h1 class="wc-title" style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:800;line-height:0.86;letter-spacing:-0.045em;display:flex;flex-direction:column;align-items:center">
+          <span class="wc-clip" style="font-size:clamp(46px,min(16vw,17svh),196px)">OCTOBER</span>
+          <span class="wc-clip" style="font-size:clamp(44px,min(15.3vw,15svh),178px);margin-top:-4px">BIG DAY</span>
+          <span style="font-size:clamp(31px,4.4vw,42px);color:var(--amber);letter-spacing:0.08em;margin-top:16px">2026</span>
+        </h1>
+        <a id="heroCta" href="#register" class="btn btn-primary btn-lg">Register now →</a>
+      </div>
+    </div>
+    <div style="width:100%;max-width:min(1040px,74svh);box-sizing:border-box;margin:16px auto clamp(-18px,-2.3vw,-7px);padding:0 24px;display:flex;align-items:flex-end;justify-content:center;gap:clamp(6px,2.2vw,20px)">
+      <div class="hero-bird" data-speed="1" data-delay="0" style="position:relative;flex:176 0 0;min-width:0;display:flex;justify-content:center;align-items:flex-end">
+        <div class="hero-bird-shadow" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%) rotate(25deg);width:62%;height:clamp(6px,1.4vw,13px);border-radius:50%;background:rgba(24,36,54,0.34);filter:blur(6px)"></div>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/pitta-400w.webp 400w, assets/img/processed/pitta-800w.webp 585w" sizes="(min-width:1088px) 237px, 23vw">
+          <img class="perch-bird" src="assets/img/processed/pitta-800w.png" srcset="assets/img/processed/pitta-400w.png 400w, assets/img/processed/pitta-800w.png 585w" sizes="(min-width:1088px) 237px, 23vw" alt="Hooded Pitta" style="position:relative;width:100%;height:auto;display:block;transform:scaleX(-1)">
+        </picture>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/flock-pitta-400w.webp">
+          <img class="move-bird" src="assets/img/processed/flock-pitta-400w.png" alt="" aria-hidden="true" style="width:157%;height:auto;transform:translate(-46%,0%)">
+        </picture>
+      </div>
+      <div class="hero-bird" data-speed="1" data-delay="0.14" style="position:relative;flex:279 0 0;min-width:0;display:flex;justify-content:center;align-items:flex-end">
+        <div class="hero-bird-shadow" style="position:absolute;bottom:2px;left:54%;transform:translateX(-50%) rotate(20deg);width:56%;height:clamp(6px,1.4vw,13px);border-radius:50%;background:rgba(24,36,54,0.34);filter:blur(6px)"></div>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/turnstone-400w.webp 400w, assets/img/processed/turnstone-800w.webp 800w, assets/img/processed/turnstone-1200w.webp 1200w" sizes="(min-width:1088px) 377px, 36vw">
+          <img class="perch-bird" src="assets/img/processed/turnstone-800w.png" srcset="assets/img/processed/turnstone-400w.png 400w, assets/img/processed/turnstone-800w.png 800w, assets/img/processed/turnstone-1200w.png 1200w" sizes="(min-width:1088px) 377px, 36vw" alt="Ruddy Turnstone" style="position:relative;width:100%;height:auto;display:block;transform:translateX(8%)">
+        </picture>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/flock-plover-400w.webp">
+          <img class="move-bird" src="assets/img/processed/flock-plover-400w.png" alt="" aria-hidden="true" style="width:133%;height:auto;transform:translate(-38%,19%)">
+        </picture>
+      </div>
+      <div class="hero-bird" data-speed="1" data-delay="0.28" style="position:relative;flex:316 0 0;min-width:0;display:flex;justify-content:center;align-items:flex-end">
+        <div class="hero-bird-shadow" style="position:absolute;bottom:2px;left:40%;transform:translateX(-50%) rotate(7deg);width:44%;height:clamp(6px,1.4vw,13px);border-radius:50%;background:rgba(24,36,54,0.34);filter:blur(6px)"></div>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/thrush-400w.webp 400w, assets/img/processed/thrush-800w.webp 800w, assets/img/processed/thrush-1200w.webp 1200w" sizes="(min-width:1088px) 427px, 41vw">
+          <img class="perch-bird" src="assets/img/processed/thrush-800w.png" srcset="assets/img/processed/thrush-400w.png 400w, assets/img/processed/thrush-800w.png 800w, assets/img/processed/thrush-1200w.png 1200w" sizes="(min-width:1088px) 427px, 41vw" alt="Siberian Thrush" style="position:relative;width:100%;height:auto;display:block">
+        </picture>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/flock-thrush-400w.webp">
+          <img class="move-bird" src="assets/img/processed/flock-thrush-400w.png" alt="" aria-hidden="true" style="width:117%;height:auto;transform:translate(-48%,26%)">
+        </picture>
+      </div>
+    </div>
+    </div>
+    <div style="position:relative;z-index:2;border-top:3px solid rgba(24,36,54,0.7);background:rgba(221,230,236,0.75);backdrop-filter:blur(1px)">
+      <div style="max-width:1240px;margin:0 auto;padding:26px 24px;display:flex;flex-wrap:wrap;gap:24px 56px;align-items:center;justify-content:center">
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+          <span style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-mute)">Organised by</span>
+          <a href="https://birdsociety.sg" target="_blank" rel="noopener"><picture>
+            <source type="image/webp" srcset="assets/img/processed/birdsoc-logo-400w.webp 400w, assets/img/processed/birdsoc-logo-800w.webp 800w" sizes="124px">
+            <img src="assets/img/processed/birdsoc-logo-400w.png" srcset="assets/img/processed/birdsoc-logo-400w.png 400w, assets/img/processed/birdsoc-logo-800w.png 800w" sizes="124px" alt="Bird Society of Singapore" style="height:56px;width:auto;display:block">
+          </picture></a>
+        </div>
+        <div class="spon-sep" aria-hidden="true"></div>
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+          <span style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-mute)">Sponsored by</span>
+          <div class="spon-logos">
+            <div class="spon-cell"><img src="assets/img/mandai-nature.svg" alt="Mandai Nature"></div>
+            <div class="spon-cell"><img src="assets/img/nparks-logo.svg" alt="National Parks Board"></div>
+            <div class="spon-cell"><picture><source type="image/webp" srcset="assets/img/processed/a-rocha-singapore-400w.webp"><img src="assets/img/processed/a-rocha-singapore-400w.png" alt="A Rocha Singapore"></picture></div>
+          </div>
+        </div>
+        <div class="spon-sep" aria-hidden="true"></div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+          <span style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-mute)">In support of</span>
+          <img src="assets/img/octoberbigday-cornell.svg" alt="eBird October Big Day" style="height:36px;width:auto;display:block">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section id="about" style="position:relative;overflow:hidden">
+    <div style="max-width:1100px;margin:0 auto;padding:88px 24px 80px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:56px;align-items:start">
+      <div data-reveal style="display:flex;flex-direction:column;gap:22px">
+        <h2 style="font-size:clamp(40px,5.2vw,64px);line-height:0.98">Join us for our <span style="color:var(--amber)">second edition!</span></h2>
+        <p style="font-size:19px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">After a first October Big Day in 2025, this year moves to the afternoon. We start with lunch and bird-themed activities at Fort Canning Centre, then hear from experienced birders and scientists on avian research, conservation and citizen science through eBird.</p>
+        <p style="font-size:16px;line-height:1.6;color:var(--ink-dim);text-wrap:pretty">From 4 pm, everyone heads out to one of six sites across the island. Each group is led by ornithologists, experienced birders and youth volunteers, with at least one BirdSoc SG site leader present. Transportation from Fort Canning Centre to the sites is provided.</p>
+        <p style="font-size:16px;line-height:1.6;color:var(--ink-dim);text-wrap:pretty">Not registering? You can still take part in eBird's October Big Day. Anyone in Singapore can submit a checklist on 10 October, wherever you are — let's make it the day with the most eBird checklists ever submitted in Singapore!</p>
+      </div>
+      <div data-reveal style="display:flex;flex-direction:column;gap:18px">
+        <div style="background:#fff;border:1px solid var(--rule);border-radius:12px;padding:26px 28px 22px;display:flex;flex-direction:column;gap:6px">
+          <h3 style="font-size:20px">Pricing</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--rule-soft)">
+            <div><div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:16px;font-weight:700">Adult</div><div style="font-size:14px;color:var(--ink-mute)">19 and above</div></div>
+            <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:40px;font-weight:700;color:var(--amber);letter-spacing:-1.5px;line-height:1">$28</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--rule-soft)">
+            <div><div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:16px;font-weight:700">Student</div><div style="font-size:14px;color:var(--ink-mute)">18 and below</div></div>
+            <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:40px;font-weight:700;color:var(--amber);letter-spacing:-1.5px;line-height:1">$14</div>
+          </div>
+          <p style="font-size:14px;line-height:1.5;color:var(--ink-mute);border-top:1px solid var(--rule-soft);padding-top:12px">Covers lunch, the talks, a shuttle to your birding site and an event shirt. BirdSoc SG is a volunteer-run and volunteer-led organisation; all registration fees are donated back to the Society.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Last year recap -->
+  <section id="recap" style="background:var(--surface);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+    <div style="max-width:1100px;margin:0 auto;padding:44px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:36px;align-items:center">
+      <div data-reveal>
+        <picture>
+          <source type="image/webp" srcset="assets/img/processed/recap-talks-400w.webp 400w, assets/img/processed/recap-talks-800w.webp 800w" sizes="(min-width:724px) 532px, calc(100vw - 48px)">
+          <img src="assets/img/processed/recap-talks-800w.jpg" srcset="assets/img/processed/recap-talks-400w.jpg 400w, assets/img/processed/recap-talks-800w.jpg 800w" sizes="(min-width:724px) 532px, calc(100vw - 48px)" alt="The full group together at the 2025 October Big Day" loading="lazy" style="width:100%;height:auto;border-radius:10px;display:block">
+        </picture>
+      </div>
+      <div data-reveal style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:700;letter-spacing:1.2px;color:var(--amber-dim)">LAST YEAR</div>
+        <h2 style="font-size:clamp(28px,3.4vw,38px);line-height:1.05">Our first October Big Day</h2>
+        <p style="font-size:16px;line-height:1.6;color:var(--ink-dim);text-wrap:pretty">158 species and 179 checklists across the island on 11 October 2025, with birders at five sites and talks at Mandai afterwards.</p>
+        <a href="https://singaporebirds.com/blog/birdsoc-sgs-first-october-big-day-event" target="_blank" rel="noopener" style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:15px;color:var(--amber);width:fit-content">Read the recap →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Programme -->
+  <section id="programme" style="background:var(--ink);color:#F4EEE3;position:relative;overflow:hidden">
+    <div style="max-width:1100px;margin:0 auto;padding:88px 24px;display:flex;flex-direction:column;gap:40px;position:relative">
+      <div data-reveal style="display:flex;flex-direction:column;gap:14px;min-height:clamp(120px,18vw,240px);justify-content:flex-end;max-width:60%">
+        <h2 style="font-size:clamp(40px,5.2vw,64px);line-height:0.98;color:#fff">Saturday,<br>10 October</h2>
+        <p style="font-size:16px;color:rgba(244,238,227,0.7);max-width:340px;line-height:1.5">Timings are tentative and may shift slightly closer to the date.</p>
+      </div>
+      <div data-reveal style="border-top:1px solid rgba(255,255,255,0.16)">
+        <!-- programme slot -->
+        <div class="prog-row" style="display:grid;grid-template-columns:minmax(120px,190px) 1fr auto;gap:12px 28px;align-items:baseline;padding:24px 4px;border-bottom:1px solid rgba(255,255,255,0.16)">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:clamp(22px,2.6vw,32px);font-weight:700;letter-spacing:-1px;color:#F0A26B;white-space:nowrap">1:00 pm</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:21px;letter-spacing:-0.3px;color:#fff">Lunch, activities, and talks</div>
+            <div style="font-size:15px;color:rgba(244,238,227,0.72);line-height:1.5;max-width:560px">Catered lunch and bird-themed activities, followed by talks from experienced birders and scientists on avian research, conservation and citizen science with eBird.</div>
+          </div>
+          <span class="pill pill-amber" style="font-size:13px;padding:5px 12px;align-self:start">Fort Canning Centre</span>
+        </div>
+        <div class="prog-row" style="display:grid;grid-template-columns:minmax(120px,190px) 1fr auto;gap:12px 28px;align-items:baseline;padding:24px 4px;border-bottom:1px solid rgba(255,255,255,0.16)">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:clamp(22px,2.6vw,32px);font-weight:700;letter-spacing:-1px;color:#F0A26B;white-space:nowrap">3:30 pm</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:21px;letter-spacing:-0.3px;color:#fff">Transport to birding sites</div>
+            <div style="font-size:15px;color:rgba(244,238,227,0.72);line-height:1.5;max-width:560px">Buses leave Fort Canning Centre for each of the six sites.</div>
+          </div>
+          <span class="pill pill-neutral" style="font-size:13px;padding:5px 12px;align-self:start">Shuttle</span>
+        </div>
+        <div class="prog-row" style="display:grid;grid-template-columns:minmax(120px,190px) 1fr auto;gap:12px 28px;align-items:baseline;padding:24px 4px;border-bottom:1px solid rgba(255,255,255,0.16)">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:clamp(22px,2.6vw,32px);font-weight:700;letter-spacing:-1px;color:#F0A26B;white-space:nowrap">4:00 pm</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:21px;letter-spacing:-0.3px;color:#fff">Birding</div>
+            <div style="font-size:15px;color:rgba(244,238,227,0.72);line-height:1.5;max-width:560px">Bioblitz at your registered site until 6 pm, led by a BirdSoc SG site leader.</div>
+          </div>
+          <a href="#sites" class="pill pill-sage" style="font-size:13px;padding:5px 12px;align-self:start;text-decoration:none;color:var(--pill-sage-fg)">6 birding sites</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sites + map -->
+  <section id="sites" style="position:relative;overflow:hidden">
+    <div style="max-width:1100px;margin:0 auto;padding:88px 24px;display:flex;flex-direction:column;gap:36px;position:relative">
+      <div data-reveal style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px">
+        <h2 style="font-size:clamp(40px,5.2vw,64px);line-height:0.98">Six sites to<br> choose from</h2>
+        <p style="font-size:16px;color:var(--ink-dim);line-height:1.6;max-width:420px;text-wrap:pretty">Pick one when you register. Birding runs from 4 to 6 pm, after the talks at Fort Canning Centre.</p>
+      </div>
+      <!-- Site cards. Rendered from the shop's /events/site-cards API (drafts
+           included) when reachable; the static cards below are the preserved
+           fallback shown if the API is unavailable. Kept in sync with the
+           setup_obd_2026 management command. -->
+      <div id="sitesList" data-reveal style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:20px;align-items:stretch">
+        <article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">1</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <h3 style="font-size:21px;line-height:1.15"><a href="https://ebird.org/hotspot/L38405173" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">Bidadari Park</a></h3>
+            </div>
+            <p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">Singapore's best-known migrant trap. In October the young woodland and open lawns pull in flycatchers, cuckoos and thrushes on passage.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12.5px;line-height:1.4">
+              <span style="font-weight:600;color:var(--ink-mute)">Start</span><span style="color:var(--ink-dim)">Bidadari Park Carpark</span>
+              <span style="font-weight:600;color:var(--ink-mute)">End</span><span style="color:var(--ink-dim)">Lake View Deck · Alkaff Lake</span>
+            </div>
+          </div>
+        </article>
+        <article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">2</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <h3 style="font-size:21px;line-height:1.15"><a href="https://ebird.org/hotspot/L3901811" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">Bishan-Ang Mo Kio Park</a></h3>
+            </div>
+            <p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">A naturalised stretch of the Kallang River through open parkland — kingfishers, herons, and raptors moving over at dusk.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12.5px;line-height:1.4">
+              <span style="font-weight:600;color:var(--ink-mute)">Start</span><span style="color:var(--ink-dim)">Bishan-AMK Carpark B</span>
+              <span style="font-weight:600;color:var(--ink-mute)">End</span><span style="color:var(--ink-dim)">Activity Lawn · fronting Carpark B</span>
+            </div>
+          </div>
+        </article>
+        <article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">3</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <h3 style="font-size:21px;line-height:1.15"><a href="https://ebird.org/hotspot/L10030487" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">Thomson Nature Park</a></h3>
+            </div>
+            <p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">Secondary forest on the site of a former Hainan village, buffering the Central Catchment. Forest birds, and a chance of the Raffles' Banded Langur.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12.5px;line-height:1.4">
+              <span style="font-weight:600;color:var(--ink-mute)">Start &amp; end</span><span style="color:var(--ink-dim)">Thomson Nature Park Car Park · single park exit</span>
+            </div>
+          </div>
+        </article>
+        <article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">4</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <h3 style="font-size:21px;line-height:1.15"><a href="https://ebird.org/hotspot/L922737" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">Fort Canning Park</a></h3>
+            </div>
+            <p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">The historic hill above the venue itself. Mature trees and spice gardens hold pittas and flycatchers in season — walk straight out from the talks.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12.5px;line-height:1.4">
+              <span style="font-weight:600;color:var(--ink-mute)">Start &amp; end</span><span style="color:var(--ink-dim)">Fort Canning Centre · the venue</span>
+            </div>
+          </div>
+        </article>
+        <article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">5</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <h3 style="font-size:21px;line-height:1.15"><a href="https://ebird.org/hotspot/L3267940" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">Jurong Lake Gardens</a></h3>
+            </div>
+            <p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">Grassland, freshwater wetland and lakeside parkland in one loop — waterbirds and munias to migrant warblers in the reeds.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12.5px;line-height:1.4">
+              <span style="font-weight:600;color:var(--ink-mute)">Start</span><span style="color:var(--ink-dim)">South Carpark</span>
+              <span style="font-weight:600;color:var(--ink-mute)">End</span><span style="color:var(--ink-dim)">Entrance Pavilion · near North Carpark</span>
+            </div>
+          </div>
+        </article>
+        <article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">6</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <h3 style="font-size:21px;line-height:1.15"><a href="https://ebird.org/hotspot/L952084" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">Singapore Botanic Gardens</a></h3>
+            </div>
+            <p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">Eco-Lake, a rainforest fragment and curated gardens at a UNESCO World Heritage Site. Easy birding with a wide range of garden and water birds.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12.5px;line-height:1.4">
+              <span style="font-weight:600;color:var(--ink-mute)">Start</span><span style="color:var(--ink-dim)">Jacob Ballas Carpark</span>
+              <span style="font-weight:600;color:var(--ink-mute)">End</span><span style="color:var(--ink-dim)">Botanic Gardens MRT entrance</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why -->
+  <section id="why" class="why-section" style="background:var(--sage);color:#EAF3EC;position:relative;overflow:hidden">
+    <div class="why-bird flight-bird" data-dir="left" style="position:absolute;right:clamp(-20px,3vw,60px);bottom:-14px;height:clamp(140px,15vw,200px);pointer-events:none">
+      <picture>
+        <source type="image/webp" srcset="assets/img/processed/turnstone-400w.webp 400w, assets/img/processed/turnstone-800w.webp 800w" sizes="(min-width:1333px) 280px, 21vw">
+        <img class="perch-bird" src="assets/img/processed/turnstone-400w.png" srcset="assets/img/processed/turnstone-400w.png 400w, assets/img/processed/turnstone-800w.png 800w" sizes="(min-width:1333px) 280px, 21vw" alt="" aria-hidden="true" style="filter:drop-shadow(0 8px 18px rgba(0,0,0,0.3))">
+      </picture>
+      <img class="move-bird" src="assets/img/processed/flock-plover-400w.png" alt="" aria-hidden="true" style="width:133%;height:auto;transform:translate(-38%,19%)">
+    </div>
+    <div class="why-grid" style="max-width:1100px;margin:0 auto;padding:80px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:28px;position:relative">
+      <div class="why-head" data-reveal style="display:flex;flex-direction:column;gap:10px;padding-bottom:clamp(140px,15vw,200px)">
+        <h2 style="font-size:clamp(36px,4vw,48px);line-height:1;color:#fff">Why join October Big Day?</h2>
+      </div>
+      <div data-reveal style="display:flex;flex-direction:column;gap:8px;border-left:2px solid rgba(255,255,255,0.35);padding-left:18px">
+        <h3 style="font-size:20px;color:#fff">Citizen science</h3>
+        <p style="font-size:15px;line-height:1.55;color:rgba(234,243,236,0.85)">Every sighting goes into eBird, where it informs studies and conservation policy here and abroad. </p>
+      </div>
+      <div data-reveal style="display:flex;flex-direction:column;gap:8px;border-left:2px solid rgba(255,255,255,0.35);padding-left:18px">
+        <h3 style="font-size:20px;color:#fff">Local biodiversity</h3>
+        <p style="font-size:15px;line-height:1.55;color:rgba(234,243,236,0.85)">Six sites in one afternoon show how much birdlife our parks and nature spaces hold — we're likely to record both migratory and resident species.</p>
+      </div>
+      <div data-reveal style="display:flex;flex-direction:column;gap:8px;border-left:2px solid rgba(255,255,255,0.35);padding-left:18px">
+        <h3 style="font-size:20px;color:#fff">Community</h3>
+        <p style="font-size:15px;line-height:1.55;color:rgba(234,243,236,0.85)">Experienced birders, scientists, and newer birders can all learn from one another, and grow the pool of people contributing to science here.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- What is eBird -->
+  <section id="ebird" style="position:relative;overflow:hidden">
+    <div style="max-width:1100px;margin:0 auto;padding:88px 24px;display:flex;flex-direction:column;gap:36px">
+      <div data-reveal style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:20px 56px;align-items:end">
+        <h2 style="font-size:clamp(36px,4.5vw,52px);line-height:1">What is eBird?</h2>
+        <p style="font-size:17px;line-height:1.6;color:var(--ink-dim);text-wrap:pretty">eBird is the world's largest citizen-science platform for birds — over two billion sightings from more than a million birders, run by the Cornell Lab of Ornithology. You log a checklist of what you saw, where and when, and eBird keeps it forever. It's always free, with a mobile app and website.</p>
+      </div>
+
+      <!-- For you / For science — the same checklist, two payoffs -->
+      <div data-reveal style="border:1px solid var(--rule);border-radius:12px;overflow:hidden;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))">
+        <div style="background:#fff;padding:clamp(28px,3.5vw,40px)">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--amber-dim)">For you</div>
+          <h3 style="font-size:23px;margin:8px 0 14px">Your birding, made easier</h3>
+          <p style="font-size:15.5px;line-height:1.6;color:var(--ink-dim);text-wrap:pretty">A tidy, searchable record of your birding — your life list, your patch, your year. Find your target species by seeing exactly where and when others are reporting them, and plan trips with hotspot maps and recent-sighting alerts.</p>
+        </div>
+        <div style="background:var(--ink);color:#EAF3EC;padding:clamp(28px,3.5vw,40px)">
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#F0A26B">For birds &amp; science</div>
+          <h3 style="font-size:23px;margin:8px 0 14px;color:#fff">Evidence for conservation</h3>
+          <p style="font-size:15.5px;line-height:1.6;color:rgba(234,243,236,0.82);text-wrap:pretty">Those same checklists join two billion others into the single largest dataset on bird distribution and abundance ever assembled — letting researchers model ranges, migration and abundance, and grounding conservation decisions in trends only large-scale data can reveal.</p>
+        </div>
+      </div>
+
+      <!-- Partnership + October Big Day tie-in + learn more -->
+      <div data-reveal style="background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:clamp(28px,3.5vw,40px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:24px 48px;align-items:center">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <h3 style="font-size:24px">Singapore's country partner</h3>
+          <p style="font-size:16px;line-height:1.6;color:var(--ink-dim);text-wrap:pretty">Since 2025, the Bird Society of Singapore has been eBird's official country partner for Singapore — keeping the island's records accurate and helping more birders get started. Every checklist you log on 10 October counts towards the global October Big Day.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+          <a href="https://singaporebirds.com/ebird" target="_blank" rel="noopener" class="btn btn-primary btn-lg">Learn more about eBird →</a>
+          <a href="https://support.ebird.org/en/support/solutions/articles/48001158707-get-started-with-ebird" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">Get started with eBird ↗</a>
+          <a href="https://ebird.org/region/SG" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">Explore eBird Singapore ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="width:100%;max-width:820px;margin:0 auto;padding:88px 24px;display:flex;flex-direction:column;gap:28px">
+    <h2 data-reveal style="font-size:clamp(36px,4.5vw,52px);line-height:1">Frequently asked questions</h2>
+    <div data-reveal id="faqList" style="border-top:1px solid var(--rule-soft)"></div>
+  </section>
+
+  <!-- Register -->
+  <section id="register" style="background:var(--surface-hi);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);position:relative;overflow:hidden">
+    <div class="reg-bird flight-bird" data-dir="right" style="position:absolute;left:clamp(-60px,2vw,40px);bottom:-20px;height:clamp(170px,19vw,260px);pointer-events:none">
+      <picture>
+        <source type="image/webp" srcset="assets/img/processed/thrush-400w.webp 400w, assets/img/processed/thrush-800w.webp 800w" sizes="(min-width:1368px) 349px, 26vw">
+        <img class="perch-bird" src="assets/img/processed/thrush-400w.png" srcset="assets/img/processed/thrush-400w.png 400w, assets/img/processed/thrush-800w.png 800w" sizes="(min-width:1368px) 349px, 26vw" alt="" aria-hidden="true" style="transform:scaleX(-1) rotate(-3deg);filter:drop-shadow(0 8px 16px rgba(24,36,54,0.18))">
+      </picture>
+      <span class="move-flip"><img class="move-bird" src="assets/img/processed/flock-thrush-400w.png" alt="" aria-hidden="true" style="width:117%;height:auto;transform:translate(-48%,26%)"></span>
+    </div>
+    <div class="reg-grid" style="max-width:1100px;margin:0 auto;padding:88px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:40px;align-items:start;position:relative">
+      <div class="reg-intro" data-reveal style="display:flex;flex-direction:column;gap:16px;padding-bottom:clamp(150px,18vw,240px)">
+        <h2 id="registerHeading" style="font-size:clamp(40px,5.2vw,64px);line-height:0.98">Register now</h2>
+        <p id="registerBody" style="font-size:17px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty;max-width:440px">Slots are limited! The event starts at 1pm at Fort Canning Park and ends at your selected birding site at 6pm.</p>
+        <div style="display:flex;gap:22px;flex-wrap:wrap;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:15px;color:var(--ink-dim);padding-top:6px">
+          <span>Adult <strong style="color:var(--amber-dim);font-weight:700">$28</strong></span>
+          <span>Student (18 and below) <strong style="color:var(--amber-dim);font-weight:700">$14</strong></span>
+        </div>
+      </div>
+      <div data-reveal style="background:#fff;border:1px solid #C9D6DE;border-radius:12px;overflow:hidden">
+        <h3 style="padding:16px 20px;border-bottom:1px solid var(--rule-soft);font-size:18px">Choose your birding site</h3>
+        <div id="registerList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact" style="max-width:1100px;margin:0 auto;padding:88px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:40px;align-items:start">
+    <div data-reveal style="display:flex;flex-direction:column;gap:14px">
+      <h2 style="font-size:clamp(36px,4.5vw,52px);line-height:1">Have a question?</h2>
+      <p style="font-size:16px;line-height:1.6;color:var(--ink-dim)">Write to the organising team and we'll get back to you as soon as we can. BirdSoc SG is a volunteer-run organization, so we appreciate your patience.</p>
+    </div>
+    <form id="contactForm" data-reveal style="display:flex;flex-direction:column;gap:14px;background:#fff;border:1px solid var(--rule);border-radius:12px;padding:22px 24px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:14px">
+        <label style="display:flex;flex-direction:column;gap:6px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-dim)">Name
+          <input class="field" name="name" required>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-dim)">Email
+          <input class="field" name="email" type="email" required>
+        </label>
+      </div>
+      <label style="display:flex;flex-direction:column;gap:6px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-dim)">Subject
+        <input class="field" name="subject" required>
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink-dim)">Message
+        <textarea class="field" name="body" required rows="5"></textarea>
+      </label>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink-dim);line-height:1.5">
+        <input type="checkbox" name="pdpa_agreement" required style="margin-top:3px;accent-color:var(--amber)">
+        <span>I have read and agree to the <a href="https://birdsociety.sg/data-protection-notice/" target="_blank" rel="noopener">data protection notice</a> and consent to being contacted by email.</span>
+      </label>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <button type="submit" id="contactSubmit" class="btn btn-primary btn-md">Send message</button>
+        <span id="contactStatus" style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;font-weight:600"></span>
+      </div>
+    </form>
+  </section>
+
+  <footer style="background:var(--ink);color:rgba(244,238,227,0.75);margin-top:auto;position:relative;overflow:hidden">
+    <picture>
+      <source type="image/webp" srcset="assets/img/processed/pitta-400w.webp">
+      <img class="foot-bird" src="assets/img/processed/pitta-400w.png" alt="" aria-hidden="true" style="position:absolute;right:24px;bottom:-40px;height:190px;width:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,0.35));pointer-events:none">
+    </picture>
+    <div class="foot-wrap" style="max-width:1100px;margin:0 auto;padding:48px 24px 40px;display:flex;flex-direction:column;gap:28px;position:relative">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:24px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;color:rgba(244,238,227,0.8);line-height:1.7">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:12px;font-weight:600;color:rgba(244,238,227,0.5)">Illustrations</div>
+          <span>Lynn Tan · <a style="color:#F0A26B" href="https://www.instagram.com/lynnkytn.jpeg" target="_blank" rel="noopener">Instagram</a></span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:12px;font-weight:600;color:rgba(244,238,227,0.5)">Organising committee</div>
+          <span>Guo Yichen (lead)</span>
+          <span>Jeff Tan Kuan Yew (lead)</span>
+          <span>Dillen Ng</span>
+          <span>Movin Nyanasengeran</span>
+          <span>Raghav Narayanswamy</span>
+          <span>Sandra Chia</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:12px;font-weight:600;color:rgba(244,238,227,0.5)">Web</div>
+          <span>Raghav Narayanswamy · <a style="color:#F0A26B" href="https://github.com/raghav-n" target="_blank" rel="noopener">GitHub</a></span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:12px;font-weight:600;color:rgba(244,238,227,0.5)">In support of</div>
+          <a style="color:#F0A26B" href="https://ebird.org/octoberbigday" target="_blank" rel="noopener">eBird October Big Day</a>
+        </div>
+      </div>
+      <div class="foot-copy" style="border-top:1px solid rgba(255,255,255,0.14);padding-top:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px 20px;font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:12px;color:rgba(244,238,227,0.55)">
+        <span>© 2026 Bird Society of Singapore. All rights reserved.</span>
+        <a style="color:#F0A26B" href="https://birdsociety.sg" target="_blank" rel="noopener">birdsociety.sg</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // ---- API base (shared with the BirdSoc SG shop backend) ----
+  const API_BASE = (function () {
+    if (window.__API_BASE) return window.__API_BASE;
+    const host = location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '') return 'http://localhost:8000/api/v1';
+    return 'https://shop.birdsociety.sg/api/v1';
+  })();
+
+  // =====================================================================
+  //  REGISTRATION — dynamic site list linking to the shop event pages
+  //  Fetches the six October Big Day 2026 site events from the shop backend
+  //  and points each site's Register button at its shop event page, which
+  //  handles the full registration + PayNow payment flow. While the events
+  //  are drafts (is_active=False) the public /events endpoint returns none of
+  //  them, so the section falls back to the "Registration opens soon" state.
+  //    GET /events -> list (drafts excluded); link -> /events/{slug}
+  // =====================================================================
+  const SHOP_EVENT_BASE = 'https://shop.birdsociety.sg/events/';
+  const SITES = [
+    { n: '1', name: 'Bidadari Park', region: 'Central' },
+    { n: '2', name: 'Bishan-AMK Park', region: 'Central' },
+    { n: '3', name: 'Thomson Nature Park', region: 'North' },
+    { n: '4', name: 'Fort Canning Park', region: 'City' },
+    { n: '5', name: 'Jurong Lake Gardens', region: 'West' },
+    { n: '6', name: 'Singapore Botanic Gardens', region: 'Central' },
+  ];
+  let OBD_EVENTS = [];
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  // Match a fetched event to a site row by site name appearing in its location/title.
+  function siteEvent(site) {
+    const needle = site.name.toLowerCase();
+    return OBD_EVENTS.find(function (e) {
+      return ((e.location || '') + ' ' + (e.title || '')).toLowerCase().indexOf(needle) !== -1;
+    }) || null;
+  }
+  function isBookable(ev) {
+    return !!ev && ev.registration_open && !ev.global_registration_closed && !ev.is_full;
+  }
+  function spotsLeft(ev) {
+    if (!ev || ev.max_participants == null || ev.participant_count == null) return null;
+    return Math.max(ev.max_participants - ev.participant_count, 0);
+  }
+  function eventUrl(ev) { return SHOP_EVENT_BASE + (ev.slug || ev.id); }
+
+  function setCopy(state) {
+    const set = function (id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    // Drive the two standalone CTA buttons (nav + hero). When registration is
+    // not bookable, relabel them and make them non-interactive so the page
+    // never invites people to register into a full or unopened event.
+    const setCta = function (txt, bookable) {
+      ['navCta', 'heroCta'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = txt;
+        if (bookable) {
+          el.removeAttribute('aria-disabled');
+        } else {
+          el.setAttribute('aria-disabled', 'true');
+        }
+      });
+    };
+    if (state === 'open') {
+      setCta('Register now', true);
+      set('placesHeading', 'places — register early');
+      set('placesBody', 'Sites fill on a first-come basis. Confirmation is sent by email once payment is received.');
+      set('registerHeading', 'Register now');
+      set('registerBody', 'Slots are limited! The event starts at 1pm at Fort Canning Park and ends at your selected birding site at 6pm.');
+    } else if (state === 'full') {
+      setCta('Registration full', false);
+      set('placesHeading', 'places — fully booked');
+      set('placesBody', 'Every site is full. Not registered? You can still take part from anywhere — submit an eBird checklist on 10 October.');
+      set('registerHeading', 'Registration is full');
+      set('registerBody', 'All sites are full — thank you! Not registered? You can still join in by submitting an eBird checklist on 10 October, wherever you are.');
+    } else {
+      setCta('Registration opens soon', false);
+      set('placesHeading', 'places — registration opens soon');
+      set('placesBody', 'Registration details will be announced on the Society’s Instagram, Facebook and Telegram channels.');
+      set('registerHeading', 'Registration opens soon');
+      set('registerBody', 'Stay tuned!');
+    }
+  }
+
+  async function loadRegistration() {
+    try {
+      const res = await fetch(API_BASE + '/events');
+      if (!res.ok) throw new Error('bad status');
+      const all = await res.json();
+      OBD_EVENTS = (all || []).filter(function (e) { return (e.title || '').toLowerCase().indexOf('october big day 2026') !== -1; });
+    } catch (_) {
+      OBD_EVENTS = [];
+    }
+    renderRegister();
+  }
+
+  function rowHTML(site) {
+    const ev = siteEvent(site);
+    const bookable = isBookable(ev);
+    const left = spotsLeft(ev);
+    let badge = '';
+    if (ev && bookable && left != null && left <= 8) {
+      badge = ' <span class="pill pill-amber" style="margin-left:6px">' + left + ' left</span>';
+    }
+    let control;
+    if (bookable) {
+      control = '<a class="btn btn-secondary btn-sm" href="' + esc(eventUrl(ev)) + '" target="_blank" rel="noopener">Register</a>';
+    } else if (ev && ev.is_full) {
+      control = '<span class="btn btn-ghost btn-sm" aria-disabled="true">Full</span>';
+    } else {
+      control = '<span class="btn btn-ghost btn-sm" aria-disabled="true">Soon</span>';
+    }
+    return '' +
+      '<div class="reg-row">' +
+        '<div style="display:flex;align-items:center;gap:14px">' +
+          '<span style="font-family:\'Hanken Grotesk\',system-ui,sans-serif;font-size:20px;font-weight:700;color:var(--amber);width:22px">' + site.n + '</span>' +
+          '<div style="display:flex;flex-direction:column;gap:2px">' +
+            '<span style="font-family:\'Hanken Grotesk\',system-ui,sans-serif;font-size:15px;font-weight:700">' + esc(site.name) + badge + '</span>' +
+          '</div>' +
+        '</div>' + control +
+      '</div>';
+  }
+
+  function renderRegister() {
+    const list = document.getElementById('registerList');
+    if (!list) return;
+    const events = SITES.map(siteEvent).filter(Boolean);
+    const anyOpen = events.some(isBookable);
+    // "full" = events are live but none are bookable and at least one is full.
+    // Otherwise (no events fetched yet / drafts) fall back to "soon".
+    const allFull = events.length > 0 && !anyOpen && events.every(function (ev) {
+      return ev.is_full || ev.global_registration_closed;
+    }) && events.some(function (ev) { return ev.is_full; });
+    setCopy(anyOpen ? 'open' : allFull ? 'full' : 'soon');
+    list.innerHTML = SITES.map(rowHTML).join('');
+  }
+
+  // =====================================================================
+  //  SITES — auto-populated from the shop's /events/site-cards endpoint
+  //  (drafts included) so the six cards stay in sync with the shop. The
+  //  static cards in #sitesList are the preserved fallback if the API is
+  //  unreachable, so the section is never empty.
+  // =====================================================================
+  const OBD_TAG = 'obd-2026';
+
+  function siteCardHTML(card) {
+    const num = card.order == null ? '' : card.order;
+    const name = esc(card.name || card.title || '');
+    const link = card.ebird_url
+      ? '<a href="' + esc(card.ebird_url) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px">' + name + '</a>'
+      : name;
+    let rows;
+    if (card.end) {
+      rows =
+        '<span style="font-weight:600;color:var(--ink-mute)">Start</span><span style="color:var(--ink-dim)">' + esc(card.start) + '</span>' +
+        '<span style="font-weight:600;color:var(--ink-mute)">End</span><span style="color:var(--ink-dim)">' + esc(card.end) + '</span>';
+    } else {
+      rows =
+        '<span style="font-weight:600;color:var(--ink-mute)">Start &amp; end</span><span style="color:var(--ink-dim)">' + esc(card.start) + '</span>';
+    }
+    return '' +
+      '<article style="display:grid;grid-template-columns:40px 1fr;gap:14px;padding:24px;border:1px solid var(--rule-soft);border-radius:14px;background:#fff">' +
+        '<div style="font-family:\'Hanken Grotesk\',system-ui,sans-serif;font-size:28px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px">' + num + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">' +
+            '<h3 style="font-size:21px;line-height:1.15">' + link + '</h3>' +
+          '</div>' +
+          '<p style="font-size:15px;line-height:1.55;color:var(--ink-dim);text-wrap:pretty">' + esc(card.description || '') + '</p>' +
+          '<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding-top:10px;margin-top:2px;border-top:1px solid var(--rule-soft);font-family:\'Hanken Grotesk\',system-ui,sans-serif;font-size:12.5px;line-height:1.4">' + rows + '</div>' +
+        '</div>' +
+      '</article>';
+  }
+
+  async function loadSites() {
+    const list = document.getElementById('sitesList');
+    if (!list) return;
+    let cards;
+    try {
+      const res = await fetch(API_BASE + '/events/site-cards?tag=' + encodeURIComponent(OBD_TAG));
+      if (!res.ok) throw new Error('bad status');
+      cards = await res.json();
+    } catch (_) {
+      return; // keep the static fallback already in the DOM
+    }
+    if (!Array.isArray(cards) || cards.length === 0) return;
+    cards.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+    list.innerHTML = cards.map(siteCardHTML).join('');
+  }
+
+  // =====================================================================
+  //  FAQ accordion (single-open)
+  // =====================================================================
+  const FAQS = [
+    ['Is this suitable for beginners?', 'Yes. October Big Day welcomes birders of all experience levels. Each site has experienced BirdSoc SG leaders to help with identification, field technique and entering your sightings in eBird.'],
+    ['What does the registration fee cover?', 'Lunch, the talks, shuttle transport from Fort Canning Centre to your birding site, and an event shirt. Fees go towards honoraria for site leaders and speakers, all of which are donated back to the Society.'],
+    ['How many sites can I visit?', 'One. During registration  you\'ll pick a single site for the 4:00 – 6:00 pm bioblitz. '],
+    ['Where does the event start and end?', 'The event starts at Fort Canning Centre, where lunch, activities and the talks take place. From 3:30 pm shuttles take groups out to the birding sites, and the day ends at your selected birding site at 6 pm. If you will be driving, please take note of the start and end locations for your site.'],
+    ['What should I bring?', 'Comfortable walking shoes, a water bottle and sun protection. Bring binoculars and a camera if you have them. Please also make an eBird account if you don\'t have one yet, so we can include everyone in our checklists!'],
+  ];
+  let faqOpen = -1;
+  function renderFaq() {
+    const list = document.getElementById('faqList');
+    if (!list) return;
+    list.innerHTML = FAQS.map(function (f, i) {
+      const isOpen = faqOpen === i;
+      return '' +
+        '<div style="border-bottom:1px solid var(--rule-soft)">' +
+          '<button class="faq-q" data-i="' + i + '" style="all:unset;cursor:pointer;display:flex;width:100%;box-sizing:border-box;justify-content:space-between;align-items:center;gap:16px;padding:18px 4px;font-family:\'Hanken Grotesk\',system-ui,sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.2px;color:var(--ink)">' +
+            '<span>' + f[0] + '</span>' +
+            '<span style="font-family:\'Hanken Grotesk\',system-ui,sans-serif;font-size:22px;font-weight:600;color:var(--amber);width:20px;text-align:center;flex-shrink:0">' + (isOpen ? '−' : '+') + '</span>' +
+          '</button>' +
+          (isOpen ? '<p style="font-size:16px;line-height:1.6;color:var(--ink-dim);padding:0 4px 20px;max-width:680px;text-wrap:pretty">' + f[1] + '</p>' : '') +
+        '</div>';
+    }).join('');
+    list.querySelectorAll('.faq-q').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const i = parseInt(btn.getAttribute('data-i'), 10);
+        faqOpen = (faqOpen === i) ? -1 : i;
+        renderFaq();
+      });
+    });
+  }
+
+  // =====================================================================
+  //  Contact form -> POST /contact  (preserves the existing endpoint)
+  // =====================================================================
+  function initContact() {
+    const form = document.getElementById('contactForm');
+    if (!form) return;
+    const status = document.getElementById('contactStatus');
+    const btn = document.getElementById('contactSubmit');
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const fd = new FormData(form);
+      const payload = {
+        name: (fd.get('name') || '').trim(),
+        email: (fd.get('email') || '').trim(),
+        subject: (fd.get('subject') || '').trim(),
+        body: (fd.get('body') || '').trim(),
+        pdpa_agreement: !!fd.get('pdpa_agreement'),
+      };
+      btn.disabled = true;
+      status.style.color = 'var(--ink-mute)';
+      status.textContent = 'Sending…';
+      try {
+        const res = await fetch(API_BASE + '/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          status.style.color = 'var(--sage)';
+          status.textContent = 'Thanks — we’ll be in touch.';
+          form.reset();
+        } else {
+          let msg = 'Something went wrong. Please try again.';
+          try { const j = await res.json(); msg = j.message || msg; } catch (_) {}
+          status.style.color = 'var(--coral)';
+          status.textContent = msg;
+        }
+      } catch (_) {
+        status.style.color = 'var(--coral)';
+        status.textContent = 'Network error. Please try again later.';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // =====================================================================
+  //  Reveal-on-scroll
+  // =====================================================================
+  function initReveal() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.documentElement.setAttribute('data-reveal', '1');
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    const observe = function () { document.querySelectorAll('[data-reveal]:not(.in)').forEach(function (el) { io.observe(el); }); };
+    observe();
+    setTimeout(observe, 1200);
+  }
+
+  // =====================================================================
+  //  Hero trio takes flight on scroll. As the hero scrolls away each perched
+  //  bird slides straight off the left edge while crossfading from its sitting
+  //  pose (.perch-bird) to its in-motion pose (.move-bird), so the sitting
+  //  birds seamlessly become the flying/running versions and leave. Progress
+  //  runs 0 -> 1 over the first ~1.28 viewport heights; each bird eases out on
+  //  its own delay left-to-right (pitta first, thrush last).
+  // =====================================================================
+  // Stable viewport height for the scroll-linked bird animations. Mobile
+  // browsers grow/shrink window.innerHeight as the URL bar hides on scroll and
+  // re-appears when you stop; because the birds' progress is normalised by vh,
+  // that live change re-maps the animation and makes them jump back the moment
+  // scrolling stops. Capture vh once and only refresh it on a real width change
+  // (orientation / window resize), never on the toolbar-driven height wobble.
+  let stableVh = window.innerHeight || 1;
+  let stableVw = window.innerWidth || 1;
+  function refreshStableVh() {
+    const vw = window.innerWidth || 1;
+    if (vw !== stableVw) { stableVw = vw; stableVh = window.innerHeight || 1; }
+  }
+
+  function initFlock() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const birds = Array.prototype.slice.call(document.querySelectorAll('.hero-bird')).map(function (el) {
+      return {
+        el: el,
+        perch: el.querySelector('.perch-bird'),
+        move: el.querySelector('.move-bird'),
+        shadow: el.querySelector('.hero-bird-shadow'),
+        speed: parseFloat(el.dataset.speed) || 1,
+        delay: parseFloat(el.dataset.delay) || 0,
+      };
+    });
+    if (!birds.length) return;
+    // Smooth 0->1 ramp of x across [a,b].
+    function ramp(x, a, b) { const t = (x - a) / (b - a); return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t); }
+    let ticking = false;
+    function update() {
+      ticking = false;
+      refreshStableVh();
+      const vh = stableVh;
+      const vw = stableVw;
+      const p = Math.min(Math.max(window.scrollY / (vh * 1.28), 0), 1);
+      for (let i = 0; i < birds.length; i++) {
+        const b = birds[i];
+        // Per-bird progress, staggered by delay.
+        let t = (p - b.delay) / (1 - b.delay);
+        t = t < 0 ? 0 : (t > 1 ? 1 : t);
+        const fly = t * t; // ease-in: accelerate as they leave the ground
+        // Straight off the left edge (all birds face left). vw travel clears the frame.
+        const dx = -fly * (vw + 300) * b.speed;
+        b.el.style.transform = 'translateX(' + dx.toFixed(1) + 'px)';
+        // Crossfade sitting -> moving, then fade the flyer out as it exits.
+        if (b.perch) b.perch.style.opacity = (1 - ramp(t, 0, 0.32)).toFixed(3);
+        if (b.move) b.move.style.opacity = (ramp(t, 0.06, 0.34) * (1 - ramp(t, 0.82, 1))).toFixed(3);
+        if (b.shadow) b.shadow.style.opacity = (1 - ramp(t, 0, 0.2)).toFixed(3);
+      }
+    }
+    function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  }
+
+  // =====================================================================
+  //  The same take-flight effect for the decorative birds further down the
+  //  page (.flight-bird). Each bird's progress is driven by its own position
+  //  in the viewport rather than the page scroll: as the bird rises from the
+  //  lower part of the screen (top at ~0.75vh) up past the top (~-0.19vh) it
+  //  crossfades perched -> moving and slides off the edge it faces (data-dir).
+  //  Same crossfade curve as the hero so the two effects read as one motif.
+  // =====================================================================
+  function initFlightBirds() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const birds = Array.prototype.slice.call(document.querySelectorAll('.flight-bird')).map(function (el) {
+      return {
+        el: el,
+        perch: el.querySelector('.perch-bird'),
+        move: el.querySelector('.move-bird'),
+        dir: el.dataset.dir === 'right' ? 1 : -1,
+        start: parseFloat(el.dataset.start) || 0.75,  // rect.top / vh where it is still perched
+        end: parseFloat(el.dataset.end) || -0.19,      // rect.top / vh where it has flown off (span doubled to halve the speed)
+      };
+    });
+    if (!birds.length) return;
+    function ramp(x, a, b) { const t = (x - a) / (b - a); return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t); }
+    let ticking = false;
+    function update() {
+      ticking = false;
+      refreshStableVh();
+      const vh = stableVh;
+      const vw = stableVw;
+      for (let i = 0; i < birds.length; i++) {
+        const b = birds[i];
+        // Vertical scroll progress from the bird's own viewport position. (rect.top
+        // is unaffected by the horizontal translate we set, so there is no feedback.)
+        const y = b.el.getBoundingClientRect().top / vh;
+        let t = (b.start - y) / (b.start - b.end);
+        t = t < 0 ? 0 : (t > 1 ? 1 : t);
+        const fly = t * t; // ease-in: accelerate as it leaves the ground
+        const dx = b.dir * fly * (vw + 300); // off the edge it faces; clipped by section overflow
+        b.el.style.transform = 'translateX(' + dx.toFixed(1) + 'px)';
+        // Crossfade sitting -> moving, then fade the flyer out as it exits.
+        if (b.perch) b.perch.style.opacity = (1 - ramp(t, 0, 0.32)).toFixed(3);
+        if (b.move) b.move.style.opacity = (ramp(t, 0.06, 0.34) * (1 - ramp(t, 0.82, 1))).toFixed(3);
+      }
+    }
+    function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  }
+
+  function init() {
+    loadRegistration();
+    loadSites();
+    renderFaq();
+    initContact();
+    initReveal();
+    initFlock();
+    initFlightBirds();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>
+</body>
+</html>

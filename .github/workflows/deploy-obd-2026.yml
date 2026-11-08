@@ -1,0 +1,50 @@
+name: Deploy (obd26.birdsociety.sg)
+
+# Standalone event site: lives in event-sites/obd-2026/ and deploys on its own,
+# independent of the shop's Django deploy (django.yml ignores event-sites/**).
+on:
+  push:
+    branches: [master]
+    paths:
+      - "event-sites/obd-2026/**"
+      - ".github/workflows/deploy-obd-2026.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: event-sites/obd-2026
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: event-sites/obd-2026/package-lock.json
+
+      # assets/img/processed/ is gitignored (generated, not committed). Rebuild
+      # it from the source PNGs so the responsive <picture> variants that
+      # legacy-2025.html references exist in the deployed tree.
+      - name: Build responsive images
+        run: |
+          npm ci
+          node process-images.js
+
+      # az is preinstalled on GitHub-hosted ubuntu runners. deploy.sh stages the
+      # deployable files (the 3 HTML pages + assets/img, including the processed
+      # variants just built) and pushes them to the storage account's $web
+      # container with `az storage blob upload-batch`, authenticating with the
+      # account key from the secret below (data-plane RBAC isn't granted to any
+      # identity here). The VPS nginx vhost, DNS, and Let's Encrypt cert are
+      # one-time setup and untouched by a deploy.
+      - name: Deploy to Azure $web
+        env:
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        run: ./deploy.sh
