@@ -981,6 +981,30 @@ class EventGroupFollowupEmailTests(APITestCase):
         send_followup_email(self.event_a, p, "{{group_name}}: {{event_title}}", "<p>Hi {{first_name}}</p>")
         self.assertEqual(mock_email.call_args.kwargs["subject"], "Big Day: Site A")
 
+    @patch("apps.event.utils.EmailMultiAlternatives")
+    def test_followup_is_not_a_django_template(self, mock_email):
+        from apps.event.utils import send_followup_email
+        p = Participant._default_manager.create(first_name="<b>O'Neil</b>", last_name="L", email="a@x.com", quantity=1)
+        body = "<p>Hi {{ first_name }}</p>{% if 1 %}x{% endif %}{{ participant.email }}{{ event.id }}"
+        send_followup_email(self.event_a, p, "For {{first_name}}", body)
+        html = mock_email.return_value.attach_alternative.call_args.args[0]
+        # Tags and attribute lookups are left as plain text, never evaluated.
+        self.assertEqual(
+            html, "<p>Hi &lt;b&gt;O&#x27;Neil&lt;/b&gt;</p>{% if 1 %}x{% endif %}{{ participant.email }}{{ event.id }}"
+        )
+        self.assertEqual(mock_email.call_args.kwargs["subject"], "For <b>O'Neil</b>")
+
+    def test_skip_email_set_parsing(self):
+        import time
+        from apps.api.views.console_events import _skip_email_set
+        self.assertEqual(
+            _skip_email_set("Ann <A@x.com>, b@x.com.\n'c@y.org'; not-an-email @ nope"),
+            {"a@x.com", "b@x.com", "c@y.org"},
+        )
+        start = time.monotonic()
+        _skip_email_set("a@" + "!" * 50000)
+        self.assertLess(time.monotonic() - start, 1)
+
 
 class FollowupEmailTableTests(APITestCase):
     """Tables from the console editor reach the inbox with inline styles."""
