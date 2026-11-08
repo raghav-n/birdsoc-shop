@@ -181,8 +181,9 @@ class OrderDeleteDashboardTests(TestCase):
             reverse("dashboard:order-detail", kwargs={"number": order.number})
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'value="delete_order"')
+        # NoAdminMiddleware hides the whole dashboard from non-superusers.
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(response, 'value="delete_order"', status_code=404)
 
     def test_collected_order_does_not_show_delete_button(self):
         order = self._place_order()
@@ -233,5 +234,6 @@ class OrderDeleteDashboardTests(TestCase):
             {"order_action": "delete_order"},
         )
 
-        self.assertEqual(response.status_code, 403)
+        # NoAdminMiddleware rejects non-superusers before the view runs.
+        self.assertEqual(response.status_code, 404)
         self.assertTrue(Order.objects.filter(pk=order.pk).exists())
