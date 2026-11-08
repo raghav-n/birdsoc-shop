@@ -2,6 +2,7 @@
 Console-side event management API.
 All endpoints require the user to be in the 'Events' group (or be a superuser).
 """
+import logging
 import re
 import uuid as _uuid
 from urllib.parse import urlparse
@@ -22,6 +23,8 @@ from oscar.core.loading import get_model
 from apps.api.permissions import IsEventsStaff
 from apps.api.views.events import DYNAMIC_QUESTIONS, _inject_dynamic_questions
 from apps.event.utils import get_global_registration_closed, set_global_registration_closed
+
+logger = logging.getLogger(__name__)
 
 
 def _clean_blog_url(raw):
@@ -282,13 +285,14 @@ class ConsoleEventsViewSet(ViewSet):
                     )
             except Exception:
                 pass
-        try:
-            start_date = _coerce_datetime(data["start_date"])
-            end_date = _coerce_datetime(data.get("end_date"))
-            registration_start = _coerce_datetime(data.get("registration_start"))
-            registration_end = _coerce_datetime(data.get("registration_end"))
-        except ValueError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        dates = {}
+        for field in ("start_date", "end_date", "registration_start", "registration_end"):
+            try:
+                dates[field] = _coerce_datetime(data.get(field))
+            except ValueError:
+                return Response({"detail": f"Invalid datetime for {field}."}, status=status.HTTP_400_BAD_REQUEST)
+        start_date, end_date = dates["start_date"], dates["end_date"]
+        registration_start, registration_end = dates["registration_start"], dates["registration_end"]
         try:
             event = OrganizedEvent.objects.create(
                 title=data["title"],
@@ -323,8 +327,12 @@ class ConsoleEventsViewSet(ViewSet):
                 collect_prior_attendance=bool(data.get("collect_prior_attendance", False)),
                 collect_driving=bool(data.get("collect_driving", False)),
             )
-        except Exception as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Creating event failed")
+            return Response(
+                {"detail": "Could not create the event. Check the values entered."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(_serialize_event(event), status=status.HTTP_201_CREATED)
 
     def partial_update(self, request, pk=None):
@@ -377,8 +385,8 @@ class ConsoleEventsViewSet(ViewSet):
                 if field in datetime_fields:
                     try:
                         val = _coerce_datetime(val)
-                    except ValueError as exc:
-                        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+                    except ValueError:
+                        return Response({"detail": f"Invalid datetime for {field}."}, status=status.HTTP_400_BAD_REQUEST)
                 elif field in ("max_participants", "json_schema", "price_tiers",
                                "confirmed_email_template", "post_registration_message",
                                "lottery_won_email_subject", "lottery_won_email_template",
@@ -406,8 +414,12 @@ class ConsoleEventsViewSet(ViewSet):
             event.blog_url = blog_url
         try:
             event.save()
-        except Exception as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Saving event %s failed", event.pk)
+            return Response(
+                {"detail": "Could not save the event. Check the values entered."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         event.refresh_from_db()
         return Response(_serialize_event(event))
 
@@ -785,9 +797,10 @@ class ConsoleEventsViewSet(ViewSet):
             )
             try:
                 send_followup_email(event, participant, subject, body, to_email=test_email)
-            except Exception as exc:
+            except Exception:
+                logger.exception("Test follow-up email to %s failed", test_email)
                 return Response(
-                    {"detail": f"Failed to send test email: {exc}"},
+                    {"detail": "Failed to send test email. Check the server logs for details."},
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
             return Response({"detail": f"Sent a test follow-up email to {test_email}."})
@@ -1157,7 +1170,18 @@ class ConsoleEventGroupGuideTokenView(APIView):
 # which emails went out.
 FOLLOWUP_BATCH_LIMIT = 5
 
-_EMAIL_IN_TEXT_RE = re.compile(r"[^\s<>,;:\"'()\[\]]+@[^\s<>,;:\"'()\[\]]+\.[A-Za-z]{2,}")
+# Split on separators first, then check each token: a single findall over the
+# whole paste backtracks polynomially on long runs of non-separator characters.
+_EMAIL_SEPARATOR_RE = re.compile(r"[\s<>,;:\"'()\[\]]+")
+
+
+def _looks_like_email(tok):
+    """``local@host.tld``: one @, something before it, a dotted host, alphabetic TLD."""
+    local, at, domain = tok.partition("@")
+    if not (local and at) or "@" in domain:
+        return False
+    host, dot, tld = domain.rpartition(".")
+    return bool(host and dot) and len(tld) >= 2 and tld.isascii() and tld.isalpha()
 
 
 def _skip_email_set(raw):
@@ -1166,7 +1190,10 @@ def _skip_email_set(raw):
         raw = "\n".join(str(x) for x in raw)
     if not isinstance(raw, str):
         return set()
-    return {m.lower() for m in _EMAIL_IN_TEXT_RE.findall(raw)}
+    return {
+        tok.lower() for tok in (t.rstrip(".") for t in _EMAIL_SEPARATOR_RE.split(raw))
+        if _looks_like_email(tok)
+    }
 
 
 def _group_followup_recipients(group, event_ids=None, attended_only=False):
@@ -1383,8 +1410,12 @@ class ConsoleEventGroupFollowupEmailView(APIView):
                 participant = Participant(first_name="Sample", last_name="Participant", email=test_email, quantity=1)
             try:
                 send_followup_email(event, participant, subject, body, to_email=test_email)
-            except Exception as exc:
-                return Response({"detail": f"Failed to send test email: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+            except Exception:
+                logger.exception("Test group follow-up email to %s failed", test_email)
+                return Response(
+                    {"detail": "Failed to send test email. Check the server logs for details."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
             return Response({"detail": f"Sent a test follow-up email to {test_email}."})
 
         ep_ids, error = _parse_followup_batch(request.data.get("ep_ids"))

@@ -776,7 +776,7 @@ function FollowupEmailModal({ eventId, eventTitle, confirmedCount, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, reload]);
 
-  const bodyIsEmpty = !body || body.replace(/<[^>]*>/g, '').trim() === '';
+  const bodyIsEmpty = !body || !new DOMParser().parseFromString(body, 'text/html').body.textContent.trim();
 
   const handleSendTest = async () => {
     const email = testEmail.trim();

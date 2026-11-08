@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template import Template, Context
 from django.template.loader import render_to_string
+from django.utils.html import escape as html_escape
 from django.utils.safestring import mark_safe
 from django.utils.timezone import localtime
 import logging
@@ -967,17 +968,31 @@ def _followup_email_context(event, participant):
         "event_date": localtime(event.start_date).strftime("%B %d, %Y at %I:%M %p") if event.start_date else "",
         "event_location": event.location or "",
         "group_name": event.group.name if event.group_id else "",
-        "event": event,
-        "participant": participant,
     }
+
+
+_PLACEHOLDER_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+
+
+def _fill_placeholders(text, values, escape_html):
+    """Swap ``{{name}}`` for its value; unknown names become empty, as in Django.
+
+    Staff-written follow-ups are not run through the template engine, so they
+    can only use the plain variables in ``values``, never tags or attribute
+    lookups on model objects.
+    """
+    def sub(m):
+        val = str(values.get(m.group(1), ""))
+        return html_escape(val) if escape_html else val
+
+    return _PLACEHOLDER_RE.sub(sub, text)
 
 
 def send_followup_email(event, participant, subject, body, to_email=None):
     """Send a one-off follow-up email composed by staff to a participant.
 
-    ``subject`` and ``body`` are rendered as Django templates so the same
-    ``{{first_name}}`` / ``{{event_title}}`` placeholders used elsewhere work
-    here too. Pass ``to_email`` to redirect the message to a test address
+    ``subject`` and ``body`` may use the same ``{{first_name}}`` /
+    ``{{event_title}}`` placeholders used elsewhere (see ``_fill_placeholders``). Pass ``to_email`` to redirect the message to a test address
     instead of the participant's own email. Raises on send failure so callers
     can surface the error to the user.
     """
@@ -985,9 +1000,9 @@ def send_followup_email(event, participant, subject, body, to_email=None):
     reply_to_email = getattr(settings, "REPLY_TO_EMAIL", None)
     recipient = to_email or participant.email
 
-    ctx = Context(_followup_email_context(event, participant))
-    rendered_subject = Template(subject).render(ctx).strip() or event.title
-    html_content = inline_email_table_styles(Template(body).render(ctx))
+    values = _followup_email_context(event, participant)
+    rendered_subject = _fill_placeholders(subject, values, escape_html=False).strip() or event.title
+    html_content = inline_email_table_styles(_fill_placeholders(body, values, escape_html=True))
 
     msg = EmailMultiAlternatives(
         subject=rendered_subject,

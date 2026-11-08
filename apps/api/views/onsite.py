@@ -5,7 +5,7 @@ Follows the same order number generation and business logic as
 apps/dashboard/orders/views.py OnsitePurchaseView, adapted for
 the React frontend (JWT auth, JSON I/O).
 """
-import traceback
+import logging
 from decimal import Decimal
 
 from django.conf import settings
@@ -36,6 +36,13 @@ Selector = get_class("partner.strategy", "Selector")
 Applicator = get_class("offer.applicator", "Applicator")
 ConditionalOffer = get_model("offer", "ConditionalOffer")
 OrderTotalCalculator = get_class("checkout.calculators", "OrderTotalCalculator")
+logger = logging.getLogger(__name__)
+
+
+class OnsiteOrderError(ValueError):
+    """A problem with the order itself whose message is meant for staff."""
+
+
 def _generate_onsite_order_number():
     """Generate unique onsite order number starting with '2', matching the Django dashboard approach."""
     for _ in range(10):
@@ -103,7 +110,7 @@ def _build_persisted_onsite_basket(products_data, request):
         try:
             product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
-            raise ValueError(f"Product {product_id} not found")
+            raise OnsiteOrderError(f"Product {product_id} not found")
 
         stockrecord = product.stockrecords.first()
         if (
@@ -111,7 +118,7 @@ def _build_persisted_onsite_basket(products_data, request):
             and stockrecord.num_in_stock is not None
             and stockrecord.net_stock_level < quantity
         ):
-            raise ValueError(
+            raise OnsiteOrderError(
                 f"Not enough stock for {product.title}. Available: {stockrecord.net_stock_level}"
             )
         if stockrecord:
@@ -120,7 +127,7 @@ def _build_persisted_onsite_basket(products_data, request):
         basket.add_product(product, quantity=quantity)
 
     if basket.is_empty:
-        raise ValueError("Basket is empty")
+        raise OnsiteOrderError("Basket is empty")
 
     return guest_user, basket, stock_updates
 
@@ -307,12 +314,12 @@ class OnsitePendingView(APIView):
                     ),
                 )
 
-        except ValueError as exc:
+        except OnsiteOrderError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as exc:
-            traceback.print_exc()
+        except Exception:
+            logger.exception("Onsite payment preparation failed")
             return Response(
-                {"detail": f"Unable to prepare payment: {exc}"},
+                {"detail": "Unable to prepare payment. Check the server logs for details."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -441,12 +448,12 @@ class OnsiteOrderView(APIView):
                         stockrecord.num_in_stock -= quantity
                         stockrecord.save()
 
-        except ValueError as exc:
+        except OnsiteOrderError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as exc:
-            traceback.print_exc()
+        except Exception:
+            logger.exception("Onsite order placement failed")
             return Response(
-                {"detail": f"Order placement failed: {exc}"},
+                {"detail": "Order placement failed. Check the server logs for details."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -461,9 +468,6 @@ class OnsiteOrderView(APIView):
 
 
 def _place_cash_order_from_pending(pending, request=None):
-    import logging
-    logger = logging.getLogger(__name__)
-
     snapshot = pending.basket_snapshot or {}
 
     try:
@@ -550,9 +554,12 @@ class OnsiteCashConfirmView(APIView):
         try:
             with transaction.atomic():
                 result = _place_cash_order_from_pending(pending, request)
-        except Exception as exc:
-            traceback.print_exc()
-            return Response({"detail": f"Cash confirmation failed: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception("Onsite cash confirmation failed")
+            return Response(
+                {"detail": "Cash confirmation failed. Check the server logs for details."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         if result.get("error"):
             return Response({"detail": result["error"]}, status=status.HTTP_400_BAD_REQUEST)

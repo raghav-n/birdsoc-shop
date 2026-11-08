@@ -268,7 +268,7 @@ export default function GroupFollowupEmailModal({ group, send, checkInLabel, res
 
   const sending = progress !== null;
   const pending = audience?.recipients || [];
-  const bodyIsEmpty = !body || body.replace(/<[^>]*>/g, '').trim() === '';
+  const bodyIsEmpty = !body || !new DOMParser().parseFromString(body, 'text/html').body.textContent.trim();
 
   const toggleEvent = (id) => setEventIds(prev =>
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]

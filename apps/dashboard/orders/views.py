@@ -880,4 +880,5 @@ class OrderBulkEmailTestView(View):
             return JsonResponse({"success": True, "order_number": str(order.number)})
         except Exception as exc:
             capture_exception(exc)
-            return JsonResponse({"success": False, "error": str(exc)})
+            logger.exception("Test bulk email to %s failed", test_email)
+            return JsonResponse({"success": False, "error": "Failed to send test email. Check the server logs for details."})
