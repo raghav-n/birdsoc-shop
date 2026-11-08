@@ -57,17 +57,25 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
 
+    # Same toolchain as the VPS deploy (Node 22, npm 11.6.2), so a lockfile the
+    # deploy's `npm ci` would reject fails here first.
     - name: Install Frontend Dependencies
       working-directory: frontend
-      run: npm ci
+      run: |
+        npm install -g npm@11.6.2 --no-audit --no-fund
+        npm ci
 
     - name: Run Frontend Tests
       working-directory: frontend
       run: npm test
+
+    - name: Frontend production build
+      working-directory: frontend
+      run: npm run build
 
   deploy:
     needs: [test, frontend-test]
