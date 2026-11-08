@@ -13,8 +13,8 @@ Category = get_model("catalogue", "Category")
 class CatalogueExtraTests(APITestCase):
     def test_categories_list_tree_and_retrieve(self):
         # Build category tree
-        root = Category.add_root(name="Root")
-        child = root.add_child(name="Child")
+        root = Category.objects.add_root({"name": "Root"})
+        child = Category.objects.add_child(root, {"name": "Child"})
 
         r = self.client.get("/api/v1/categories")
         self.assertEqual(r.status_code, 200)
@@ -31,7 +31,7 @@ class CatalogueExtraTests(APITestCase):
 
     def test_product_filters_query_category_public_and_ordering(self):
         # Create categories and products
-        cat = Category.add_root(name="Birds")
+        cat = Category.objects.add_root({"name": "Birds"})
         p1 = create_product(title="Albatross A", price=10)
         p2 = create_product(title="Bluebird B", price=20)
         p1.categories.add(cat)

@@ -4,7 +4,7 @@ An e-commerce platform for the Bird Society of Singapore, built with Django and 
 
 ## Tech Stack
 
-- **Backend**: Django 4.2, Django Oscar, Django REST Framework
+- **Backend**: Python 3.14, Django 5.2 LTS, Django Oscar 4.2, Django REST Framework
 - **Frontend**: React 18, Vite, styled-components
 - **Database**: PostgreSQL (SQLite for development)
 - **Payments**: PayNow (no payment gateway)

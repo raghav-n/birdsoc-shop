@@ -18,7 +18,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.14"]
 
     steps:
     - uses: actions/checkout@v4
@@ -95,11 +95,23 @@ jobs:
           cd /srv/shop
           git config --global --add safe.directory /srv/shop
           git pull
-          source venv/bin/activate
-          uv pip install -r requirements.txt
-          python manage.py migrate --noinput
-          python manage.py collectstatic --noinput
+          # Python: venv is a symlink to venv-<X.Y> built on the shared uv-managed
+          # interpreter (/usr/local/bin/python3.14). To move to a new version, build
+          # venv-<X.Y> by hand, then merge the PR that sets PYV: the deploy installs
+          # into it and swaps the symlink just before migrate + restart.
+          PYV=3.14
+          if [ -d venv-\$PYV ] && [ \"\$(readlink venv)\" != venv-\$PYV ]; then VENV=venv-\$PYV; else VENV=venv; fi
+          \$VENV/bin/python -c \"import sys; v = '%d.%d' % sys.version_info[:2]; sys.exit(0 if v == '\$PYV' else '\$VENV is Python ' + v + ', expected \$PYV: build /srv/shop/venv-\$PYV first')\"
+          uv pip install --python \$VENV/bin/python -r requirements.txt
+          \$VENV/bin/python manage.py collectstatic --noinput
           cd frontend && npm ci --silent && npm run build && cd ..
+          if [ \$VENV != venv ]; then
+            [ -L venv ] || mv venv venv-old-\$(date +%Y%m%d%H%M)
+            ln -sfn venv-\$PYV venv
+          fi
+          # Migrate last and restart straight after: new columns without a DB
+          # default break the old code's inserts, so keep that window short.
+          venv/bin/python manage.py migrate --noinput
           sudo systemctl restart birdsoc
         "
 

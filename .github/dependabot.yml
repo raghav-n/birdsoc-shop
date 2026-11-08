@@ -1,0 +1,42 @@
+# Dependabot version updates: one grouped PR per area per week for minor +
+# patch bumps; each major bump gets its own PR.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Asia/Singapore }
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Stay on the Django 5.2 LTS (supported to April 2028); django-oscar 4.2
+      # supports it. Move to the next LTS deliberately.
+      - dependency-name: django
+        versions: [">=6"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Asia/Singapore }
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /event-sites/obd-2026
+    schedule: { interval: monthly, timezone: Asia/Singapore }
+    labels: [dependencies]
+    groups:
+      obd-2026:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly, timezone: Asia/Singapore }
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]
