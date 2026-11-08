@@ -1980,22 +1980,24 @@
             const reviewContent = form.querySelector('.review-content');
             const fd = new FormData(form);
             
+            // Form values are user input: escape before building the review HTML.
+            const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
             const details = [];
-            details.push(`<strong>Main Contact:</strong> ${fd.get('first_name')} ${fd.get('last_name')}`);
-            details.push(`<strong>Email:</strong> ${fd.get('email')}`);
+            details.push(`<strong>Main Contact:</strong> ${esc(fd.get('first_name'))} ${esc(fd.get('last_name'))}`);
+            details.push(`<strong>Email:</strong> ${esc(fd.get('email'))}`);
             if (fd.get('phone_number')) {
-                details.push(`<strong>Phone:</strong> ${fd.get('phone_number')}`);
+                details.push(`<strong>Phone:</strong> ${esc(fd.get('phone_number'))}`);
             }
             
             // Add emergency contact information to review
             if (fd.get('emergency_contact_name') || fd.get('emergency_contact_phone')) {
-                details.push(`<strong>Emergency Contact:</strong> ${fd.get('emergency_contact_name') || 'Not provided'}`);
+                details.push(`<strong>Emergency Contact:</strong> ${esc(fd.get('emergency_contact_name') || 'Not provided')}`);
                 if (fd.get('emergency_contact_phone')) {
-                    details.push(`<strong>Emergency Phone:</strong> ${fd.get('emergency_contact_phone')}`);
+                    details.push(`<strong>Emergency Phone:</strong> ${esc(fd.get('emergency_contact_phone'))}`);
                 }
             }
             
-            details.push(`<strong>Participants:</strong> ${fd.get('participants')}`);
+            details.push(`<strong>Participants:</strong> ${esc(fd.get('participants'))}`);
             if (fd.get('donation')) {
                 const rawDonation = String(fd.get('donation')).trim();
                 if (/^\d+$/.test(rawDonation)) {
@@ -2019,7 +2021,7 @@
                             const key = input.getAttribute('data-key');
                             const label = input.parentElement.querySelector('label')?.textContent.replace(' *', '') || sentenceCase(key);
                             if (input.value) {
-                                participantDetails.push(`${label}: ${input.value}`);
+                                participantDetails.push(`${esc(label)}: ${esc(input.value)}`);
                             }
                         });
                         if (participantDetails.length > 0) {
