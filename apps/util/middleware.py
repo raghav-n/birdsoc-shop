@@ -1,4 +1,3 @@
-from debug_toolbar.middleware import show_toolbar
 from django.http import Http404
 from django.shortcuts import redirect
 from django.conf import settings
@@ -77,4 +76,8 @@ class NoAdminMiddleware:
 
 
 def show_debug_toolbar(request):
+    # Imported lazily: debug_toolbar is only installed in dev, and since
+    # django-debug-toolbar 6 importing it without the app installed raises.
+    from debug_toolbar.middleware import show_toolbar
+
     return show_toolbar(request) and request.path_info not in ["", "/"]
