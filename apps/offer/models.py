@@ -18,6 +18,15 @@ class Benefit(CoreAbstractBenefit):
         unit_price = get_class("offer.utils", "unit_price")
         if range is None:
             range = self.range
+        if range is None:
+            # Same guard as Oscar 4.2.1's AbstractBenefit.get_applicable_lines
+            from django.core.exceptions import ImproperlyConfigured
+
+            raise ImproperlyConfigured(
+                "Benefit of type %r has no range set. Custom benefit "
+                "classes must either set a range or override "
+                "get_applicable_lines." % self.type
+            )
         line_tuples = []
         for line in basket.all_lines():
             product = line.product
@@ -30,7 +39,7 @@ class Benefit(CoreAbstractBenefit):
                 # Fixed-price bundle offers can apply repeatedly to the same
                 # lines. Reusing the already-discounted price causes each
                 # subsequent bundle application to shrink incorrectly.
-                price -= Decimal(line._discount_excl_tax / line.quantity)
+                price -= Decimal(line.discounts.excl_tax / line.quantity)
             if not price:
                 # Avoid zero price products
                 continue

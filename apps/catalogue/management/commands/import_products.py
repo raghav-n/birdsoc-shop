@@ -182,7 +182,7 @@ class Command(BaseCommand):
             try:
                 category = Category.objects.get(name=category_name)
             except Category.DoesNotExist:
-                category = Category.add_root(name=category_name)
+                category = Category.objects.add_root({"name": category_name})
             product.categories.add(category)
 
         # Stock record
