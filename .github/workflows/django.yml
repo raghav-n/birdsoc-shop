@@ -18,7 +18,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.14"]
 
     steps:
     - uses: actions/checkout@v4
@@ -95,11 +95,16 @@ jobs:
           cd /srv/shop
           git config --global --add safe.directory /srv/shop
           git pull
+          # venv -> venv-3.14 (shared uv-managed /usr/local/bin/python3.14), switched
+          # by hand when the Python version changes; refuse any other version.
+          venv/bin/python -c 'import sys; v = sys.version_info[:2]; sys.exit(0 if v == (3, 14) else f\"/srv/shop/venv is Python {v[0]}.{v[1]}, expected 3.14\")'
           source venv/bin/activate
           uv pip install -r requirements.txt
-          python manage.py migrate --noinput
           python manage.py collectstatic --noinput
           cd frontend && npm ci --silent && npm run build && cd ..
+          # Migrate last and restart straight after: new columns without a DB
+          # default break the old code's inserts, so keep that window short.
+          python manage.py migrate --noinput
           sudo systemctl restart birdsoc
         "
 
