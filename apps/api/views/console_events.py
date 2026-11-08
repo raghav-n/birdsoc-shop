@@ -1173,7 +1173,15 @@ FOLLOWUP_BATCH_LIMIT = 5
 # Split on separators first, then check each token: a single findall over the
 # whole paste backtracks polynomially on long runs of non-separator characters.
 _EMAIL_SEPARATOR_RE = re.compile(r"[\s<>,;:\"'()\[\]]+")
-_EMAIL_TOKEN_RE = re.compile(r"[^@]+@[^@]+\.[A-Za-z]{2,}")
+
+
+def _looks_like_email(tok):
+    """``local@host.tld``: one @, something before it, a dotted host, alphabetic TLD."""
+    local, at, domain = tok.partition("@")
+    if not (local and at) or "@" in domain:
+        return False
+    host, dot, tld = domain.rpartition(".")
+    return bool(host and dot) and len(tld) >= 2 and tld.isascii() and tld.isalpha()
 
 
 def _skip_email_set(raw):
@@ -1184,7 +1192,7 @@ def _skip_email_set(raw):
         return set()
     return {
         tok.lower() for tok in (t.rstrip(".") for t in _EMAIL_SEPARATOR_RE.split(raw))
-        if _EMAIL_TOKEN_RE.fullmatch(tok)
+        if _looks_like_email(tok)
     }
 
 
