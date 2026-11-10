@@ -16,6 +16,18 @@ Category = get_model("catalogue", "Category")
 OrderLine = get_model("order", "Line")
 
 
+def _can_see_hidden(request) -> bool:
+    """Staff may see products that are not public (e.g. to preview them)."""
+    user = getattr(request, "user", None)
+    return bool(user and user.is_authenticated and user.is_staff)
+
+
+def _is_visible(product, request) -> bool:
+    # Child products have no is_public of their own; the parent's flag decides.
+    root = product.parent if product.parent_id else product
+    return root.is_public or _can_see_hidden(request)
+
+
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = ProductSerializer
@@ -34,7 +46,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             )
         )
         is_public = self.request.query_params.get("is_public")
-        if is_public is not None:
+        if is_public is not None and _can_see_hidden(self.request):
             qs = qs.filter(is_public=str(is_public).lower() in ("true", "1", "yes"))
         else:
             qs = qs.filter(is_public=True)
@@ -105,8 +117,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"], url_path=r"slug/(?P<slug>[^/.]+)")
     def by_slug(self, request, slug):
         try:
-            obj = Product._default_manager.get(slug=slug)
-        except Product.DoesNotExist:
+            obj = Product._default_manager.select_related("parent").get(slug=slug)
+        except (Product.DoesNotExist, Product.MultipleObjectsReturned):
+            return Response({"detail": "Not found"}, status=404)
+        if not _is_visible(obj, request):
             return Response({"detail": "Not found"}, status=404)
         ser = ProductSerializer(obj, context={"request": request})
         return Response(ser.data)
@@ -115,14 +129,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         pk = kwargs.get(self.lookup_field)
         obj = None
         # Try by numeric id first
+        products = Product._default_manager.select_related("parent")
         try:
-            obj = Product._default_manager.get(pk=int(pk))
+            obj = products.get(pk=int(pk))
         except Exception:
             # Fallback to slug match
             try:
-                obj = Product._default_manager.get(slug=pk)
-            except Product.DoesNotExist:
+                obj = products.get(slug=pk)
+            except (Product.DoesNotExist, Product.MultipleObjectsReturned):
                 return Response({"detail": "Not found"}, status=404)
+        if not _is_visible(obj, request):
+            return Response({"detail": "Not found"}, status=404)
         ser = ProductSerializer(obj, context={"request": request})
         return Response(ser.data)
 
