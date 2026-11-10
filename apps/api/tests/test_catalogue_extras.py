@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from rest_framework.test import APITestCase
 from oscar.core.loading import get_model
@@ -8,6 +9,8 @@ from apps.api.tests.utils import create_product
 
 
 Category = get_model("catalogue", "Category")
+User = get_user_model()
+Product = get_model("catalogue", "Product")
 
 
 class CatalogueExtraTests(APITestCase):
@@ -52,12 +55,21 @@ class CatalogueExtraTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["count"], 0)
 
-        # is_public filter
+        # is_public=false is ignored for the public: hidden products never list
         p2.is_public = False
         p2.save(update_fields=["is_public"])
         r = self.client.get("/api/v1/products", {"is_public": "false"})
         self.assertEqual(r.status_code, 200)
-        self.assertTrue(all(not i["is_public"] for i in r.data["results"]))
+        self.assertTrue(all(i["is_public"] for i in r.data["results"]))
+        self.assertFalse(any(i["id"] == p2.id for i in r.data["results"]))
+
+        # ...but staff can filter for them
+        staff = User.objects.create_user("staff", "staff@example.com", "pw", is_staff=True)
+        self.client.force_authenticate(staff)
+        r = self.client.get("/api/v1/products", {"is_public": "false"})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(any(i["id"] == p2.id for i in r.data["results"]))
+        self.client.force_authenticate(None)
 
         # ordering by title
         r = self.client.get("/api/v1/products", {"ordering": "title"})
@@ -72,3 +84,39 @@ class CatalogueExtraTests(APITestCase):
     def test_category_retrieve_not_found(self):
         r = self.client.get("/api/v1/categories/no-such-slug")
         self.assertEqual(r.status_code, 404)
+
+    def test_non_public_product_is_hidden_from_detail_endpoints(self):
+        p = create_product(title="Hidden Heron", price=10)
+        p.is_public = False
+        p.save(update_fields=["is_public"])
+
+        for url in (
+            f"/api/v1/products/{p.id}",
+            f"/api/v1/products/{p.slug}",
+            f"/api/v1/products/slug/{p.slug}",
+        ):
+            r = self.client.get(url)
+            self.assertEqual(r.status_code, 404, url)
+
+        # Staff can still open it (preview)
+        staff = User.objects.create_user("staff2", "staff2@example.com", "pw", is_staff=True)
+        self.client.force_authenticate(staff)
+        r = self.client.get(f"/api/v1/products/{p.id}")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.data["is_public"])
+
+    def test_child_of_non_public_parent_is_hidden(self):
+        parent = create_product(title="Hidden Parent", price=10)
+        parent.structure = "parent"
+        parent.is_public = False
+        parent.save(update_fields=["structure", "is_public"])
+        child = Product.objects.create(
+            title="Hidden Parent - M", slug="hidden-parent-m", structure="child", parent=parent
+        )
+        r = self.client.get(f"/api/v1/products/{child.id}")
+        self.assertEqual(r.status_code, 404)
+
+    def test_public_product_detail_still_works(self):
+        p = create_product(title="Visible Vireo", price=10)
+        self.assertEqual(self.client.get(f"/api/v1/products/{p.id}").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/v1/products/slug/{p.slug}").status_code, 200)
