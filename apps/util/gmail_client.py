@@ -7,6 +7,9 @@ from typing import Optional
 from django.conf import settings
 
 
+GMAIL_HTTP_TIMEOUT_SECONDS = 10
+
+
 class GmailClientError(Exception):
     pass
 
@@ -28,6 +31,8 @@ def _build_service(refresh_token: str, scopes: list[str]):
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
     from googleapiclient.discovery import build
+    import google_auth_httplib2
+    import httplib2
 
     client_id = getattr(settings, "GMAIL_CLIENT_ID", "")
     client_secret = getattr(settings, "GMAIL_CLIENT_SECRET", "")
@@ -45,8 +50,22 @@ def _build_service(refresh_token: str, scopes: list[str]):
         token_uri="https://oauth2.googleapis.com/token",
         scopes=scopes,
     )
-    creds.refresh(Request())
-    return build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+    class _TimeoutRequest(Request):
+        def __call__(self, *args, **kwargs):
+            kwargs.setdefault("timeout", GMAIL_HTTP_TIMEOUT_SECONDS)
+            return super().__call__(*args, **kwargs)
+
+    try:
+        creds.refresh(_TimeoutRequest())
+        # Explicit timeout so a stalled Google connection can't hold a
+        # gunicorn worker until it is killed by the worker timeout.
+        http = google_auth_httplib2.AuthorizedHttp(
+            creds, http=httplib2.Http(timeout=GMAIL_HTTP_TIMEOUT_SECONDS)
+        )
+        return build("gmail", "v1", http=http, cache_discovery=False)
+    except Exception as e:
+        raise GmailClientError(f"Error connecting to Gmail API: {e}") from e
 
 
 def build_gmail_service():
