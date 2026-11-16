@@ -7,6 +7,7 @@ import {
   NotesCell, ExtraInfo, getSlots, getSubParticipants,
   emergencyContactItems, matchesQuery, headcount,
   checkpointMark, checkpointCount, CheckpointButton,
+  SortHeader, ariaSort,
 } from './ParticipantInfo';
 import GroupFollowupEmailModal from './GroupFollowupEmailModal';
 
@@ -805,6 +806,16 @@ export default function EventGroupView({ api, mode = 'console' }) {
   const q = query.trim().toLowerCase();
   const visible = (q ? siteConfirmed.filter(b => matchesQuery(b, q)) : siteConfirmed).slice();
   if (sortBy === 'name') visible.sort((a, b) => fullName(a).localeCompare(fullName(b)));
+  if (sortBy === 'name-desc') visible.sort((a, b) => fullName(b).localeCompare(fullName(a)));
+  const markedRank = (b) => (checkpointMark(b, 0, 1) ? 1 : 0);
+  if (sortBy === 'unmarked') visible.sort((a, b) => markedRank(a) - markedRank(b));
+  if (sortBy === 'marked') visible.sort((a, b) => markedRank(b) - markedRank(a));
+
+  // Header clicks drive the same sortBy as the dropdown: asc → desc → back to event order.
+  const nameDir = sortBy === 'name' ? 'asc' : sortBy === 'name-desc' ? 'desc' : null;
+  const markedDir = sortBy === 'unmarked' ? 'asc' : sortBy === 'marked' ? 'desc' : null;
+  const toggleNameSort = () => setSortBy(sortBy === 'name' ? 'name-desc' : sortBy === 'name-desc' ? 'site' : 'name');
+  const toggleMarkedSort = () => setSortBy(sortBy === 'unmarked' ? 'marked' : sortBy === 'marked' ? 'site' : 'unmarked');
   if (sortBy === 'recent') visible.sort((a, b) => new Date(b.registered_at) - new Date(a.registered_at));
 
   const dates = events.map(ev => ev.start_date).filter(Boolean).sort();
@@ -1005,7 +1016,10 @@ export default function EventGroupView({ api, mode = 'console' }) {
         />
         <SortSelect value={sortBy} onChange={e => setSortBy(e.target.value)}>
           <option value="site">Sort by event</option>
-          <option value="name">Sort by name</option>
+          <option value="name">Sort by name (A–Z)</option>
+          <option value="name-desc">Sort by name (Z–A)</option>
+          <option value="unmarked">Unmarked first</option>
+          <option value="marked">Marked first</option>
           <option value="recent">Most recent first</option>
         </SortSelect>
         {!adding && (
@@ -1038,11 +1052,15 @@ export default function EventGroupView({ api, mode = 'console' }) {
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
+                <Th aria-sort={ariaSort(nameDir)}>
+                  <SortHeader label="Name" dir={nameDir} onClick={toggleNameSort} />
+                </Th>
                 <Th>Event</Th>
                 <Th>Phone</Th>
                 {quickOptions.map(opt => <Th key={opt.key} title={opt.title}>{fieldLabel(opt)}</Th>)}
-                <Th>{checkInLabel}</Th>
+                <Th aria-sort={ariaSort(markedDir)}>
+                  <SortHeader label={checkInLabel} dir={markedDir} onClick={toggleMarkedSort} />
+                </Th>
                 <Th style={{ minWidth: 140 }}>Notes</Th>
               </tr>
             </thead>

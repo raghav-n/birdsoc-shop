@@ -7,6 +7,7 @@ import {
   AttendBtn, NotesCell, ExtraInfo, getSlots, getSubParticipants,
   emergencyContactItems, matchesQuery, headcount,
   checkpointMark, checkpointCount, CheckpointButton, CheckpointStatus,
+  SortHeader, ariaSort,
 } from '../components/ParticipantInfo';
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -190,6 +191,7 @@ export default function GuideEventDetail() {
   const [notFound, setNotFound] = useState(false);
   const [toggling, setToggling] = useState(null);
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState({ key: null, dir: null });
 
   const load = useCallback(async () => {
     try {
@@ -272,7 +274,24 @@ export default function GuideEventDetail() {
   );
 
   const q = query.trim().toLowerCase();
-  const visible = q ? confirmed.filter(b => matchesQuery(b, q)) : confirmed;
+  const filtered = q ? confirmed.filter(b => matchesQuery(b, q)) : confirmed;
+
+  // Sub-participants render inside their booking's fragment, so sorting bookings keeps them attached.
+  // For 'marked', asc puts unmarked first (guides want to see who is left).
+  const isMarked = (b) => !!(labels ? checkpointMark(b, 0, 2) : b.attended);
+  const visible = sort.key ? filtered.slice().sort((a, b) => {
+    const cmp = sort.key === 'name'
+      ? `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`)
+      : Number(isMarked(a)) - Number(isMarked(b));
+    return sort.dir === 'desc' ? -cmp : cmp;
+  }) : filtered;
+
+  const dirFor = (key) => (sort.key === key ? sort.dir : null);
+  // Clicking a header cycles asc → desc → unsorted (server order).
+  const toggleSort = (key) => {
+    const dir = dirFor(key) === 'asc' ? 'desc' : dirFor(key) === 'desc' ? null : 'asc';
+    setSort(dir ? { key, dir } : { key: null, dir: null });
+  };
 
   return (
     <Page>
@@ -325,9 +344,17 @@ export default function GuideEventDetail() {
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
+                <Th aria-sort={ariaSort(dirFor('name'))}>
+                  <SortHeader label="Name" dir={dirFor('name')} onClick={() => toggleSort('name')} />
+                </Th>
                 <Th>Phone</Th>
-                <Th>{labels ? labels[1] : 'Attended'}</Th>
+                <Th aria-sort={ariaSort(dirFor('marked'))}>
+                  <SortHeader
+                    label={labels ? labels[1] : 'Attended'}
+                    dir={dirFor('marked')}
+                    onClick={() => toggleSort('marked')}
+                  />
+                </Th>
                 <Th style={{ minWidth: 140 }}>Notes</Th>
               </tr>
             </thead>
