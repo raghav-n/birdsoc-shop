@@ -17,6 +17,29 @@ const ExtraLabel = styled.span`
   color: #9ca3af;
 `;
 
+const SortBtn = styled.button`
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  &:hover { color: #111827; }
+  &:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+`;
+
+// Content of a sortable column header: a keyboard-focusable button with an arrow when active.
+// `dir` is 'asc' | 'desc' | null (null = this column is not the active sort).
+export function SortHeader({ label, dir, onClick }) {
+  return (
+    <SortBtn type="button" onClick={onClick}>
+      {label}
+      <span aria-hidden="true">{dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : ''}</span>
+    </SortBtn>
+  );
+}
+
+export const ariaSort = (dir) => (dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : undefined);
+
 export const AttendBtn = styled.button`
   padding: 0.25rem 0.6rem;
   font-size: 0.78rem;

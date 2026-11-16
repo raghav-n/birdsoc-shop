@@ -145,5 +145,30 @@ describe('EventGroupView', () => {
       expect.objectContaining({ dry_run: true, followup_id: 7 })
     ));
   });
+
+  it('sorts by name and by marked/unmarked from the column headers, in step with the dropdown', async () => {
+    const mk = (id, first, marked) => ({
+      ...group().events[0].bookings[0], ep_id: id, first_name: first, last_name: 'Z', extra_json: [{}],
+      attended: marked, checkpoints: marked ? [{ 1: '2026-10-11T07:42:00+08:00' }] : [],
+    });
+    const g = group();
+    g.events[0].bookings = [mk(1, 'Cara', true), mk(2, 'Abe', false), mk(3, 'Bea', false)];
+    renderView(makeApi(g), 'console');
+    await screen.findByText('Cara Z');
+    const order = () => screen.getAllByRole('row')
+      .map(r => r.textContent.match(/(Cara|Abe|Bea) Z/)?.[1]).filter(Boolean);
+    expect(order()).toEqual(['Cara', 'Abe', 'Bea']);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Name/ }));
+    expect(order()).toEqual(['Abe', 'Bea', 'Cara']);
+    fireEvent.click(screen.getByRole('button', { name: /^Name/ }));
+    expect(order()).toEqual(['Cara', 'Bea', 'Abe']);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Check-in/ }));
+    expect(order()).toEqual(['Abe', 'Bea', 'Cara']);
+    expect(screen.getByDisplayValue('Unmarked first')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Check-in/ }));
+    expect(order()[0]).toBe('Cara');
+  });
 });
 
