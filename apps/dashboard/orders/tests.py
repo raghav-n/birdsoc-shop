@@ -1,11 +1,17 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from oscar.core.loading import get_model
 from rest_framework.test import APIClient
 
 from apps.api.tests.utils import auth_client, create_product, create_shipping_method, create_user
+from apps.order.cash_remittance import amount_in_words, build_context
+from apps.order.models import SalesPeriod
 
 
 Order = get_model("order", "Order")
@@ -237,3 +243,76 @@ class OrderDeleteDashboardTests(TestCase):
         # NoAdminMiddleware rejects non-superusers before the view runs.
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Order.objects.filter(pk=order.pk).exists())
+
+
+class CashRemittanceTests(TestCase):
+    def setUp(self):
+        create_shipping_method(code="ONSITE", price=0, is_self_collect=True)
+        self.admin = create_user(email="cash-admin@example.com", first_name="Treasurer", last_name="Tan")
+        self.admin.is_staff = True
+        self.admin.is_superuser = True
+        self.admin.save(update_fields=["is_staff", "is_superuser"])
+        self.staff_api = APIClient()
+        self.staff_api.force_authenticate(user=self.admin)
+        now = timezone.now()
+        self.period = SalesPeriod.objects.create(
+            name="AOC 2026", start=now - timedelta(hours=1), end=now + timedelta(hours=1)
+        )
+
+    def _cash_sale(self, product, quantity):
+        prepare = self.staff_api.post(
+            "/api/v1/onsite/pending",
+            {"products": [{"id": product.id, "quantity": quantity}]},
+            format="json",
+        )
+        self.assertEqual(prepare.status_code, 201, prepare.data)
+        number = prepare.data["order_number"]
+        confirm = self.staff_api.post(
+            "/api/v1/onsite/confirm-cash", {"order_number": number}, format="json"
+        )
+        self.assertEqual(confirm.status_code, 200, confirm.data)
+        return Order.objects.get(number=number)
+
+    def test_lists_only_cash_sales_with_totals(self):
+        tee = create_product(title="Onsite Tee", price=25)
+        badge = create_product(title="Badge", price=4)
+        first = self._cash_sale(tee, 1)
+        second = self._cash_sale(badge, 3)
+        # A PayNow order in the same period is not cash and must not appear.
+        OrderDeleteDashboardTests._place_order(self)
+
+        context = build_context(self.period, prepared_by="Treasurer Tan")
+
+        rows = [row for day in context["days"] for row in day["rows"]]
+        self.assertEqual(
+            [row["reference"] for row in rows],
+            [f"{settings.ORDER_PREFIX}{first.number}", f"{settings.ORDER_PREFIX}{second.number}"],
+        )
+        self.assertEqual(rows[1]["items"], [{"title": "Badge", "quantity": 3}])
+        self.assertEqual(context["totals"]["count"], 2)
+        self.assertEqual(context["totals"]["cash"], Decimal("37.00"))
+        self.assertEqual(context["net_cash"], Decimal("37.00"))
+        self.assertEqual(context["net_cash_words"], "Thirty-seven Singapore dollars only")
+
+    def test_dashboard_button_downloads_pdf(self):
+        self._cash_sale(create_product(title="Onsite Tee", price=25), 1)
+        self.client.force_login(self.admin)
+        url = reverse("dashboard:sales-report-cash-remittance", kwargs={"pk": self.period.pk})
+
+        page = self.client.get(reverse("dashboard:sales-report"))
+        self.assertContains(page, url)
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("cash-remittance-aoc-2026.pdf", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_amount_in_words(self):
+        self.assertEqual(
+            amount_in_words(Decimal("1242.50")),
+            "One thousand two hundred and forty-two Singapore dollars and fifty cents",
+        )
+        self.assertEqual(amount_in_words(Decimal("1.01")), "One Singapore dollar and one cent")
+        self.assertEqual(amount_in_words(Decimal("2005")), "Two thousand and five Singapore dollars only")
+        self.assertEqual(amount_in_words(Decimal("0")), "Zero Singapore dollars only")

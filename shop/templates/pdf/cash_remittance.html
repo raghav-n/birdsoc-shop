@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cash Remittance Statement {{ reference }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 15mm 20mm 15mm;
+    @bottom-left {
+      content: "Cash Remittance Statement {{ reference }}";
+      font: 7.5pt "Noto Sans", Arial, sans-serif;
+      color: #7a6a80;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font: 7.5pt "Noto Sans", Arial, sans-serif;
+      color: #7a6a80;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans", Arial, sans-serif;
+    font-size: 9pt;
+    line-height: 1.4;
+    color: #231a26;
+  }
+  p { margin: 0 0 6pt; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .muted { color: #6f6275; }
+
+  /* Letterhead */
+  .letterhead { display: table; width: 100%; border-bottom: 2pt solid #6b3f78; padding-bottom: 8pt; }
+  .letterhead > div { display: table-cell; vertical-align: bottom; }
+  .letterhead img { height: 52pt; }
+  .letterhead > div:first-child { width: 58%; }
+  .org-meta { font-size: 8pt; color: #6f6275; margin-top: 6pt; white-space: nowrap; }
+  .doc-title { text-align: right; }
+  .doc-title h1 {
+    margin: 0;
+    font-size: 15pt;
+    letter-spacing: 1.5pt;
+    color: #6b3f78;
+    text-transform: uppercase;
+  }
+  .doc-title .ref { font-size: 9pt; margin-top: 3pt; }
+
+  /* Particulars */
+  table.particulars { width: 100%; border-collapse: collapse; margin: 12pt 0 10pt; }
+  table.particulars th {
+    width: 28%;
+    text-align: left;
+    font-weight: normal;
+    color: #6f6275;
+    padding: 2pt 8pt 2pt 0;
+    vertical-align: top;
+  }
+  table.particulars td { padding: 2pt 0; font-weight: bold; }
+
+  /* Summary */
+  table.summary { width: 100%; border-collapse: collapse; margin-bottom: 4pt; }
+  table.summary td {
+    width: 25%;
+    border: 1pt solid #b78ec1;
+    background: #f7f1f8;
+    padding: 6pt 8pt;
+    vertical-align: top;
+  }
+  table.summary td.total { background: #6b3f78; color: #fff; border-color: #6b3f78; }
+  .summary .label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.5pt; }
+  .summary .value { font-size: 13pt; font-weight: bold; margin-top: 2pt; }
+  .in-words { font-size: 8.5pt; margin: 4pt 0 0; }
+
+  h2 {
+    font-size: 10.5pt;
+    color: #6b3f78;
+    text-transform: uppercase;
+    letter-spacing: 0.8pt;
+    border-bottom: 0.75pt solid #b78ec1;
+    padding-bottom: 3pt;
+    margin: 18pt 0 8pt;
+  }
+
+  /* Itemised sales */
+  table.sales { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  table.sales thead th {
+    background: #6b3f78;
+    color: #fff;
+    font-weight: bold;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.4pt;
+    padding: 4pt 5pt;
+    text-align: left;
+  }
+  table.sales thead th.num { text-align: right; }
+  table.sales td { padding: 3pt 5pt; border-bottom: 0.5pt solid #e4d8e8; vertical-align: top; }
+  table.sales tr { page-break-inside: avoid; }
+  table.sales tr.day td {
+    background: #f1e9f3;
+    font-weight: bold;
+    padding-top: 5pt;
+    border-bottom: 0.75pt solid #b78ec1;
+  }
+  table.sales tr.subtotal td { font-weight: bold; border-bottom: 0.75pt solid #b78ec1; }
+  table.sales tr.grand td {
+    font-weight: bold;
+    font-size: 9.5pt;
+    border-top: 1.5pt solid #6b3f78;
+    border-bottom: 3pt double #6b3f78;
+    padding: 5pt;
+  }
+  .item + .item { margin-top: 1.5pt; }
+  .qty { white-space: nowrap; color: #6f6275; }
+  .refund-note { color: #a33; font-size: 7.5pt; }
+  .empty { padding: 12pt; text-align: center; border: 0.75pt dashed #b78ec1; color: #6f6275; }
+
+  /* Remittance + declarations */
+  .keep { page-break-inside: avoid; }
+  table.fields { width: 100%; border-collapse: collapse; }
+  table.fields td { width: 50%; padding: 0 10pt 12pt 0; vertical-align: bottom; }
+  table.fields td:nth-child(2) { padding-right: 0; }
+  .field-label { font-size: 7.5pt; color: #6f6275; text-transform: uppercase; letter-spacing: 0.4pt; }
+  .field-line { border-bottom: 0.75pt solid #231a26; height: 18pt; }
+
+  .declaration { border: 1pt solid #b78ec1; padding: 10pt 12pt 4pt; margin-bottom: 10pt; }
+  .declaration h3 { margin: 0 0 6pt; font-size: 9.5pt; color: #6b3f78; }
+  table.sign { width: 100%; border-collapse: collapse; margin-top: 16pt; }
+  table.sign td { width: 33.3%; padding: 0 10pt 8pt 0; vertical-align: bottom; }
+  table.sign td:last-child { padding-right: 0; }
+
+  .notes { font-size: 7.5pt; color: #6f6275; margin-top: 14pt; }
+  .notes p { margin-bottom: 3pt; }
+</style>
+</head>
+<body>
+
+<div class="letterhead">
+  <div>
+    <img src="{{ logo_uri }}" alt="Bird Society of Singapore">
+    <div class="org-meta">UEN T23SS0038A &nbsp;·&nbsp; birdsocsg@gmail.com &nbsp;·&nbsp; {{ home_page }}</div>
+  </div>
+  <div class="doc-title">
+    <h1>Cash Remittance Statement</h1>
+    <div class="ref">Ref. <strong>{{ reference }}</strong></div>
+  </div>
+</div>
+
+<table class="particulars">
+  <tr><th>Sales period</th><td>{{ period.name }}</td></tr>
+  <tr><th>Period covered</th><td>{{ period_start }} to {{ period_end }}</td></tr>
+  <tr><th>Statement generated</th><td>{{ generated_at }}{% if prepared_by %} by {{ prepared_by }}{% endif %}</td></tr>
+</table>
+
+<table class="summary">
+  <tr>
+    <td><div class="label">Cash sales</div><div class="value">{{ totals.count }}</div></td>
+    <td><div class="label">Goods (S$)</div><div class="value">{{ totals.goods|floatformat:"2g" }}</div></td>
+    <td><div class="label">Donations (S$)</div><div class="value">{{ totals.donations|floatformat:"2g" }}</div></td>
+    <td class="total"><div class="label">Cash to remit (S$)</div><div class="value">{{ net_cash|floatformat:"2g" }}</div></td>
+  </tr>
+</table>
+<p class="in-words"><span class="muted">In words:</span> <strong>{{ net_cash_words }}</strong></p>
+
+<h2>1. Itemised cash sales</h2>
+{% if days %}
+<table class="sales">
+  <thead>
+    <tr>
+      <th style="width: 4%">#</th>
+      <th style="width: 7%">Time</th>
+      <th style="width: 13%">Order</th>
+      <th>Items</th>
+      <th class="num" style="width: 9%">Goods</th>
+      <th class="num" style="width: 10%">Donation</th>
+      <th class="num" style="width: 12%">Cash recd.</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for day in days %}
+    <tr class="day"><td colspan="7">{{ day.label }}</td></tr>
+    {% for row in day.rows %}
+    <tr>
+      <td>{{ row.n }}</td>
+      <td>{{ row.time }}</td>
+      <td>{{ row.reference }}</td>
+      <td>
+        {% for item in row.items %}<div class="item">{{ item.title }}&nbsp;<span class="qty">×&nbsp;{{ item.quantity }}</span></div>{% endfor %}
+        {% if row.refunded %}<br><span class="refund-note">Refunded S${{ row.refunded|floatformat:"2g" }}</span>{% endif %}
+      </td>
+      <td class="num">{{ row.goods|floatformat:"2g" }}</td>
+      <td class="num">{% if row.donation %}{{ row.donation|floatformat:"2g" }}{% else %}–{% endif %}</td>
+      <td class="num">{{ row.cash|floatformat:"2g" }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="subtotal">
+      <td colspan="4">Subtotal, {{ day.label }} ({{ day.count }} sale{{ day.count|pluralize }})</td>
+      <td class="num">{{ day.goods|floatformat:"2g" }}</td>
+      <td class="num">{{ day.donations|floatformat:"2g" }}</td>
+      <td class="num">{{ day.cash|floatformat:"2g" }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="grand">
+      <td colspan="4">Total cash collected ({{ totals.count }} sale{{ totals.count|pluralize }})</td>
+      <td class="num">{{ totals.goods|floatformat:"2g" }}</td>
+      <td class="num">{{ totals.donations|floatformat:"2g" }}</td>
+      <td class="num">S$ {{ totals.cash|floatformat:"2g" }}</td>
+    </tr>
+    {% if totals.refunded %}
+    <tr>
+      <td colspan="6">Less cash refunded</td>
+      <td class="num">({{ totals.refunded|floatformat:"2g" }})</td>
+    </tr>
+    <tr class="grand">
+      <td colspan="6">Net cash to remit</td>
+      <td class="num">S$ {{ net_cash|floatformat:"2g" }}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No cash sales were recorded in this period.</div>
+{% endif %}
+
+<div class="keep">
+  <h2>2. Remittance to the Society by PayNow</h2>
+  <p>The cash collected above, <strong>S$ {{ net_cash|floatformat:"2g" }}</strong>, is to be transferred in full by the member holding it to the Bird Society of Singapore's PayNow account. The transfer is recorded below.</p>
+  <table class="fields">
+    <tr>
+      <td><div class="field-label">Remitted by (full name)</div><div class="field-line"></div></td>
+      <td><div class="field-label">Role / membership no.</div><div class="field-line"></div></td>
+    </tr>
+    <tr>
+      <td><div class="field-label">Date and time of PayNow transfer</div><div class="field-line"></div></td>
+      <td><div class="field-label">PayNow transaction reference</div><div class="field-line"></div></td>
+    </tr>
+    <tr>
+      <td><div class="field-label">Amount transferred (S$)</div><div class="field-line"></div></td>
+      <td></td>
+    </tr>
+  </table>
+</div>
+
+<div class="keep">
+  <h2>3. Declarations</h2>
+  <div class="declaration">
+    <h3>Remitting member</h3>
+    <p>I confirm that I received the cash from the sales listed in this statement, totalling <strong>S$ {{ net_cash|floatformat:"2g" }}</strong>, and that I have transferred that amount to the Bird Society of Singapore by PayNow as recorded in section 2.</p>
+    <table class="sign">
+      <tr>
+        <td><div class="field-line"></div><div class="field-label">Signature</div></td>
+        <td><div class="field-line"></div><div class="field-label">Name</div></td>
+        <td><div class="field-line"></div><div class="field-label">Date</div></td>
+      </tr>
+    </table>
+  </div>
+  <div class="declaration">
+    <h3>Witness</h3>
+    <p>I witnessed the cash from the sales listed in this statement being counted, found it to total <strong>S$ {{ net_cash|floatformat:"2g" }}</strong>, and saw it handed to the remitting member named above.</p>
+    <table class="sign">
+      <tr>
+        <td><div class="field-line"></div><div class="field-label">Signature</div></td>
+        <td><div class="field-line"></div><div class="field-label">Name</div></td>
+        <td><div class="field-line"></div><div class="field-label">Date</div></td>
+      </tr>
+    </table>
+  </div>
+  <div class="declaration">
+    <h3>Verified by the Treasurer</h3>
+    <p>I confirm that the PayNow transfer recorded in section 2 was received into the Society's account.</p>
+    <table class="sign">
+      <tr>
+        <td><div class="field-line"></div><div class="field-label">Signature</div></td>
+        <td><div class="field-line"></div><div class="field-label">Name</div></td>
+        <td><div class="field-line"></div><div class="field-label">Date</div></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="notes">
+  <p><strong>Notes.</strong> This statement lists every shop order placed between {{ period_start }} and {{ period_end }} that was paid in cash, taken from the shop's order records. Cancelled orders are excluded.</p>
+  <p>"Goods" is the order total; donations are recorded separately. "Cash received" is the amount recorded as paid in cash when the order was confirmed, and is the amount to be remitted.</p>
+</div>
+
+</body>
+</html>

@@ -128,6 +128,7 @@
                 <th class="text-right">{% trans "Revenue" %}</th>
                 <th class="text-right">{% trans "Donations" %}</th>
                 <th class="text-right">{% trans "Avg Order Value" %}</th>
+                <th class="text-center">{% trans "Cash remittance" %}</th>
                 <th class="text-center">{% trans "Delete" %}</th>
               </tr>
             </thead>
@@ -148,6 +149,13 @@
                 <td class="text-right">${{ row.revenue|floatformat:2 }}</td>
                 <td class="text-right">${{ row.donations|floatformat:2 }}</td>
                 <td class="text-right">${{ row.avg_order_value|floatformat:2 }}</td>
+                <td class="text-center">
+                  <a href="{% url 'dashboard:sales-report-cash-remittance' row.id %}" target="_blank" rel="noopener"
+                     class="btn btn-sm btn-outline-secondary text-nowrap"
+                     title="{% trans 'PDF of every cash sale in this period, for remitting the cash by PayNow' %}">
+                    <i class="fas fa-file-pdf"></i> {% trans "PDF" %}
+                  </a>
+                </td>
                 <td class="text-center">
                   <input type="checkbox" name="delete" value="{{ row.id }}" class="form-check-input">
                 </td>
@@ -347,6 +355,11 @@
         });
 
         row.addEventListener('keydown', function (event) {
+          // Only when the row itself has focus, so Enter on the PDF link
+          // or in an input still does its own thing.
+          if (event.target !== row) {
+            return;
+          }
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             openCharts(row.dataset.periodId);

@@ -176,5 +176,10 @@ class SalesPeriod(models.Model):
     def __str__(self):
         return self.name
 
+    def get_cash_remittance_as_pdf(self, prepared_by="") -> bytes:
+        from apps.order.cash_remittance import render_pdf
+
+        return render_pdf(self, prepared_by=prepared_by)
+
 
 from oscar.apps.order.models import *

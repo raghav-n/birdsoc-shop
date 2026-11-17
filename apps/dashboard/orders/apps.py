@@ -18,6 +18,7 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             OnsitePurchaseView,
             OrderStatsView,
             SalesReportView,
+            CashRemittanceView,
             PendingCheckoutDashboardView,
             ResendConfirmationEmailView,
             OrderBulkEmailView,
@@ -47,6 +48,11 @@ class OrdersDashboardConfig(apps.OrdersDashboardConfig):
             ),
             path("statistics/", OrderStatsView.as_view(), name="order-statistics"),
             path("sales-report/", SalesReportView.as_view(), name="sales-report"),
+            path(
+                "sales-report/<int:pk>/cash-remittance/",
+                CashRemittanceView.as_view(),
+                name="sales-report-cash-remittance",
+            ),
             path(
                 "pending-checkouts/",
                 PendingCheckoutDashboardView.as_view(),

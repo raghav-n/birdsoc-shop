@@ -20,6 +20,7 @@ from django.http import JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
+from django.utils.text import slugify
 from django.utils.timezone import localtime
 from django.views import View
 from oscar.core.loading import get_model, get_class
@@ -208,6 +209,21 @@ class OrderStatsView(BaseOrderStatsView):
             "product_sales": product_sales_list,
         }
         return stats
+
+
+@method_decorator(console_staff_required, name="dispatch")
+class CashRemittanceView(View):
+    """PDF statement of every cash sale in a sales period, for handing the
+    cash over to the Society by PayNow."""
+
+    def get(self, request, pk):
+        period = get_object_or_404(SalesPeriod, pk=pk)
+        prepared_by = request.user.get_full_name() or request.user.email
+        pdf = period.get_cash_remittance_as_pdf(prepared_by=prepared_by)
+        filename = f"cash-remittance-{slugify(period.name) or period.pk}.pdf"
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return response
 
 
 @method_decorator(console_staff_required, name="dispatch")
