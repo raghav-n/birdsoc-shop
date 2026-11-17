@@ -6,10 +6,12 @@ apps/dashboard/orders/views.py OnsitePurchaseView, adapted for
 the React frontend (JWT auth, JSON I/O).
 """
 import logging
+import threading
+import time
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from oscar.apps.voucher.models import Voucher
@@ -528,10 +530,30 @@ def _place_cash_order_from_pending(pending, request=None):
     basket.submit()
     PendingCheckout.objects.filter(basket_id=pending.basket_id).delete()
 
-    try:
-        OrderDispatcher().send_payment_confirmed_email_for_user(order, {"order": order})
-    except Exception as exc:
-        logger.error("Failed to send cash payment confirmation email for order %s: %s", order.number, exc)
+    def _send_confirmation_email():
+        started = time.monotonic()
+        try:
+            OrderDispatcher().send_payment_confirmed_email_for_user(order, {"order": order})
+            logger.info(
+                "Cash confirmation email for order %s finished in %.2fs",
+                order.number,
+                time.monotonic() - started,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to send cash payment confirmation email for order %s after %.2fs: %s",
+                order.number,
+                time.monotonic() - started,
+                exc,
+            )
+        finally:
+            connection.close()
+
+    # Render the receipt PDF and send the email after the order is committed,
+    # off the request thread, so a slow render/send can't hit the worker timeout.
+    transaction.on_commit(
+        lambda: threading.Thread(target=_send_confirmation_email, daemon=True).start()
+    )
 
     return {"order": order, "error": None}
 
