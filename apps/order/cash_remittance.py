@@ -20,6 +20,10 @@ from weasyprint import HTML
 
 TEMPLATE = "pdf/cash_remittance.html"
 LOGO = "img/logo-soc.png"
+# Bundled because the server has no Noto Sans installed (WeasyPrint would fall
+# back to whatever system sans it finds).
+FONT_REGULAR = "fonts/noto-sans/NotoSans-Regular.ttf"
+FONT_BOLD = "fonts/noto-sans/NotoSans-Bold.ttf"
 ZERO = Decimal("0.00")
 
 
@@ -100,7 +104,9 @@ def build_context(period, prepared_by=""):
         "totals": totals,
         "net_cash": net_cash,
         "net_cash_words": amount_in_words(net_cash),
-        "logo_uri": _logo_uri(),
+        "logo_uri": _static_uri(LOGO),
+        "font_regular_uri": _static_uri(FONT_REGULAR),
+        "font_bold_uri": _static_uri(FONT_BOLD),
         "home_page": settings.SOCIETY_HOME_PAGE.split("://", 1)[-1].rstrip("/"),
     }
 
@@ -110,16 +116,16 @@ def render_pdf(period, prepared_by="") -> bytes:
     return HTML(string=html).write_pdf()
 
 
-def _logo_uri():
-    # Read the logo from disk when we can, so rendering doesn't depend on
-    # fetching our own site. In production it lives under STATIC_ROOT.
-    candidates = [finders.find(LOGO)]
+def _static_uri(name):
+    # Read static files from disk when we can, so rendering doesn't depend on
+    # fetching our own site. In production they live under STATIC_ROOT.
+    candidates = [finders.find(name)]
     if getattr(settings, "STATIC_ROOT", None):
-        candidates.append(os.path.join(settings.STATIC_ROOT, LOGO))
+        candidates.append(os.path.join(settings.STATIC_ROOT, name))
     for path in candidates:
         if path and os.path.exists(path):
             return Path(path).resolve().as_uri()
-    return settings.OSCAR_STATIC_BASE_URL.rstrip("/") + static(LOGO)
+    return settings.OSCAR_STATIC_BASE_URL.rstrip("/") + static(name)
 
 
 _ONES = (

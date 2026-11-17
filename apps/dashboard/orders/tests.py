@@ -1,5 +1,8 @@
+import os
 from datetime import timedelta
 from decimal import Decimal
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -293,6 +296,14 @@ class CashRemittanceTests(TestCase):
         self.assertEqual(context["totals"]["cash"], Decimal("37.00"))
         self.assertEqual(context["net_cash"], Decimal("37.00"))
         self.assertEqual(context["net_cash_words"], "Thirty-seven Singapore dollars only")
+
+    def test_fonts_and_logo_are_read_from_disk(self):
+        # The server has no Noto Sans installed: the PDF must use the bundled files.
+        context = build_context(self.period)
+        for key in ("logo_uri", "font_regular_uri", "font_bold_uri"):
+            uri = context[key]
+            self.assertTrue(uri.startswith("file://"), f"{key}: {uri}")
+            self.assertTrue(os.path.exists(url2pathname(urlparse(uri).path)), f"{key}: {uri}")
 
     def test_dashboard_button_downloads_pdf(self):
         self._cash_sale(create_product(title="Onsite Tee", price=25), 1)

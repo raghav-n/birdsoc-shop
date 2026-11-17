@@ -4,17 +4,20 @@
 <meta charset="utf-8">
 <title>Cash Remittance Statement {{ reference }}</title>
 <style>
+  @font-face { font-family: "BSS Noto Sans"; font-weight: 400; src: url("{{ font_regular_uri }}"); }
+  @font-face { font-family: "BSS Noto Sans"; font-weight: 700; src: url("{{ font_bold_uri }}"); }
+
   @page {
     size: A4;
     margin: 16mm 15mm 20mm 15mm;
     @bottom-left {
       content: "Cash Remittance Statement {{ reference }}";
-      font: 7.5pt "Noto Sans", Arial, sans-serif;
+      font: 7.5pt "BSS Noto Sans", sans-serif;
       color: #7a6a80;
     }
     @bottom-right {
       content: "Page " counter(page) " of " counter(pages);
-      font: 7.5pt "Noto Sans", Arial, sans-serif;
+      font: 7.5pt "BSS Noto Sans", sans-serif;
       color: #7a6a80;
     }
   }
@@ -22,7 +25,7 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: "Noto Sans", Arial, sans-serif;
+    font-family: "BSS Noto Sans", sans-serif;
     font-size: 9pt;
     line-height: 1.4;
     color: #231a26;
