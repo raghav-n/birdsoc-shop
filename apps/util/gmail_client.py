@@ -9,6 +9,17 @@ from django.conf import settings
 
 GMAIL_HTTP_TIMEOUT_SECONDS = 10
 
+# The bank puts the payer's PayNow purpose code in front of our reference:
+# "ref-OTHR-MER-2ABC12" for "Other", "ref-GDDS-MER-2ABC12" for "Goods", and so
+# on. Which code appears depends on the payer's bank app, so match the
+# reference itself wherever it starts, not one particular code.
+_REF_START = r"(?<![A-Za-z0-9])"
+ORDER_REFERENCE_RE = re.compile(_REF_START + r"MER-([A-Za-z0-9\-]+)")
+
+
+def _event_reference_re(bank_prefix: str):
+    return re.compile(_REF_START + re.escape(bank_prefix) + r"([A-Za-z0-9\-]+)", re.IGNORECASE)
+
 
 class GmailClientError(Exception):
     pass
@@ -217,7 +228,7 @@ def find_paynow_email_for_order(
             if not body_text:
                 continue
 
-            order_match = re.search(r"OTHR-MER-([A-Za-z0-9\-]+)", body_text)
+            order_match = ORDER_REFERENCE_RE.search(body_text)
             amount_match = re.search(r"S\$\s*([\d,]+(?:\.[\d]{1,2})?)", body_text)
             if not order_match or not amount_match:
                 continue
@@ -252,7 +263,8 @@ def find_paynow_email_for_event_registration(
 
     Event registration references have the format EV-{event_id}-{reg_id} or
     EVG-{event_id}-{group_id}. The bank email body is expected to contain the
-    reference under the OTHR-EV- prefix, e.g. "OTHR-EV-12-45".
+    reference after the payer's purpose code, e.g. "OTHR-EV-12-45" or
+    "GDDS-EV-12-45".
     """
     if not reference:
         return None
@@ -264,9 +276,9 @@ def find_paynow_email_for_event_registration(
     )
 
     # Determine whether this is a group or individual registration so we use
-    # the correct bank-email prefix in both the Gmail query and body regex.
+    # the correct prefix in both the Gmail query and body regex.
     is_group = reference.upper().startswith("EVG-")
-    bank_prefix = "OTHR-EVG-" if is_group else "OTHR-EV-"
+    bank_prefix = "EVG-" if is_group else "EV-"
     q = f'{base_q} "{bank_prefix}"'
 
     now = datetime.now(timezone.utc)
@@ -285,8 +297,7 @@ def find_paynow_email_for_event_registration(
 
     # Strip leading "EV-" / "EVG-" to get the bare ID portion for matching
     bare_ref = re.sub(r"^EV[G]?-", "", reference)
-    escaped_prefix = re.escape(bank_prefix)
-    pattern = re.compile(rf"{escaped_prefix}([A-Za-z0-9\-]+)", re.IGNORECASE)
+    pattern = _event_reference_re(bank_prefix)
     amount_pattern = re.compile(r"S\$\s*([\d,]+(?:\.[\d]{1,2})?)")
 
     for item in msgs.get("messages") or []:

@@ -18,6 +18,7 @@ import re
 import time
 from base64 import urlsafe_b64encode
 from decimal import Decimal
+from pathlib import Path
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -36,7 +37,7 @@ Order = get_model("order", "Order")
 # ---------------------------------------------------------------------------
 # Regex patterns identical to the Apps Script defaults
 # ---------------------------------------------------------------------------
-ORDER_REGEX = r"OTHR-MER-([A-Za-z0-9-]+)"
+ORDER_REGEX = r"(?<![A-Za-z0-9])MER-([A-Za-z0-9-]+)"
 AMOUNT_REGEX = r"S\$([\d.]+)"
 EVENT_REG_REF_REGEX = r"(OBD25-[A-Za-z0-9-]+)"  # kept for _parse_and_call_webhook
 
@@ -172,6 +173,27 @@ class OrderEmailWebhookTest(APITestCase):
         self.assertEqual(
             db_order.status, settings.PAYMENT_AUTO_CONFIRMED_STATUS
         )
+
+    def test_order_confirmed_when_payer_uses_goods_purpose_code(self):
+        # Some bank apps send "ref-GDDS-MER-..." instead of "ref-OTHR-MER-...".
+        order = self._place_order()
+        order_number = order["number"]
+        amount = str(
+            Decimal(str(order["total_incl_tax"]))
+            + Decimal(str(order["donation_amount"]))
+        )
+
+        email_body = _build_order_email(order_number, amount).replace("ref-OTHR-", "ref-GDDS-")
+        self.assertIn(f"ref-GDDS-MER-{order_number})", email_body)
+        _, resp = _parse_and_call_webhook(self, email_body)
+        self.assertEqual(resp.status_code, 200)
+        db_order = Order._default_manager.get(number=order_number)
+        self.assertEqual(db_order.status, settings.PAYMENT_AUTO_CONFIRMED_STATUS)
+
+    def test_order_regex_matches_apps_script_default(self):
+        repo = Path(__file__).resolve().parents[3]
+        script = (repo / "scripts" / "apps-script" / "paynow-poller.js").read_text()
+        self.assertIn(f"ORDER_REGEX: '{ORDER_REGEX}'", script)
 
 
 

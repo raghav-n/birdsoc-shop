@@ -8,7 +8,9 @@
 // `processPayNowEmails`.
 
 const DEFAULTS = {
-  ORDER_REGEX: 'OTHR-MER-([A-Za-z0-9-]+)',
+  // The bank puts the payer's purpose code before our reference (OTHR-, GDDS-,
+  // ...), and it varies by bank app, so match MER- wherever it starts.
+  ORDER_REGEX: '(?<![A-Za-z0-9])MER-([A-Za-z0-9-]+)',
   AMOUNT_REGEX: 'S\\$([\\d.]+)',
   EVENT_REG_REF_REGEX: '(OBD25-[A-Za-z0-9-]+)',
   BATCH_API_URL: 'https://shop.birdsociety.sg/api/verify-payment-batch/',
