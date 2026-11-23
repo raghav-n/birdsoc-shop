@@ -1,5 +1,5 @@
 argon2-cffi==25.1.0
-authlib==1.9.5
+authlib==1.9.9
 black==26.10.1
 crispy-bootstrap4==2026.2
 Django==5.2.19
@@ -14,21 +14,21 @@ djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.9.0
 pandas==3.1.1
 openpyxl==3.1.5  # pandas Excel engine for the dashboard order/sales exports
-psycopg==3.3.8
-psycopg-binary==3.3.8
+psycopg==3.3.9
+psycopg-binary==3.3.9
 psycopg-pool==3.3.3
 pycountry==26.2.16
 pyjwt==2.15.1
-pymysql==1.2.3
+pymysql==1.2.4
 python-dotenv==1.2.4
-sentry-sdk==2.74.0
-sorl-thumbnail==13.4.0
+sentry-sdk==2.75.0
+sorl-thumbnail==13.5.0
 weasyprint==70.0
 pydyf==0.13.0  # pin: keep in step with weasyprint (62.3 broke on pydyf>=0.12; 70.x supports 0.13)
-google-api-python-client==2.201.0
+google-api-python-client==2.202.0
 google-genai
 pyyaml
-google-auth==2.62.1
+google-auth==2.62.2
 google-auth-oauthlib==1.5.0
 jsonschema==4.26.0
 gunicorn==26.2.0  # production server (birdsoc.service); was only installed by hand in the old venv
